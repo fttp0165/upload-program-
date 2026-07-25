@@ -1,0 +1,20 @@
+# 🔴 秘密絕不進 git(平台規約):.env 只留在本機,範本用 .env.example
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# 工具
+.coverage
+htmlcov/
+.DS_Store

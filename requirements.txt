@@ -1,0 +1,13 @@
+# 執行期相依。版本以相容區間表示;正式發版前應改為 lock 檔(pip-compile)以求可重現建置。
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32,<1.0
+gunicorn>=23.0,<24.0
+sqlalchemy[asyncio]>=2.0.30,<2.1
+asyncpg>=0.29,<0.31
+alembic>=1.13,<2.0
+pydantic>=2.9,<3.0
+pydantic-settings>=2.5,<3.0
+pyjwt[crypto]>=2.9,<3.0
+httpx>=0.27,<1.0
+boto3>=1.35,<2.0
+itsdangerous>=2.2,<3.0

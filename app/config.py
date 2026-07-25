@@ -1,4 +1,12 @@
-"""設定:全部走環境變數,缺必要變數 fail-fast(平台規約)。"""
+"""設定:全部走環境變數,缺必要變數 fail-fast(平台規約)。
+
+⚠️ 子路徑部署:本服務掛在 gateway 的 `/«PREFIX»/` 底下,且 gateway 以尾斜線
+`proxy_pass http://<alias>:8080/;` **剝掉前綴**後轉發。因此:
+
+- 路由一律註冊在**根路徑**(`/v1/...`、`/health`),不要自己再加前綴;
+- 對外絕對網址(OIDC redirect、下載連結)一律用 `public_base_url + api_prefix` 組出來,
+  不從 request 推導(TLS 在 gateway 終結,推導容易變成 http://)。
+"""
 
 from functools import lru_cache
 
@@ -14,7 +22,9 @@ class Settings(BaseSettings):
     environment: str = Field(default="dev", description="dev / staging / production")
     log_level: str = "INFO"
 
-    # 路徑前綴由 Platform 團隊分配,不得自選 —— 因此無預設值,缺少即 fail-fast。
+    # 對外主機(Cats 平台單一入口),例:https://catsapp.sporton.com.tw
+    public_base_url: str
+    # 路徑前綴由平台方分配,不得自選 —— 無預設值,缺少即 fail-fast。
     api_prefix: str
 
     # --- 資料庫 ---
@@ -22,46 +32,47 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=10, le=20, description="平台規約:連線池上限 20")
     db_max_overflow: int = Field(default=5)
 
-    # --- OIDC / Keycloak(接入契約 §2) ---
+    # --- OIDC / Keycloak(接入契約 §2)---
     # 只給 issuer;所有端點一律從 discovery 動態取,不寫死路徑。
     oidc_issuer: str
     oidc_client_id: str
     oidc_client_secret: str
-    oidc_redirect_uri: str
+    # 留空則自動組成 <public_base_url><api_prefix>/oidc/callback/
+    oidc_redirect_uri_override: str = ""
     oidc_scopes: str = "openid profile email"
     jwks_cache_seconds: int = 3600
     clock_skew_seconds: int = 30
+    oidc_http_timeout_seconds: float = 5.0
 
-    # 登入成功後導回的位置(前端接上後改成前端網址)。
-    post_login_redirect: str = "/"
-    post_logout_redirect: str = "/"
+    post_login_path: str = "/"
+    post_logout_path: str = "/"
 
-    # 簽 session cookie 用(非 JWT 簽章金鑰,只保護我們自己的 cookie)。
+    # 簽我們自己的 session cookie 用(不是 JWT 簽章金鑰)。
     session_secret: str
     session_cookie_name: str = "upload_session"
     session_cookie_secure: bool = True
+    session_max_age_seconds: int = 10 * 3600
 
     # 首批平台管理員的 sub(逗號分隔),首登自動 active + admin,解開通的雞生蛋問題。
     bootstrap_admin_subs: str = ""
 
-    # --- 物件儲存(MinIO / S3 相容)---
+    # --- 物件儲存(MinIO,只在 backend 網路內可達)---
+    # 🔴 瀏覽器不直連物件儲存:全 VM 只有 portal-gateway 持 80/443,MinIO 不上 cats-edge。
+    #    所以上傳/下載一律由本服務串流代收代送。
     s3_endpoint_url: str
     s3_region: str = "us-east-1"
     s3_bucket: str
     s3_access_key: str
     s3_secret_key: str
-    # 前端直傳用的對外端點;MinIO 在 compose 內部名稱與對外網址不同時要分開設。
-    s3_public_endpoint_url: str = ""
-    presign_expire_seconds: int = 900
+    s3_multipart_chunk_bytes: int = 16 * 1024 * 1024
 
-    # --- 上傳限制 ---
+    # --- 上傳限制(gateway 的 client_max_body_size 要 ≥ 這個值,申請路由時一併提出)---
     max_artifact_bytes: int = 512 * 1024 * 1024
     max_project_bytes: int = 5 * 1024 * 1024 * 1024
-    # 超過此大小就不在請求週期內重算 SHA-256(標記為未驗證,留給日後背景工作)。
-    verify_hash_max_bytes: int = 256 * 1024 * 1024
+    magic_sniff_bytes: int = 4096
 
     # --- 錯誤格式(RFC 7807)---
-    problem_type_base: str = "https://platform.sporton.com.tw/errors"
+    problem_type_base: str = "https://catsapp.sporton.com.tw/errors"
 
     @field_validator("api_prefix")
     @classmethod
@@ -69,18 +80,30 @@ class Settings(BaseSettings):
         v = "/" + v.strip().strip("/")
         return "" if v == "/" else v
 
-    @field_validator("oidc_issuer")
+    @field_validator("public_base_url", "oidc_issuer", "s3_endpoint_url")
     @classmethod
     def _strip_trailing_slash(cls, v: str) -> str:
         return v.rstrip("/")
 
+    # --- 衍生值 ---
+
+    @property
+    def external_base(self) -> str:
+        """本服務對外的根,例:https://catsapp.sporton.com.tw/upload"""
+        return f"{self.public_base_url}{self.api_prefix}"
+
+    @property
+    def oidc_redirect_uri(self) -> str:
+        return self.oidc_redirect_uri_override or f"{self.external_base}/oidc/callback/"
+
+    @property
+    def cookie_path(self) -> str:
+        """cookie 綁到自己的前綴,避免與同主機其他 App 的 cookie 互蓋(接入指南 §6)。"""
+        return f"{self.api_prefix}/" if self.api_prefix else "/"
+
     @property
     def bootstrap_admins(self) -> set[str]:
         return {s.strip() for s in self.bootstrap_admin_subs.split(",") if s.strip()}
-
-    @property
-    def s3_browser_endpoint(self) -> str:
-        return self.s3_public_endpoint_url or self.s3_endpoint_url
 
 
 @lru_cache

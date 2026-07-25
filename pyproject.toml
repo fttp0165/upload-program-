@@ -1,0 +1,22 @@
+# 僅作為 lint / test 設定;相依仍以 requirements*.txt 為準。
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = [
+  "B008",  # FastAPI 的 Depends()/Query() 就是寫在預設值
+  "E501",  # 行長交給 formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]  # 測試裡的 assert 與假密碼是刻意的
+"alembic/*" = ["E402"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -3,3 +3,5 @@ pytest>=8.3,<9.0
 pytest-asyncio>=0.24,<2.0
 aiosqlite>=0.20,<1.0
 ruff>=0.7,<1.0
+# 文件產生:憲法第四條要求 md + HTML 並存,HTML 一律由 md 產生以防兩版漂移
+markdown>=3.7,<4.0

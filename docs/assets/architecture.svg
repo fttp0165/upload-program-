@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" width="900" height="640"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="640" fill="#ffffff"/>
+
+  <!-- 使用者 -->
+  <text x="450" y="28" font-size="16" fill="#334" text-anchor="middle">內網使用者</text>
+  <line x1="450" y1="38" x2="450" y2="66" stroke="#334" stroke-width="2"/>
+  <polygon points="450,74 444,62 456,62" fill="#334"/>
+  <text x="464" y="58" font-size="13" fill="#6b7280">HTTPS 443</text>
+
+  <!-- gateway -->
+  <rect x="140" y="78" width="620" height="70" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2.5"/>
+  <text x="450" y="104" font-size="17" font-weight="bold" fill="#12228f" text-anchor="middle">
+    portal-gateway(cats-portal 擁有)
+  </text>
+  <text x="450" y="128" font-size="13" fill="#1a2540" text-anchor="middle">
+    全 VM 唯一持有 80/443 · TLS 在此終結 · 依路徑前綴分流,並剝掉前綴
+  </text>
+
+  <!-- cats-edge -->
+  <rect x="140" y="168" width="620" height="42" rx="8" fill="#e9f5ec" stroke="#1a7f37" stroke-width="2"/>
+  <text x="450" y="186" font-size="14" font-weight="bold" fill="#1a7f37" text-anchor="middle">
+    external network:cats-edge(external: true + name: cats-edge)
+  </text>
+  <text x="450" y="203" font-size="12" fill="#1a7f37" text-anchor="middle">
+    只有「對外容器」上這張網,以 gateway 設定用的短名作 alias
+  </text>
+  <line x1="450" y1="148" x2="450" y2="168" stroke="#12228f" stroke-width="2"/>
+  <line x1="450" y1="210" x2="450" y2="242" stroke="#1a7f37" stroke-width="2"/>
+  <text x="458" y="230" font-size="12" fill="#1a7f37">/«PREFIX»/</text>
+
+  <!-- upload-program stack -->
+  <rect x="112" y="246" width="676" height="248" rx="12" fill="#fffbea" stroke="#997404" stroke-width="2"/>
+  <text x="132" y="270" font-size="15" font-weight="bold" fill="#997404">upload-program stack(獨立 compose)</text>
+
+  <!-- svc -->
+  <rect x="300" y="284" width="300" height="56" rx="8" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="450" y="306" font-size="14" font-weight="bold" fill="#12228f" text-anchor="middle">svc:8080(FastAPI,對外容器)</text>
+  <text x="450" y="326" font-size="11.5" fill="#6b7280" text-anchor="middle">frontend + backend + cats-edge</text>
+
+  <!-- 下游 -->
+  <line x1="380" y1="340" x2="300" y2="386" stroke="#8a93a5" stroke-width="2"/>
+  <line x1="520" y1="340" x2="600" y2="386" stroke="#8a93a5" stroke-width="2"/>
+
+  <rect x="170" y="386" width="230" height="76" rx="8" fill="#fff" stroke="#8a93a5" stroke-width="1.5"/>
+  <text x="285" y="410" font-size="13.5" font-weight="bold" fill="#334" text-anchor="middle">db(PostgreSQL 16)</text>
+  <text x="285" y="430" font-size="11.5" fill="#6b7280" text-anchor="middle">named volume:pgdata</text>
+  <text x="285" y="450" font-size="11.5" fill="#6b7280" text-anchor="middle">只存 sub,無 email/姓名/密碼</text>
+
+  <rect x="500" y="386" width="230" height="76" rx="8" fill="#fff" stroke="#8a93a5" stroke-width="1.5"/>
+  <text x="615" y="410" font-size="13.5" font-weight="bold" fill="#334" text-anchor="middle">minio(S3 相容)</text>
+  <text x="615" y="430" font-size="11.5" fill="#6b7280" text-anchor="middle">named volume:minio-data</text>
+  <text x="615" y="450" font-size="11.5" fill="#6b7280" text-anchor="middle">原始碼 / 執行檔 / 文件</text>
+
+  <text x="450" y="482" font-size="12.5" font-weight="bold" fill="#c0392b" text-anchor="middle">
+    ⛔ db 與 minio 只在 backend 網路:不上 cats-edge、不對主機發布 port
+  </text>
+
+  <!-- 串流說明 -->
+  <rect x="112" y="510" width="676" height="46" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="450" y="530" font-size="12.5" font-weight="bold" fill="#c0392b" text-anchor="middle">
+    瀏覽器連不到 MinIO ⇒ 上傳與下載一律由 svc 串流轉送(不用 presigned 直傳)
+  </text>
+  <text x="450" y="548" font-size="11.5" fill="#c0392b" text-anchor="middle">
+    上傳走 S3 multipart:邊收邊算 SHA-256,記憶體固定一個 chunk,不落暫存檔
+  </text>
+
+  <!-- IdP -->
+  <rect x="300" y="576" width="300" height="50" rx="8" fill="#eef1fb" stroke="#12228f" stroke-width="1.5"/>
+  <text x="450" y="597" font-size="13.5" font-weight="bold" fill="#12228f" text-anchor="middle">Keycloak(IdP)</text>
+  <text x="450" y="615" font-size="11.5" fill="#6b7280" text-anchor="middle">只驗 token(RS256/JWKS),不自建帳號</text>
+  <line x1="450" y1="556" x2="450" y2="576" stroke="#12228f" stroke-width="2" stroke-dasharray="5 3"/>
+</svg>

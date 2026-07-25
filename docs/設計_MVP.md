@@ -1,0 +1,193 @@
+# upload-program MVP 設計
+
+**建立日期:** 2026-07-25 15:35
+**最後更新:** 2026-07-25 15:53
+**版本:** v2.0
+
+> 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
+> **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
+> `cats-portal/DOCS/帳號系統接入契約_SSO.md`——本文只引用不複製。
+
+---
+
+## 1. 部署拓撲(決定了下面所有設計)
+
+```
+                        內網使用者
+                            │ HTTPS 443
+                  ┌─────────▼──────────┐
+                  │   portal-gateway   │  全 VM 唯一持 80/443,依路徑前綴分流並剝掉前綴
+                  └─────────┬──────────┘
+                    external network: cats-edge
+                            │  /«PREFIX»/
+        ┌───────────────────▼────────────────────┐
+        │  upload-program stack                  │
+        │  ┌──────────────────────────────────┐  │
+        │  │ svc:8080(FastAPI,對外容器)      │  │  ← 只有它上 cats-edge
+        │  └────────┬──────────────┬──────────┘  │
+        │  ┌────────▼───────┐ ┌────▼──────────┐  │
+        │  │ db(PostgreSQL)│ │ minio(S3 相容)│  │  ← 不曝 port、不上 cats-edge
+        │  └────────────────┘ └───────────────┘  │
+        └────────────────────────────────────────┘
+                            ╎
+                    ┌───────▼────────┐
+                    │ Keycloak(IdP) │  只驗 token,不自建帳號
+                    └────────────────┘
+```
+<!--SVG:architecture-->
+
+### 1.1 兩個由拓撲推導出的關鍵決定
+
+| 決定 | 為什麼 |
+|---|---|
+| **上傳/下載由服務串流轉送**,不用 presigned 直傳 | MinIO 在 `backend` 網路、不曝 port,全 VM 只有 gateway 持 443——**瀏覽器根本連不到 MinIO**。presigned 需另開 gateway 路由,且簽章綁 host/path,前綴剝除會破壞簽章 |
+| **路由註冊在根路徑**,只設 `root_path` | gateway 以尾斜線 `proxy_pass http://<alias>:8080/;` **剝掉**前綴,容器收到的是根路徑;自己再加前綴會變雙前綴 404 |
+
+### 1.2 子路徑的連帶影響
+
+- 對外絕對網址(OIDC redirect、登入後導回)一律用 `PUBLIC_BASE_URL + API_PREFIX` 組出,
+  **不從 request 推導**——TLS 在 gateway 終結,推導會得到 `http://`。
+- **cookie path 綁到 `/«PREFIX»/`**,避免與同主機其他 App 的 cookie 互蓋。
+- OIDC redirect URI 實際為 `https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/`,
+  與 SSO 契約 §4.1 的字面(`https://<hostname>/oidc/callback/`)不同,申請 client 時需登記後者並向 portal 確認。
+- gateway 需要放寬 `client_max_body_size` 與逾時(≥ `MAX_ARTIFACT_BYTES`),申請路由時一併提出。
+
+---
+
+## 2. 領域模型
+
+```
+user ──< project_member >── project ──< release >── artifact
+```
+
+| 實體 | 說明 | 關鍵欄位 |
+|---|---|---|
+| `user` | 平台使用者 | `id`(UUID 內部鍵)、`sub`(unique)、`status`(pending/active/disabled)、`platform_role` |
+| `project` | 一個程式/工具 | `id`、`slug`(unique)、`name`、`summary`、`visibility`、`owner_id`、`total_bytes` |
+| `project_member` | 專案層權限 | `project_id`、`user_id`、`role`(owner/maintainer/viewer) |
+| `release` | 一次發布 | `id`、`project_id`、`version`、`notes`、`status`(draft/published)、`created_by_id` |
+| `artifact` | 發布內含的檔案 | `id`、`release_id`、`kind`、`filename`、`size_bytes`、`sha256`、`content_type`、`storage_key`、`upload_status`、`scan_status` |
+
+**🔴 業務庫只存 `sub`**——`user` 表**沒有** email / 姓名 / 密碼欄。顯示用的 email 與名稱由 IdP 的
+ID token / userinfo 即時提供,不落地(SSO 契約 §4.2)。PLM 的姓名快取是 §6.1 具名特例,本專案不繼承。
+
+### 2.1 權限模型(deny-by-default)
+
+- **平台層:** 首登自動建 `status=pending` 零角色 user → 所有業務 API 回 **403 待開通**,
+  文案指引「找 upload-program 管理員開通」。開通在本服務後台,不碰 Keycloak。
+  `/v1/me` 刻意對 pending 也開放——否則使用者只會撞到 403 卻不知道自己是誰、該找誰。
+- **專案層:** `owner`(全權,含刪除)> `maintainer`(發版、傳檔)> `viewer`(讀、下載)。
+- `visibility=internal` = 所有 active 使用者可讀;`private` = 僅成員可讀,
+  且對非成員一律回 **404**(不洩漏 private 專案是否存在)。
+
+---
+
+## 3. 檔案處理
+
+### 3.1 上傳
+
+`PUT /v1/releases/{release_id}/artifacts/{filename}?kind=binary`,**request body 為檔案原始位元組**。
+
+不用 `multipart/form-data`:Starlette 的 multipart 解析會把大檔落到暫存檔,
+違反平台鐵則「容器內不寫檔當狀態」。raw body 可直接串流。
+
+流程:
+
+1. `Content-Length` 先擋掉明顯過大的請求(單檔上限、專案配額),不必等收完才發現
+2. 邊收邊送 S3 **multipart**(每 part ≥5 MiB),同時 `hashlib.sha256` 增量計算
+3. 收到前 4 KB 時做 **magic bytes 判型**——不過就中止,**此時尚未寫出任何 part,不留物件**
+4. 完成後比對呼叫端宣告的 `X-Content-SHA256`(若有),不符即刪物件並作廢
+5. 記憶體用量固定在一個 chunk,不隨檔案大小成長
+
+物件 key:`projects/<project_id>/releases/<release_id>/<artifact_id>/<filename>`
+
+### 3.2 判型白名單(`app/filetypes.py`)
+
+不依賴 libmagic(避免 image 多帶系統相依),自建簽章表:ELF、PE(MZ)、Mach-O、
+zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、PNG、JPEG、GIF。
+
+- 每個 `kind` 有各自的允許清單:執行檔不得以 `doc` 名義上傳,PDF 不得以 `binary` 名義上傳
+- **`text/html` 與 `image/svg+xml` 在任何 kind 都拒收**——本服務散布可執行檔,
+  讓上傳內容在本網域被瀏覽器執行等同自開 XSS
+- 認不得的型別一律擋下,由人決定要不要放行
+
+### 3.3 下載
+
+`GET /v1/releases/{id}/artifacts/{aid}/download` → 由服務串流讀出物件,並強制:
+
+- `Content-Disposition: attachment; filename*=UTF-8''…`
+- `Content-Type: application/octet-stream` + `X-Content-Type-Options: nosniff`
+- `X-Artifact-SHA256`(供使用者自行校驗)、`X-Artifact-Scan-Status`
+
+### 3.4 尚未做的
+
+**病毒掃描未接**(T25 待決)。`scan_status` 預設 `not_scanned` 並隨下載回傳——
+「內部平台」不是把未掃描執行檔說成安全的理由。
+
+---
+
+## 4. API
+
+- 路徑前綴 ⏳ 由 Platform 分配;版本走路徑 `/v1/...`;錯誤一律 **RFC 7807**;時間 **ISO 8601 含時區**
+
+| Method | 路徑 | 用途 |
+|---|---|---|
+| GET | `/health` / `/ready` | liveness(不查相依)/ readiness(查 DB、MinIO、JWKS) |
+| GET | `/auth/login` | 導向 IdP(Auth Code + PKCE) |
+| GET | `/oidc/callback/` | IdP 導回,換 token、建/取本地 user |
+| POST | `/auth/refresh` | 以 refresh token 換新 access token |
+| GET | `/auth/logout` | single logout(導 IdP end_session) |
+| GET | `/v1/me` | 目前身分 + 開通狀態(pending 亦可讀) |
+| GET/POST | `/v1/projects` | 列出 / 建立專案 |
+| GET/PATCH/DELETE | `/v1/projects/{slug}` | 專案詳情 / 修改 / 刪除 |
+| GET/PUT | `/v1/projects/{slug}/members` | 成員與角色 |
+| DELETE | `/v1/projects/{slug}/members/{user_id}` | 移除成員 |
+| GET/POST | `/v1/projects/{slug}/releases` | 列出 / 建立版本(draft) |
+| GET/PATCH/DELETE | `/v1/releases/{id}` | 版本詳情 / 改說明 / 刪除 |
+| POST | `/v1/releases/{id}/publish` | draft → published(冪等) |
+| PUT | `/v1/releases/{id}/artifacts/{filename}` | 上傳檔案 |
+| GET | `/v1/releases/{id}/artifacts/{aid}/download` | 下載 |
+| DELETE | `/v1/releases/{id}/artifacts/{aid}` | 刪除檔案 |
+| GET | `/v1/search?q=` | 跨專案搜尋(只回可見的) |
+| GET/PATCH | `/v1/admin/users` | 開通 / 停用 / 指派平台角色 |
+
+**發布鎖定:** 已 published 的版本不可再增刪檔案,避免「同一版內容被偷換」;要改就發新版本。
+
+---
+
+## 5. 對齊平台規約的落點
+
+| 規約 | 本服務怎麼做 | 檔案 |
+|---|---|---|
+| 只有一個身份來源 | OIDC Auth Code + PKCE;不自建帳號、不簽 token | `app/oidc.py` |
+| JWT 驗證 | RS256、JWKS 快取 1h、`kid` 輪替、驗 iss/aud/exp、±30s、失敗 401 | `app/oidc.py` |
+| 業務庫不存個資 | `user` 表只有 `sub` + 本地角色 | `app/models.py` |
+| 401/403 語意 | 401=token 無效;403=已認證未開通/無權限,型別 `pending-activation` | `app/problems.py` |
+| Log | stdout JSON 單行,含 `trace_id`/`user_id`;不記 JWT、query、檔案內容 | `app/logging_setup.py` |
+| 追蹤 | 收 `X-Trace-Id` 沿用,無則產生 UUID v4 並回寫 header | `app/middleware.py` |
+| 容器 | multi-stage、python:3.12-slim、non-root UID 1000、EXPOSE 8080、HEALTHCHECK、SIGTERM 30s | `Dockerfile` |
+| compose | cats-edge `external: true` + `name`;DB/MinIO 只在 backend、不曝 port | `docker-compose.yml` |
+| DB | 一服務一 database、連線池 ≤20、走 service name、不跨庫 join | `app/db.py` |
+| 設定 | 全走環境變數,缺必要變數 fail-fast;`.env` 不進 git | `app/config.py` |
+| migration | 有 `downgrade()` 可回滾 | `alembic/versions/0001_initial.py` |
+
+---
+
+## 6. 待定案(⏳)
+
+| 項目 | 待誰決定 | 任務 |
+|---|---|---|
+| 服務短名 / 路徑前綴 / GHCR / DB 命名 | Platform 團隊分配 | — |
+| SSO client_id 與 secret | 走 SSO 契約 §5 申請 | T26 |
+| 病毒掃描是否納入 MVP | 開發者決策 | T25 |
+| gateway `client_max_body_size` 與逾時 | 申請路由時提出 | T28 |
+| 前端介面 | M7 | T30 |
+
+---
+
+## 版本歷史
+
+| 版本 | 日期 | 修改人 | 摘要 |
+|---|---|---|---|
+| v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
+| v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **依 Cats 接入指南 v2.0 全面修正**:新增 §1 部署拓撲(含 SVG/ASCII 架構圖)與子路徑連帶影響;**儲存設計由 presigned 直傳改為服務串流轉送**(瀏覽器連不到 backend 網路的 MinIO),並說明捨棄 multipart 的理由;新增判型白名單與下載強制 attachment 細節;API 表更新為實際實作的端點;§5 對齊表補上對應檔案;依憲法第七條補日期、版本與本歷史表。產品範圍與里程碑移至開發計畫書 |

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 開發計畫書</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 00:28
-<strong>版本:</strong> v1.1</p>
+<strong>最後更新:</strong> 2026-07-26 00:53
+<strong>版本:</strong> v1.2</p>
 <blockquote>
 <p>本文是 upload-program 的開發藍圖:目標、範圍、里程碑、資料影響分級與回滾原則。
 任務層級的追蹤見 <a href="任務表.md">任務表.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>。
@@ -103,7 +103,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>容量</td>
-<td>單檔上限 <strong>100 MB</strong>(2026-07-26 定案);專案總容量暫定 5 GB(Q10 待確定)</td>
+<td>單檔上限 <strong>100 MB</strong>;專案總容量兩級距——標準 <strong>2 GB</strong>(預設)/ 擴充 <strong>10 GB</strong>(需申請)</td>
 </tr>
 <tr>
 <td>可用</td>
@@ -484,6 +484,11 @@ summary { cursor:pointer; color:#12228f; }
 <td>資料在 named volume;備份與還原演練列為 M6 出場條件(T23)</td>
 </tr>
 <tr>
+<td>磁碟隨時間線性成長</td>
+<td>共用 VM 空間被吃光,影響 portal / PLM / AES_KEY</td>
+<td>標準級距壓在 2 GB;⏳ <strong>舊版本清理策略尚未定案(Q13)——上限只是延後爆炸,清理才是控制手段</strong>;另需磁碟監控告警(M6)</td>
+</tr>
+<tr>
 <td>事後補記的程式碼未經 TDD</td>
 <td>可能有未被測試釘住的行為</td>
 <td>補齊測試並實際跑綠;未跑綠前任務不得標 ✅</td>
@@ -507,6 +512,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-25 15:53</td>
 <td>Claude(Benny 授權)</td>
 <td>初版:目標與範圍界線、系統架構(含子路徑與不直連 MinIO 兩項推導)、M1–M7 里程碑與出場條件、資料影響分級、回滾原則、待平台分配清單、接入指南 §10 八問答覆、已知風險</td>
+</tr>
+<tr>
+<td>v1.2</td>
+<td>2026-07-26 00:53</td>
+<td>Claude(Benny 裁示)</td>
+<td>Q10 定案回寫:容量目標改為兩級距(標準 2 GB / 擴充 10 GB);風險表新增「磁碟隨時間線性成長」一列,點出舊版本清理策略(Q13)未定</td>
 </tr>
 <tr>
 <td>v1.1</td>

@@ -157,8 +157,9 @@ jobs:
           docker rm smoke
 
       # 🔴 有 high / critical 即失敗
+      # 版本必須帶 v 前綴且確實存在 —— 先前誤寫 `0.28.0`,CI 直接死在 action 解析階段
       - name: Trivy 掃描
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: upload-program:ci
           format: table

@@ -30,6 +30,7 @@ ASSETS = DOCS / "assets"
 
 # 需要 HTML 版的正式文件。開發日誌刻意不列(第四條 4)。
 TARGETS = [
+    "功能需求大綱.md",
     "開發計畫書.md",
     "任務表.md",
     "設計_MVP.md",

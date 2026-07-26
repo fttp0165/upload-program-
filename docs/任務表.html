@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-25 15:53
-<strong>版本:</strong> v1.0</p>
+<strong>最後更新:</strong> 2026-07-26 00:15
+<strong>版本:</strong> v1.1</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -86,16 +86,23 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>T04</td>
 <td>設計文件升版(領域模型、API、儲存、安全)</td>
-<td>🔵</td>
+<td>✅</td>
 <td>🟢</td>
 <td>與現行程式碼一致;有版本歷史</td>
 </tr>
 <tr>
 <td>T05</td>
 <td>文件產生器 <code>tools/render_docs.py</code> + HTML 版</td>
-<td>🔵</td>
+<td>✅</td>
 <td>🟢</td>
-<td>四份正式文件皆有 md + HTML;light 主題;架構圖內嵌 SVG</td>
+<td>正式文件皆有 md + HTML;light 主題;架構圖內嵌 SVG;<code>--check</code> 可驗同步</td>
+</tr>
+<tr>
+<td>T31</td>
+<td>功能需求大綱(補列於 M1)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>七大模組功能項齊備,每項有編號/優先級/里程碑/實作狀態;範圍外與開放問題明列</td>
 </tr>
 </tbody>
 </table>
@@ -390,8 +397,8 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>A4</td>
-<td>設計文件尚未與實作對齊(presigned → 串流已變更)</td>
-<td>T04</td>
+<td>~~設計文件尚未與實作對齊~~ 已於 T04 完成(設計_MVP v2.0)</td>
+<td>T04 ✅</td>
 </tr>
 </tbody>
 </table>
@@ -412,6 +419,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-25 15:53</td>
 <td>Claude(Benny 授權)</td>
 <td>初版:M1–M7 共 30 項任務,含狀態、資料影響分級與驗收標準;T06–T24 因事後補記標 ⚠️;另列四項合規欠項</td>
+</tr>
+<tr>
+<td>v1.1</td>
+<td>2026-07-26 00:15</td>
+<td>Claude(Benny 授權)</td>
+<td>新增 T31 功能需求大綱(補列於 M1,✅);T04 設計文件升版與 T05 文件產生器由 🔵 改 ✅;欠項 A4 結案</td>
 </tr>
 </tbody>
 </table>

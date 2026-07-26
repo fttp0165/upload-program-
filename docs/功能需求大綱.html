@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 功能需求大綱</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/功能需求大綱.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 功能需求大綱</h1>
+<p><strong>建立日期:</strong> 2026-07-26 00:15
+<strong>最後更新:</strong> 2026-07-26 00:15
+<strong>版本:</strong> v1.0</p>
+<blockquote>
+<p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
+範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
+任務追蹤見 <a href="任務表.md">任務表.md</a>。
+需求變更<strong>不直接改程式</strong>——先改本文與任務表(憲法第一條 4)。</p>
+</blockquote>
+<hr />
+<h2>0. 一句話定義</h2>
+<p><strong>公司內部的開發者程式分享平台</strong>:登入後建立專案,在專案內上傳<strong>原始碼、執行檔、程式文件</strong>,
+以<strong>版本</strong>為單位發布,同事可以瀏覽、搜尋、下載。</p>
+<p>做的是「<strong>有版本管理的程式發布倉庫</strong>」,不是分散式版本控制系統。</p>
+<hr />
+<h2>1. 使用者角色</h2>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>定義</th>
+<th>能做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>訪客</strong></td>
+<td>未登入</td>
+<td>只能被導向登入頁,看不到任何內容</td>
+</tr>
+<tr>
+<td><strong>待開通使用者</strong></td>
+<td>首登建立,零角色(<code>pending</code>)</td>
+<td>只能看到自己的身分與「請找管理員開通」的指引</td>
+</tr>
+<tr>
+<td><strong>一般使用者</strong></td>
+<td>已開通(<code>active</code>)</td>
+<td>建立自己的專案;瀏覽/搜尋/下載所有 internal 專案</td>
+</tr>
+<tr>
+<td><strong>專案 viewer</strong></td>
+<td>被加入專案的成員</td>
+<td>讀取與下載該專案(含 private)</td>
+</tr>
+<tr>
+<td><strong>專案 maintainer</strong></td>
+<td>被加入專案的成員</td>
+<td>viewer 權限 + 建版本、上傳檔案、發布</td>
+</tr>
+<tr>
+<td><strong>專案 owner</strong></td>
+<td>專案建立者</td>
+<td>maintainer 權限 + 改專案設定、管成員、刪除專案</td>
+</tr>
+<tr>
+<td><strong>平台管理員</strong></td>
+<td><code>platform_role=admin</code></td>
+<td>開通/停用帳號、指派平台角色;可見全部專案</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>權限原則:deny-by-default。</strong> 身分由 Keycloak 認證,但「能做什麼」完全由本平台自己決定,
+不碰 Keycloak 的角色設定。</p>
+</blockquote>
+<hr />
+<h2>2. 主要使用情境</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>情境</th>
+<th>流程</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U1</td>
+<td><strong>第一次使用</strong></td>
+<td>開站 → 導向 SSO 登入 → 回站後看到「待開通」指引 → 管理員開通 → 可用</td>
+</tr>
+<tr>
+<td>U2</td>
+<td><strong>發布一個工具</strong></td>
+<td>建立專案 → 建立版本 v1.0.0 → 上傳執行檔 + 原始碼 + 使用說明 → 發布</td>
+</tr>
+<tr>
+<td>U3</td>
+<td><strong>找別人的工具來用</strong></td>
+<td>搜尋關鍵字 → 開專案 → 看版本列表 → 下載執行檔 → 用 SHA-256 校驗</td>
+</tr>
+<tr>
+<td>U4</td>
+<td><strong>發新版</strong></td>
+<td>開既有專案 → 建立版本 v1.1.0 → 上傳新檔 → 發布(舊版仍在,可回頭下載)</td>
+</tr>
+<tr>
+<td>U5</td>
+<td><strong>內部限定的工具</strong></td>
+<td>建專案時設 private → 加入指定同事為成員 → 只有成員找得到、下得到</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>3. 功能需求</h2>
+<p><strong>優先級:</strong> P0 = MVP 必要 / P1 = MVP 應有 / P2 = 之後再說
+<strong>狀態:</strong> ✅ 已實作(未驗證)/ ⬜ 未實作 / 🔒 已實作但阻塞於外部條件</p>
+<blockquote>
+<p>⚠️ 「已實作」僅表示程式碼存在。專案至今<strong>測試未執行</strong>(欠項 A1),
+任何 ✅ 都不等於已驗證可用。</p>
+</blockquote>
+<h3>A. 帳號與權限</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F01</td>
+<td>SSO 登入</td>
+<td>走 Keycloak(Auth Code + PKCE);<strong>不自建帳號、不存密碼</strong></td>
+<td>P0</td>
+<td>M3</td>
+<td>🔒 待 client 申請</td>
+</tr>
+<tr>
+<td>F02</td>
+<td>首登自動建帳號</td>
+<td>自動建立零角色本地帳號;業務庫<strong>只存 <code>sub</code></strong></td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F03</td>
+<td>待開通指引</td>
+<td>未開通存取業務功能一律 403,文案指引「找 upload-program 管理員開通」</td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F04</td>
+<td>查看自己的身分</td>
+<td>顯示開通狀態與角色;email/姓名由 IdP 即時提供,不落地</td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F05</td>
+<td>單一登出</td>
+<td>導向 IdP 登出端點,登出後所有接入 App 都需重登</td>
+<td>P0</td>
+<td>M3</td>
+<td>🔒 待 client 申請</td>
+</tr>
+<tr>
+<td>F06</td>
+<td>延續登入</td>
+<td>access token 過期時以 refresh token 續期,不必重打帳密</td>
+<td>P1</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3>B. 專案管理</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F10</td>
+<td>建立專案</td>
+<td>短名(網址用)、名稱、簡介、可見性;短名全站唯一</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F11</td>
+<td>專案列表</td>
+<td>只列出當事人看得到的專案,支援關鍵字與分頁</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F12</td>
+<td>專案詳情</td>
+<td>基本資料 + 自己在該專案的角色</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F13</td>
+<td>編輯專案</td>
+<td>改名稱、簡介、可見性(maintainer 以上)</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F14</td>
+<td>刪除專案</td>
+<td>owner 限定;<strong>連同所有版本與檔案一併清除</strong>,不留孤兒物件</td>
+<td>P1</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F15</td>
+<td>成員與角色</td>
+<td>加入/調整/移除成員,三種角色(owner/maintainer/viewer)</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F16</td>
+<td>轉移擁有權</td>
+<td>把 owner 移交他人</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+</tbody>
+</table>
+<p><strong>可見性規則</strong></p>
+<ul>
+<li><code>internal</code>(預設):所有已開通使用者可讀、可下載</li>
+<li><code>private</code>:僅成員可讀;<strong>對非成員一律回 404</strong>,不洩漏該專案是否存在</li>
+</ul>
+<h3>C. 版本發布</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F20</td>
+<td>建立版本</td>
+<td>版本號(專案內唯一)+ 發布說明;初始為 <strong>draft</strong></td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F21</td>
+<td>編輯發布說明</td>
+<td>draft 階段可反覆修改</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F22</td>
+<td>發布版本</td>
+<td>draft → published;<strong>至少要有一個上傳完成的檔案</strong>才可發布;重複發布為冪等</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F23</td>
+<td>發布後鎖定</td>
+<td>已發布的版本<strong>不可增刪檔案</strong>,避免同一版內容被偷換;要改就發新版</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F24</td>
+<td>版本列表</td>
+<td>非成員只看得到已發布版本;draft 是作者的工作區</td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F25</td>
+<td>刪除版本</td>
+<td>owner 限定,連同其檔案</td>
+<td>P1</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F26</td>
+<td>標記最新版</td>
+<td>提供「取得最新版」的捷徑</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+</tbody>
+</table>
+<h3>D. 檔案上傳與下載</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F30</td>
+<td>三類檔案上傳</td>
+<td><code>source</code>(原始碼)/ <code>binary</code>(執行檔)/ <code>doc</code>(程式文件)</td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F31</td>
+<td>大檔上傳</td>
+<td>數百 MB 等級;串流處理,記憶體不隨檔案大小成長</td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F32</td>
+<td><strong>判型與拒收</strong></td>
+<td>驗 magic bytes,不信副檔名與前端宣稱的型別;各類別有白名單;<strong>HTML/SVG 一律拒收</strong></td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F33</td>
+<td>SHA-256 校驗值</td>
+<td>每個檔案保存雜湊供使用者自行校驗;可與上傳端宣告值比對,不符即作廢</td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F34</td>
+<td>容量限制</td>
+<td>單檔上限與專案總容量上限,超過回 413</td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F35</td>
+<td><strong>安全下載</strong></td>
+<td>一律 <code>Content-Disposition: attachment</code> + <code>nosniff</code>;絕不讓上傳內容在本網域被瀏覽器執行</td>
+<td>P0</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F36</td>
+<td>刪除檔案</td>
+<td>僅 draft 版本可刪</td>
+<td>P1</td>
+<td>M5</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F37</td>
+<td>掃毒狀態</td>
+<td>下載處誠實標示掃描狀態;<strong>未接掃毒前一律標 <code>not_scanned</code></strong></td>
+<td>P0</td>
+<td>M5</td>
+<td>✅(標示)</td>
+</tr>
+<tr>
+<td>F38</td>
+<td>病毒掃描</td>
+<td>實際接上掃毒引擎(ClamAV)</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作(待決策 T25)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>為什麼 F32/F35 是 P0 而不是「加分項」:</strong> 這是一個<strong>散布可執行檔</strong>的平台。
+若讓上傳內容以 HTML/JS 在本服務網域被瀏覽器執行,等於自己開一個 XSS 給全公司。</p>
+</blockquote>
+<h3>E. 瀏覽與搜尋</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F40</td>
+<td>跨專案搜尋</td>
+<td>以名稱 / 短名 / 簡介關鍵字搜尋,<strong>只回當事人看得到的專案</strong></td>
+<td>P0</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F41</td>
+<td>依檔案類型篩選</td>
+<td>例:只找有 Windows 執行檔的專案</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+<tr>
+<td>F42</td>
+<td>標籤分類</td>
+<td>為專案加標籤並依標籤瀏覽</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+<tr>
+<td>F43</td>
+<td>下載次數統計</td>
+<td>顯示各版本 / 各檔案的下載次數</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+<tr>
+<td>F44</td>
+<td>說明文件呈現</td>
+<td>專案頁直接呈現 README 內容</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>F44 若要做,<strong>必須是伺服器端轉譯後輸出純文字或消毒過的內容</strong>,不得直接把上傳的 HTML 餵給瀏覽器
+——否則等於繞過 F32/F35 的防線。</p>
+</blockquote>
+<h3>F. 平台管理</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F50</td>
+<td>待開通清單</td>
+<td>列出等待開通的帳號</td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F51</td>
+<td>開通 / 停用帳號</td>
+<td>開通後即時生效;不得停用自己(避免平台一個管理員都不剩)</td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F52</td>
+<td>指派平台管理員</td>
+<td>在本平台後台指派,<strong>不碰 Keycloak</strong></td>
+<td>P0</td>
+<td>M3</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F53</td>
+<td>管理員可見全部專案</td>
+<td>便於處理違規內容與協助排查</td>
+<td>P1</td>
+<td>M4</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F54</td>
+<td>稽核紀錄</td>
+<td>誰在何時開通了誰、刪了什麼</td>
+<td>P2</td>
+<td>—</td>
+<td>⬜ 未實作(目前僅寫入 log)</td>
+</tr>
+</tbody>
+</table>
+<h3>G. 系統與維運</h3>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F60</td>
+<td>健康檢查</td>
+<td><code>/health</code>(liveness,不查相依)+ <code>/ready</code>(DB / 物件儲存 / IdP 公鑰)</td>
+<td>P0</td>
+<td>M2</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F61</td>
+<td>結構化 log</td>
+<td>stdout、JSON 單行、含 <code>trace_id</code>;<strong>不記密碼 / JWT / 個資</strong></td>
+<td>P0</td>
+<td>M2</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F62</td>
+<td>統一錯誤格式</td>
+<td>RFC 7807;401(token 無效)與 403(未開通/無權限)語意分離</td>
+<td>P0</td>
+<td>M2</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>F63</td>
+<td>備份與還原</td>
+<td>定期備份 + <strong>實際演練過的還原程序</strong></td>
+<td>P0</td>
+<td>M6</td>
+<td>⬜ 未實作(T27)</td>
+</tr>
+<tr>
+<td>F64</td>
+<td>換版與回滾</td>
+<td>改 image tag → pull → reload gateway;回滾不動 DB</td>
+<td>P0</td>
+<td>M6</td>
+<td>⬜ 未實作(T27)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>4. 非功能需求</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>需求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>安全</strong></td>
+<td>不自建帳號/不存密碼/不自簽 JWT;業務庫只存 <code>sub</code>;上傳驗 magic bytes;下載強制 attachment</td>
+</tr>
+<tr>
+<td><strong>效能</strong></td>
+<td>大檔上傳記憶體固定;DB 連線池 ≤20</td>
+</tr>
+<tr>
+<td><strong>可用性</strong></td>
+<td><code>/health</code> 啟動 60 秒內回 200;SIGTERM 後 30 秒內優雅關閉,換版不斷既有請求</td>
+</tr>
+<tr>
+<td><strong>相容性</strong></td>
+<td>服務掛在 gateway 子路徑 <code>/«PREFIX»/</code> 下且前綴會被剝掉,所有對外連結都要正確</td>
+</tr>
+<tr>
+<td><strong>可維運</strong></td>
+<td>log 可依 <code>trace_id</code> 跨服務追查;migration 可雙向回滾</td>
+</tr>
+<tr>
+<td><strong>合規</strong></td>
+<td>通過 Cats 接入指南 §11 的 Definition of Done 全部檢查項</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. 範圍外(MVP 不做)</h2>
+<p>與開發計畫書 §1.2 一致:</p>
+<table>
+<thead>
+<tr>
+<th>不做</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git 協定(<code>clone</code>/<code>push</code>)、commit 圖、diff</td>
+<td>GitHub 的核心難點;本平台以「版本化的檔案集」取代</td>
+</tr>
+<tr>
+<td>Pull Request / code review</td>
+<td>第二期再議</td>
+</tr>
+<tr>
+<td>Issue 追蹤</td>
+<td>第二期再議</td>
+</tr>
+<tr>
+<td>線上編輯程式碼</td>
+<td>上傳既有產物即可</td>
+</tr>
+<tr>
+<td>CI 建置</td>
+<td>本平台不負責編譯</td>
+</tr>
+<tr>
+<td>外網公開</td>
+<td>內部平台,登入才可見</td>
+</tr>
+<tr>
+<td>留言 / 評分 / 訂閱通知</td>
+<td>非核心,先確認平台有人用再說</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. 開放問題(待決策)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>待誰決定</th>
+<th>影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>病毒掃描要不要納入 MVP?</td>
+<td>你</td>
+<td>不納入的話,平台可能成為惡意執行檔散布管道;至少要維持誠實標示</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>需要「轉移擁有權」嗎(F16)?</td>
+<td>你</td>
+<td>目前 owner 離職就沒人能管該專案</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>需要「最新版」捷徑嗎(F26)?</td>
+<td>你</td>
+<td>影響下載連結是否穩定可寫進文件</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>需要標籤與分類嗎(F42)?</td>
+<td>你</td>
+<td>專案數量少時搜尋就夠;多了會需要</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>需要下載統計嗎(F43)?</td>
+<td>你</td>
+<td>影響是否要記錄下載事件與稽核表設計</td>
+</tr>
+<tr>
+<td>Q6</td>
+<td>需要稽核紀錄嗎(F54)?</td>
+<td>你</td>
+<td>目前只寫 log;若要查詢介面就得建表</td>
+</tr>
+<tr>
+<td>Q7</td>
+<td>單檔與專案容量上限訂多少?</td>
+<td>你 + Platform</td>
+<td>連動 gateway 的 <code>client_max_body_size</code> 與 VM 磁碟規劃</td>
+</tr>
+<tr>
+<td>Q8</td>
+<td>前端範圍到哪(M7)?</td>
+<td>你</td>
+<td>目前只有 API,使用者需用 curl</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>7. 需求覆蓋現況總結</h2>
+<table>
+<thead>
+<tr>
+<th>模組</th>
+<th>功能項</th>
+<th>已實作</th>
+<th>未實作</th>
+<th>阻塞於外部</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 帳號與權限</td>
+<td>6</td>
+<td>4</td>
+<td>0</td>
+<td>2(待 SSO client)</td>
+</tr>
+<tr>
+<td>B 專案管理</td>
+<td>7</td>
+<td>6</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>C 版本發布</td>
+<td>7</td>
+<td>6</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>D 檔案</td>
+<td>9</td>
+<td>8</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>E 瀏覽與搜尋</td>
+<td>5</td>
+<td>1</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr>
+<td>F 平台管理</td>
+<td>5</td>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>G 系統與維運</td>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr>
+<td><strong>合計</strong></td>
+<td><strong>44</strong></td>
+<td><strong>32</strong></td>
+<td><strong>10</strong></td>
+<td><strong>2</strong></td>
+</tr>
+</tbody>
+</table>
+<p>未實作的 10 項中,<strong>除 F63/F64(備份與換版,P0)外皆為 P2</strong>,不阻擋 MVP。</p>
+<blockquote>
+<p>再次提醒:上表的「已實作」只代表程式碼存在。<strong>測試從未執行</strong>(欠項 A1),
+在跑出綠燈之前,這 32 項都不該當成可用。</p>
+</blockquote>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-26 00:15</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:7 大模組共 44 個功能項(F01–F64)、7 種使用者角色、5 條使用情境、非功能需求、範圍外清單(對齊開發計畫書 §1.2)、8 項開放問題、需求覆蓋現況總結</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -16,6 +16,10 @@ ignore = [
 "alembic/*" = ["E402"]
 
 [tool.pytest.ini_options]
+# 🐛 根本原因(T12,CI 第一次執行抓到):`python -m pytest` 會把 cwd 加進 sys.path,
+# 但 `pytest` 執行檔不會 —— 於是本機跑得過、CI 一跑就 ModuleNotFoundError: No module named 'app'。
+# 明確宣告 pythonpath,兩種呼叫方式都能用,不必要求開發者記得用哪一種。
+pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]

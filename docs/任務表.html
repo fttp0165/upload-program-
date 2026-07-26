@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 00:28
-<strong>版本:</strong> v1.2</p>
+<strong>最後更新:</strong> 2026-07-26 00:41
+<strong>版本:</strong> v1.3</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -386,7 +386,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>cats-portal 路由 PR + 驗收</td>
 <td>⬜</td>
 <td>🟢</td>
-<td><code>/«PREFIX»/</code> 通;不影響既有 <code>/</code>、<code>/TMP_GEN/</code>、<code>/plm/</code></td>
+<td><code>/«PREFIX»/</code> 通;<strong>靜態檔 location 採剝前綴寫法</strong>(見決策文件 §6.2);<code>client_max_body_size</code> ≥128 MB;不影響既有 <code>/</code>、<code>/TMP_GEN/</code>、<code>/plm/</code></td>
 </tr>
 <tr>
 <td>T29</td>
@@ -400,7 +400,8 @@ summary { cursor:pointer; color:#12228f; }
 <h2>M7 前端</h2>
 <blockquote>
 <p>範圍依 2026-07-26 裁示:主頁、導航列、專案頁面、專案歷史、最新版本至頂。
-⏳ 技術選型未定(Q9),建議伺服器端模板;動工前需先定案。</p>
+技術選型已定案:<strong>Jinja2 + 原生 JS</strong>,見 <a href="決策_前端技術選型.md">決策_前端技術選型.md</a>。
+<strong>執行順序:T47 → T40 → T41–T45。</strong></p>
 </blockquote>
 <table>
 <thead>
@@ -423,9 +424,16 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>T39</td>
 <td>前端技術選型定案(Q9)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>決策文件含選項比較、代價、實作綱要與推翻條件;靜態檔剝前綴寫法可直接進路由 PR</td>
+</tr>
+<tr>
+<td>T47</td>
+<td>錯誤回應內容協商(HTML vs problem+json)</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>書面決策:模板 vs SPA、靜態檔供應方式、子路徑前綴處理;<strong>T40 動工前必須完成</strong></td>
+<td>瀏覽器導覽得到 HTML 錯誤頁,API 呼叫仍為 <code>problem+json</code>;<strong>T40 前置</strong></td>
 </tr>
 <tr>
 <td>T40</td>
@@ -460,7 +468,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>上傳介面:建版本、傳檔、發布(F74)</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>不需 curl 即可完成一輪上傳與發布</td>
+<td>不需 curl 即可完成一輪上傳與發布;<strong>XHR PUT 並顯示上傳進度</strong>與失敗提示(HTML 表單發不出 raw body PUT)</td>
 </tr>
 <tr>
 <td>T45</td>
@@ -548,6 +556,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-26 00:15</td>
 <td>Claude(Benny 授權)</td>
 <td>新增 T31 功能需求大綱(補列於 M1,✅);T04 設計文件升版與 T05 文件產生器由 🔵 改 ✅;欠項 A4 結案</td>
+</tr>
+<tr>
+<td>v1.3</td>
+<td>2026-07-26 00:41</td>
+<td>Claude(Benny 裁示)</td>
+<td>Q9 定案:T39 結案(Jinja2 + 原生 JS);<strong>新增 T47 錯誤回應內容協商並列為 T40 前置</strong>;T44 補上 XHR 上傳進度的驗收標準;T28 補上靜態檔剝前綴寫法與 <code>client_max_body_size</code></td>
 </tr>
 <tr>
 <td>v1.2</td>

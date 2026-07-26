@@ -84,6 +84,12 @@ class MemberIn(BaseModel):
     role: ProjectRole
 
 
+class OwnerTransfer(BaseModel):
+    """轉移擁有權的目標人選(F16)。"""
+
+    user_id: uuid.UUID
+
+
 class MemberOut(BaseModel):
     user_id: uuid.UUID
     sub: str

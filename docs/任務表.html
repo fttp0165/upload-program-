@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 07:10
-<strong>版本:</strong> v1.8</p>
+<strong>最後更新:</strong> 2026-07-26 07:45
+<strong>版本:</strong> v1.9</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -289,9 +289,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T34</td>
 <td>轉移擁有權(F16)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>owner 可移交給成員;原 owner 降為 maintainer;非 owner 不可操作</td>
+<td>9 條測試(<strong>先紅後綠</strong>):<code>PUT /projects/{slug}/owner</code>;原 owner 降 maintainer;冪等;maintainer/非成員 403;未開通者 409;<strong>平台管理員可代為轉移</strong></td>
 </tr>
 <tr>
 <td>T35</td>
@@ -632,6 +632,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-26 07:10</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T16 完成、A6 結案</strong>:新增 22 條 single logout / session cookie 契約測試(總數 81→103),未測出缺陷;除 A2 外所有欠項皆已清償</td>
+</tr>
+<tr>
+<td>v1.9</td>
+<td>2026-07-26 07:45</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T34 轉移擁有權完成</strong>——本專案第一個走完整 TDD(紅→綠)的任務;測試 103→112</td>
 </tr>
 </tbody>
 </table>

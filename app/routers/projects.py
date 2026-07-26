@@ -12,6 +12,7 @@ from ..models import Project, ProjectMember, ProjectRole, User, Visibility
 from ..schemas import (
     MemberIn,
     MemberOut,
+    OwnerTransfer,
     ProjectCreate,
     ProjectOut,
     ProjectPage,
@@ -139,6 +140,89 @@ async def delete_project(
     await session.commit()
     log.info("刪除專案", extra={"project_id": str(project.id), "slug": slug})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{slug}/owner", response_model=ProjectOut, summary="轉移擁有權")
+async def transfer_ownership(
+    slug: str, payload: OwnerTransfer, session: DbSession, identity: CurrentUser
+) -> ProjectOut:
+    """把專案擁有權移交給另一位已開通使用者(F16)。
+
+    為什麼需要:owner 離職後專案會變成孤兒——沒人能改設定、加成員、刪除。
+    平台管理員也能代為執行,那正是「owner 已經走了」時唯一的救援路徑。
+
+    副作用:改寫 `projects.owner_id`,並調整 `project_members`
+    (新 owner 的成員列移除、原 owner 新增/降為 maintainer)。
+    """
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.owner)
+
+    # 冪等:重複轉給現任 owner 不算錯,直接回現況。
+    if payload.user_id == project.owner_id:
+        out = ProjectOut.model_validate(project)
+        out.my_role = await project_role(session, project, identity.user)
+        return out
+
+    new_owner = (
+        await session.execute(select(User).where(User.id == payload.user_id))
+    ).scalar_one_or_none()
+    if new_owner is None:
+        raise problems.not_found("找不到該使用者(對方需先登入過一次才會有帳號)")
+    # 待開通的人連業務 API 都進不來,讓他當 owner 等於製造下一個孤兒專案。
+    if not new_owner.is_active:
+        raise problems.conflict("該使用者尚未開通,無法成為專案擁有者;請先在管理後台開通。")
+
+    previous_owner_id = project.owner_id
+
+    # 新 owner 若原本是成員,移除那一列 —— 擁有權由 projects.owner_id 表示,不重複記。
+    existing = (
+        await session.execute(
+            select(ProjectMember).where(
+                ProjectMember.project_id == project.id,
+                ProjectMember.user_id == new_owner.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        await session.delete(existing)
+
+    project.owner_id = new_owner.id
+
+    # 原 owner 降為 maintainer 而非踢出:他通常還要繼續維護,只是不再是負責人。
+    previous_member = (
+        await session.execute(
+            select(ProjectMember).where(
+                ProjectMember.project_id == project.id,
+                ProjectMember.user_id == previous_owner_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if previous_member is None:
+        session.add(
+            ProjectMember(
+                project_id=project.id,
+                user_id=previous_owner_id,
+                role=ProjectRole.maintainer,
+            )
+        )
+    else:
+        previous_member.role = ProjectRole.maintainer
+
+    await session.commit()
+    await session.refresh(project)
+
+    log.info(
+        "轉移擁有權",
+        extra={
+            "project_id": str(project.id),
+            "previous_owner_id": str(previous_owner_id),
+            "new_owner_id": str(new_owner.id),
+            "performed_by_admin": identity.user.is_admin,
+        },
+    )
+    out = ProjectOut.model_validate(project)
+    out.my_role = await project_role(session, project, identity.user)
+    return out
 
 
 # --- 成員 -------------------------------------------------------------------

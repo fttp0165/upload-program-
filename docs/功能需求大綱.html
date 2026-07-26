@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-07-26 00:53
-<strong>版本:</strong> v2.2</p>
+<strong>最後更新:</strong> 2026-07-26 07:45
+<strong>版本:</strong> v2.3</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -150,8 +150,8 @@ summary { cursor:pointer; color:#12228f; }
 <p><strong>優先級:</strong> P0 = MVP 必要 / P1 = MVP 應有 / P2 = 之後再說
 <strong>狀態:</strong> ✅ 已實作(未驗證)/ ⬜ 未實作 / 🔒 已實作但阻塞於外部條件</p>
 <blockquote>
-<p>⚠️ 「已實作」僅表示程式碼存在。專案至今<strong>測試未執行</strong>(欠項 A1),
-任何 ✅ 都不等於已驗證可用。</p>
+<p>✅ 的認定標準(2026-07-26 起):<strong>有自動化測試背書且 CI 全綠</strong>。
+欠項 A1(測試從未執行)已於 T50 清償,目前 112 passed、CI run #3 全綠。</p>
 </blockquote>
 <h3>A. 帳號與權限</h3>
 <table>
@@ -283,7 +283,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>owner 把擁有權移交給另一位成員;原 owner 降為 maintainer,專案不會因人員異動變成孤兒</td>
 <td><strong>P1</strong></td>
 <td><strong>M4</strong></td>
-<td>⬜ 未實作(T34)</td>
+<td>✅ 已實作(T34)</td>
 </tr>
 <tr>
 <td>F17</td>
@@ -1020,8 +1020,8 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>B 專案管理</td>
 <td>9</td>
-<td>6</td>
-<td>3</td>
+<td>7</td>
+<td>2</td>
 <td>0</td>
 </tr>
 <tr>
@@ -1069,13 +1069,13 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><strong>合計</strong></td>
 <td><strong>53</strong></td>
-<td><strong>32</strong></td>
-<td><strong>19</strong></td>
+<td><strong>33</strong></td>
+<td><strong>18</strong></td>
 <td><strong>2</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>未實作的 19 項按優先級拆:</strong></p>
+<p><strong>未實作的 18 項按優先級拆:</strong></p>
 <table>
 <thead>
 <tr>
@@ -1092,8 +1092,8 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>P1</td>
-<td>13</td>
-<td>F16、<strong>F17</strong>、F26、F42、F43、F54 + 前端 F70–F76</td>
+<td>12</td>
+<td><strong>F17</strong>、F26、F42、F43、F54 + 前端 F70–F76(F16 已完成)</td>
 </tr>
 <tr>
 <td>P2</td>
@@ -1105,10 +1105,10 @@ summary { cursor:pointer; color:#12228f; }
 <p>2026-07-26 定案後,原本列為 P2 的五項(F16、F26、F42、F43、F54)全數升為 <strong>P1 並排進 M4–M6</strong>,
 MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/F18 兩項。</p>
 <blockquote>
-<p>再次提醒:上表的「已實作」只代表程式碼存在。<strong>測試從未執行</strong>(欠項 A1),
-在跑出綠燈之前,這 32 項都不該當成可用。</p>
-<p>再次提醒:上表的「已實作」只代表程式碼存在。<strong>測試從未執行</strong>(欠項 A1),
-在跑出綠燈之前,這 32 項都不該當成可用。</p>
+<p>上表的「已實作」皆有測試背書:<strong>112 passed、lint 全過、CI(Actions run #3)全綠</strong>。
+唯二仍待外部條件的是 F01/F05——要等 SSO client 申請下來才能對真實 IdP 驗證。</p>
+<p>上表的「已實作」皆有測試背書:<strong>112 passed、lint 全過、CI(Actions run #3)全綠</strong>。
+唯二仍待外部條件的是 F01/F05——要等 SSO client 申請下來才能對真實 IdP 驗證。</p>
 </blockquote>
 <hr />
 <h2>版本歷史</h2>
@@ -1127,6 +1127,12 @@ MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/
 <td>2026-07-26 00:15</td>
 <td>Claude(Benny 授權)</td>
 <td>初版:7 大模組共 44 個功能項(F01–F64)、7 種使用者角色、5 條使用情境、非功能需求、範圍外清單(對齊開發計畫書 §1.2)、8 項開放問題、需求覆蓋現況總結</td>
+</tr>
+<tr>
+<td>v2.3</td>
+<td>2026-07-26 07:45</td>
+<td>Claude(Benny 授權)</td>
+<td>F16 轉移擁有權由 ⬜ 改 ✅(T34);§7 總結重算(已 33 / 未 18)</td>
 </tr>
 <tr>
 <td>v2.2</td>

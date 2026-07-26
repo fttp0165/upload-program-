@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 01:12
-<strong>版本:</strong> v1.5</p>
+<strong>最後更新:</strong> 2026-07-26 02:41
+<strong>版本:</strong> v1.6</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -165,7 +165,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>Dockerfile(multi-stage、non-root、8080、healthcheck)</td>
 <td>⚠️</td>
 <td>🟢</td>
-<td>image ≤300MB;<code>/health</code> 60 秒內綠;SIGTERM 優雅關閉</td>
+<td><strong>啟動行為已本機實測</strong>(<code>/health</code> 20 秒綠、<code>/ready</code> 503、SIGTERM 1 秒關閉);image 大小與 UID 待 CI 驗(見 A5)</td>
 </tr>
 <tr>
 <td>T11</td>
@@ -177,9 +177,9 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>T12</td>
 <td>CI(測試 + lint + build + Trivy + push GHCR)</td>
-<td>⬜</td>
+<td>⚠️</td>
 <td>🟢</td>
-<td>CI 全綠;有 high/critical CVE 即失敗</td>
+<td>workflow 已建;本機逐步重現全過。<strong>尚未在 GitHub Actions 實跑,不得宣稱 CI 綠燈</strong></td>
 </tr>
 <tr>
 <td>T50</td>
@@ -193,7 +193,8 @@ summary { cursor:pointer; color:#12228f; }
 <blockquote>
 <p><strong>2026-07-26 T50 更新:</strong> 測試已實際執行,<strong>81 passed / lint 全過</strong>,
 migration 亦完成 up → down → up 雙向演練。
-仍為 ⚠️ 的兩項各有明確欠項:<strong>T10</strong>(image 從未建置)、<strong>T16</strong>(single logout 無自動化測試)。
+仍為 ⚠️ 的三項各有明確欠項:<strong>T10</strong>(image 未建置,啟動行為已實測)、<strong>T12</strong>(CI 未在 Actions 實跑)、
+<strong>T16</strong>(single logout 無自動化測試)。
 A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅由 T00 日誌如實記載。</p>
 </blockquote>
 <h2>M3 身分接入</h2>
@@ -546,7 +547,7 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 <tr>
 <td>A3</td>
-<td>缺 CI,無法滿足「M2 之後含 CI 綠燈」</td>
+<td>~~缺 CI~~ workflow 已建(T12),<strong>但尚未在 Actions 實跑過</strong>——首次綠燈前 DoD 未達成</td>
 <td>T12</td>
 </tr>
 <tr>
@@ -556,8 +557,8 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 <tr>
 <td>A5</td>
-<td><strong>Dockerfile 從未實際建置驗證</strong>(image 大小、<code>/health</code> 60 秒內綠、SIGTERM 皆未實測)</td>
-<td>T10</td>
+<td>Dockerfile 的<strong>啟動行為已實測</strong>(<code>/health</code> 20s / <code>/ready</code> 503 / SIGTERM 1s);但 <strong>image 本身仍未建置過</strong>——本機受阻於代理政策(Docker Hub blob CDN 被拒),改由 CI 的 build job 驗 image 大小與 UID</td>
+<td>T12</td>
 </tr>
 <tr>
 <td>A6</td>
@@ -613,6 +614,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-26 01:12</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T50 清償欠項 A1</strong>:測試實際執行 81 passed、lint 全過、migration up→down→up 演練通過;T06–T09、T11、T13–T15、T17–T24 由 ⚠️ 改 ✅;新增 T50;A1 結案,另立 <strong>A5</strong>(Dockerfile 未建置驗證)與 <strong>A6</strong>(single logout 無測試)兩項新欠項</td>
+</tr>
+<tr>
+<td>v1.6</td>
+<td>2026-07-26 02:41</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T12 CI 建置</strong>:新增 <code>.github/workflows/ci.yml</code>(lint/測試/文件同步/git 紅線/SSO 紅線 → build + image 大小 + non-root + /health 冒煙 + Trivy → 僅版本 tag 推 GHCR 且不覆蓋同版);T12 標 ⚠️(尚未在 Actions 實跑);T10 補上本機實測結果;A3、A5 依實況改寫</td>
 </tr>
 </tbody>
 </table>

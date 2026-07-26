@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 00:15
-<strong>版本:</strong> v1.1</p>
+<strong>最後更新:</strong> 2026-07-26 00:28
+<strong>版本:</strong> v1.2</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -103,6 +103,13 @@ summary { cursor:pointer; color:#12228f; }
 <td>✅</td>
 <td>🟢</td>
 <td>七大模組功能項齊備,每項有編號/優先級/里程碑/實作狀態;範圍外與開放問題明列</td>
+</tr>
+<tr>
+<td>T32</td>
+<td>開放問題 Q1–Q8 定案與需求回寫</td>
+<td>✅</td>
+<td>🟢</td>
+<td>決定全數回寫大綱/計畫書/任務表並升版;受影響功能項的優先級與里程碑同步調整</td>
 </tr>
 </tbody>
 </table>
@@ -262,6 +269,27 @@ summary { cursor:pointer; color:#12228f; }
 <td>🟢</td>
 <td>非成員搜不到 private 專案</td>
 </tr>
+<tr>
+<td>T34</td>
+<td>轉移擁有權(F16)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>owner 可移交給成員;原 owner 降為 maintainer;非 owner 不可操作</td>
+</tr>
+<tr>
+<td>T35</td>
+<td>最新版捷徑(F26)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td><code>/projects/{slug}/releases/latest</code> 與其檔案下載網址固定不失效;以 <code>published_at</code> 判定,不用字串排序</td>
+</tr>
+<tr>
+<td>T36</td>
+<td>標籤分類(F42)</td>
+<td>⬜</td>
+<td>🟡</td>
+<td>可加/移除標籤並依標籤篩選;migration 有 backward</td>
+</tr>
 </tbody>
 </table>
 <h2>M5 檔案</h2>
@@ -297,6 +325,20 @@ summary { cursor:pointer; color:#12228f; }
 <td>🟢</td>
 <td>回應含 <code>Content-Disposition: attachment</code>、<code>nosniff</code>、SHA-256</td>
 </tr>
+<tr>
+<td>T33</td>
+<td>容量上限調降為單檔 100 MB(F34)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td><code>config.py</code> 與 <code>.env.example</code> 預設值改為 100 MB;超限測試仍綠</td>
+</tr>
+<tr>
+<td>T37</td>
+<td>下載次數統計(F43)</td>
+<td>⬜</td>
+<td>🟡</td>
+<td>下載即累計;統計不記個資;migration 有 backward</td>
+</tr>
 </tbody>
 </table>
 <h2>M6 接入 Cats</h2>
@@ -314,9 +356,16 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>T25</td>
 <td>掃毒決策(ClamAV 納不納入 MVP)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>有書面決策;不納入則下載頁必須標示未掃描</td>
+<td>2026-07-26 定案:<strong>不納入,先預留接點</strong>;期間一律標 <code>not_scanned</code></td>
+</tr>
+<tr>
+<td>T38</td>
+<td>稽核紀錄(F54)</td>
+<td>⬜</td>
+<td>🟡</td>
+<td>可查詢誰在何時做了什麼;<strong>只存 user_id,不存 email/姓名</strong>;migration 有 backward</td>
 </tr>
 <tr>
 <td>T26</td>
@@ -349,6 +398,10 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <h2>M7 前端</h2>
+<blockquote>
+<p>範圍依 2026-07-26 裁示:主頁、導航列、專案頁面、專案歷史、最新版本至頂。
+⏳ 技術選型未定(Q9),建議伺服器端模板;動工前需先定案。</p>
+</blockquote>
 <table>
 <thead>
 <tr>
@@ -361,11 +414,81 @@ summary { cursor:pointer; color:#12228f; }
 </thead>
 <tbody>
 <tr>
-<td>T30</td>
-<td>最小可用網頁介面(登入、專案、上傳、下載)</td>
+<td>~~T30~~</td>
+<td>~~最小可用網頁介面~~</td>
+<td>—</td>
+<td>—</td>
+<td><strong>由 T40–T45 取代</strong>(範圍已細化)</td>
+</tr>
+<tr>
+<td>T39</td>
+<td>前端技術選型定案(Q9)</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>不需 curl 即可完成一輪上傳與下載</td>
+<td>書面決策:模板 vs SPA、靜態檔供應方式、子路徑前綴處理;<strong>T40 動工前必須完成</strong></td>
+</tr>
+<tr>
+<td>T40</td>
+<td>導航列與版型骨架(F70)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>全站共用;子路徑下所有連結與靜態檔皆正確,無 404</td>
+</tr>
+<tr>
+<td>T41</td>
+<td>主頁:專案列表 + 搜尋 + 標籤篩選(F71)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>只顯示當事人看得到的專案;分頁可用</td>
+</tr>
+<tr>
+<td>T42</td>
+<td>專案頁:資訊 + <strong>最新版本置頂</strong>(F72)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>最新已發布版本的說明與下載按鈕在頁面最上方直接可見</td>
+</tr>
+<tr>
+<td>T43</td>
+<td>專案歷史:版本列表(F73)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>依發布時間倒序;可展開看各版檔案並下載</td>
+</tr>
+<tr>
+<td>T44</td>
+<td>上傳介面:建版本、傳檔、發布(F74)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>不需 curl 即可完成一輪上傳與發布</td>
+</tr>
+<tr>
+<td>T45</td>
+<td>待開通頁與管理後台頁(F75、F76)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>未開通者看到指引頁而非裸 JSON;管理員可一鍵開通</td>
+</tr>
+</tbody>
+</table>
+<h2>M8 第二期(不納入 MVP)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>任務</th>
+<th>狀態</th>
+<th>資料</th>
+<th>驗收標準</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T46</td>
+<td>病毒掃描接上(F38)</td>
+<td>⬜</td>
+<td>🟡</td>
+<td>背景掃描 + 結果回寫;<code>infected</code> 的處置政策待 Q11 定案</td>
 </tr>
 </tbody>
 </table>
@@ -425,6 +548,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-26 00:15</td>
 <td>Claude(Benny 授權)</td>
 <td>新增 T31 功能需求大綱(補列於 M1,✅);T04 設計文件升版與 T05 文件產生器由 🔵 改 ✅;欠項 A4 結案</td>
+</tr>
+<tr>
+<td>v1.2</td>
+<td>2026-07-26 00:28</td>
+<td>Claude(Benny 裁示)</td>
+<td>依 Q1–Q8 定案新增 T32–T39(需求回寫、容量調降、轉移擁有權、最新版捷徑、標籤、下載統計、稽核紀錄、前端選型);T25 掃毒決策結案(不納入,先預留);M7 由單一 T30 細化為 T40–T45;新增 <strong>M8 第二期</strong>(T46 掃毒)</td>
 </tr>
 </tbody>
 </table>

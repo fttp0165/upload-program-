@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 開發計畫書</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-25 15:53
-<strong>版本:</strong> v1.0</p>
+<strong>最後更新:</strong> 2026-07-26 00:28
+<strong>版本:</strong> v1.1</p>
 <blockquote>
 <p>本文是 upload-program 的開發藍圖:目標、範圍、里程碑、資料影響分級與回滾原則。
 任務層級的追蹤見 <a href="任務表.md">任務表.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>。
@@ -100,6 +100,10 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>安全</td>
 <td>散布可執行檔的平台——判型、雜湊、強制 attachment 下載為不可退讓項</td>
+</tr>
+<tr>
+<td>容量</td>
+<td>單檔上限 <strong>100 MB</strong>(2026-07-26 定案);專案總容量暫定 5 GB(Q10 待確定)</td>
 </tr>
 <tr>
 <td>可用</td>
@@ -258,13 +262,18 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td><strong>M6 接入 Cats</strong></td>
-<td>申請 client、路由 PR、驗收、備份還原演練</td>
+<td>申請 client、路由 PR、驗收、備份還原演練、稽核紀錄</td>
 <td>接入指南 §11 DoD 全數打勾</td>
 </tr>
 <tr>
 <td><strong>M7 前端</strong></td>
-<td>最小可用網頁介面</td>
-<td>使用者不需 curl 即可完成上傳與下載</td>
+<td>主頁、導航列、專案頁(最新版置頂)、專案歷史、上傳與管理介面</td>
+<td>使用者不需 curl 即可完成一輪上傳與下載</td>
+</tr>
+<tr>
+<td><strong>M8 第二期</strong></td>
+<td>病毒掃描接上;其餘 P2 項目</td>
+<td>另行規劃,不納入 MVP</td>
 </tr>
 </tbody>
 </table>
@@ -371,7 +380,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>gateway <code>client_max_body_size</code></td>
-<td>≥ 512 MB</td>
+<td><strong>≥ 128 MB</strong>(單檔上限 100 MB + 餘裕)</td>
 <td>⏳ 申請路由時一併提出</td>
 </tr>
 </tbody>
@@ -452,12 +461,17 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><strong>未接掃毒</strong></td>
 <td>平台可能成為惡意執行檔散布管道</td>
-<td>保留 <code>scan_status</code> 欄位並誠實標示 <code>not_scanned</code>;ClamAV 是否納入待決(T25)</td>
+<td>2026-07-26 定案:<strong>不納入 MVP,先預留接點</strong>(F38 / M8)。期間 <code>scan_status</code> 一律誠實標 <code>not_scanned</code> 並隨下載回傳</td>
 </tr>
 <tr>
 <td>大檔經 svc 串流</td>
 <td>佔用 worker 與 gateway 逾時</td>
-<td>multipart 串流(記憶體固定)、gateway 調 <code>client_max_body_size</code> 與逾時;必要時再議 presigned 專用路由</td>
+<td>單檔上限降為 100 MB 後風險大幅降低;仍維持 multipart 串流(記憶體固定)並調 gateway <code>client_max_body_size</code> 與逾時</td>
+</tr>
+<tr>
+<td>MVP 範圍因 Q1–Q8 定案而擴大</td>
+<td>M4–M7 工作量增加(新增 F16、F26、F42、F43、F54 + 前端 7 項)</td>
+<td>已排入任務表 T33–T45;若時程吃緊,F42 標籤與 F43 統計是最容易延後的兩項</td>
 </tr>
 <tr>
 <td>換版後 502</td>
@@ -493,6 +507,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-25 15:53</td>
 <td>Claude(Benny 授權)</td>
 <td>初版:目標與範圍界線、系統架構(含子路徑與不直連 MinIO 兩項推導)、M1–M7 里程碑與出場條件、資料影響分級、回滾原則、待平台分配清單、接入指南 §10 八問答覆、已知風險</td>
+</tr>
+<tr>
+<td>v1.1</td>
+<td>2026-07-26 00:28</td>
+<td>Claude(Benny 裁示)</td>
+<td>依功能需求大綱 v2.0 的 Q1–Q8 定案回寫:新增 <strong>M8 第二期</strong>(掃毒);M6 納入稽核紀錄、M7 明確化前端範圍;非功能目標新增容量(單檔 100 MB);gateway <code>client_max_body_size</code> 由 ≥512 MB 改為 <strong>≥128 MB</strong>;風險表更新掃毒與大檔兩列,並新增「MVP 範圍擴大」一列</td>
 </tr>
 </tbody>
 </table>

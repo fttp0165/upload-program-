@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-07-26 00:15
-<strong>版本:</strong> v1.0</p>
+<strong>最後更新:</strong> 2026-07-26 00:28
+<strong>版本:</strong> v2.0</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -280,10 +280,10 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F16</td>
 <td>轉移擁有權</td>
-<td>把 owner 移交他人</td>
-<td>P2</td>
-<td>—</td>
-<td>⬜ 未實作</td>
+<td>owner 把擁有權移交給另一位成員;原 owner 降為 maintainer,專案不會因人員異動變成孤兒</td>
+<td><strong>P1</strong></td>
+<td><strong>M4</strong></td>
+<td>⬜ 未實作(T34)</td>
 </tr>
 </tbody>
 </table>
@@ -355,14 +355,21 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>F26</td>
-<td>標記最新版</td>
-<td>提供「取得最新版」的捷徑</td>
-<td>P2</td>
-<td>—</td>
-<td>⬜ 未實作</td>
+<td>最新版捷徑</td>
+<td>以<strong>固定網址</strong>取得最新已發布版本與其檔案,連結可寫進文件或腳本而不會因發新版失效</td>
+<td><strong>P1</strong></td>
+<td><strong>M4</strong></td>
+<td>⬜ 未實作(T35)</td>
 </tr>
 </tbody>
 </table>
+<p><strong>F26 的網址設計(供後續實作定樁):</strong></p>
+<ul>
+<li><code>GET /v1/projects/{slug}/releases/latest</code> — 最新<strong>已發布</strong>版本(draft 不算)</li>
+<li><code>GET /v1/projects/{slug}/releases/latest/artifacts/{filename}/download</code> — 直接抓最新版的某個檔案</li>
+</ul>
+<p>「最新」的定義:<code>published_at</code> 最大者。版本號採自由字串(非強制 SemVer),
+<strong>不以字串排序決定新舊</strong>——那會讓 <code>v10</code> 排在 <code>v9</code> 前面。</p>
 <h3>D. 檔案上傳與下載</h3>
 <table>
 <thead>
@@ -411,10 +418,10 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F34</td>
 <td>容量限制</td>
-<td>單檔上限與專案總容量上限,超過回 413</td>
+<td><strong>單檔上限 100 MB</strong>、專案總容量暫定 5 GB,超過回 413</td>
 <td>P0</td>
 <td>M5</td>
-<td>✅</td>
+<td>⚠️ 已實作但預設值需調整(T33)</td>
 </tr>
 <tr>
 <td>F35</td>
@@ -445,12 +452,41 @@ summary { cursor:pointer; color:#12228f; }
 <td>病毒掃描</td>
 <td>實際接上掃毒引擎(ClamAV)</td>
 <td>P2</td>
-<td>—</td>
-<td>⬜ 未實作(待決策 T25)</td>
+<td><strong>M8</strong></td>
+<td>⬜ 不納入 MVP,<strong>保留接點</strong>(T46)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>F38「先預留」預留了什麼(2026-07-26 定案):</strong></p>
+<table>
+<thead>
+<tr>
+<th>已預留</th>
+<th>現況</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>artifacts.scan_status</code> 欄位與 <code>not_scanned</code> / <code>clean</code> / <code>infected</code> 三態</td>
+<td>✅ 已存在,不必再改 schema</td>
+</tr>
+<tr>
+<td>下載回應的 <code>X-Artifact-Scan-Status</code> 標頭</td>
+<td>✅ 已存在</td>
+</tr>
+<tr>
+<td>上傳完成後的掛載點(<code>upload_status</code> 轉 <code>ready</code> 之處)</td>
+<td>✅ 位置明確,屆時在該處送出掃描工作</td>
+</tr>
+<tr>
+<td>尚缺</td>
+<td>背景工作機制(佇列/worker)、掃描結果回寫 API、<code>infected</code> 時是否封鎖下載的政策</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
+<p><strong>未接掃毒期間的誠實義務:</strong> <code>scan_status</code> 一律維持 <code>not_scanned</code> 並隨下載回傳,
+不得因為「是內部平台」就把未掃描說成安全。</p>
 <p><strong>為什麼 F32/F35 是 P0 而不是「加分項」:</strong> 這是一個<strong>散布可執行檔</strong>的平台。
 若讓上傳內容以 HTML/JS 在本服務網域被瀏覽器執行,等於自己開一個 XSS 給全公司。</p>
 </blockquote>
@@ -486,18 +522,18 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F42</td>
 <td>標籤分類</td>
-<td>為專案加標籤並依標籤瀏覽</td>
-<td>P2</td>
-<td>—</td>
-<td>⬜ 未實作</td>
+<td>為專案加標籤(如 <code>python</code>、<code>工具</code>、<code>報表</code>),可依標籤瀏覽與篩選</td>
+<td><strong>P1</strong></td>
+<td><strong>M4</strong></td>
+<td>⬜ 未實作(T36)</td>
 </tr>
 <tr>
 <td>F43</td>
 <td>下載次數統計</td>
-<td>顯示各版本 / 各檔案的下載次數</td>
-<td>P2</td>
-<td>—</td>
-<td>⬜ 未實作</td>
+<td>記錄並顯示各檔案 / 各版本的下載次數</td>
+<td><strong>P1</strong></td>
+<td><strong>M5</strong></td>
+<td>⬜ 未實作(T37)</td>
 </tr>
 <tr>
 <td>F44</td>
@@ -561,13 +597,15 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F54</td>
 <td>稽核紀錄</td>
-<td>誰在何時開通了誰、刪了什麼</td>
-<td>P2</td>
-<td>—</td>
-<td>⬜ 未實作(目前僅寫入 log)</td>
+<td>可查詢的操作紀錄:誰在何時開通了誰、建了/刪了什麼、上傳與下載了什麼</td>
+<td><strong>P1</strong></td>
+<td><strong>M6</strong></td>
+<td>⬜ 未實作(T38,目前僅寫入 log)</td>
 </tr>
 </tbody>
 </table>
+<p><strong>F54 的個資邊界(定案時一併釘住):</strong> 稽核表只存<strong>本地 <code>user_id</code></strong>(可回查 <code>sub</code>),
+<strong>不存 email / 姓名</strong>;要顯示是誰,查詢時再向 IdP 取即時資料。稽核不是繞過個資紅線的後門。</p>
 <h3>G. 系統與維運</h3>
 <table>
 <thead>
@@ -623,6 +661,86 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </tbody>
 </table>
+<h3>H. 前端介面(M7)</h3>
+<p>Benny 於 2026-07-26 指定範圍:<strong>主頁、導航列、專案頁面、專案歷史、最新版本至頂</strong>。
+標「補充」者是我判斷缺了就無法完成一輪操作而加入的,若你認為超出範圍請砍掉。</p>
+<table>
+<thead>
+<tr>
+<th>編號</th>
+<th>功能</th>
+<th>說明</th>
+<th>優先</th>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F70</td>
+<td>導航列</td>
+<td>全站共用:站名、搜尋框、建立專案、登入狀態與登出</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T40)</td>
+</tr>
+<tr>
+<td>F71</td>
+<td>主頁</td>
+<td>專案列表 + 關鍵字搜尋 + 標籤篩選(F42);分頁</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T41)</td>
+</tr>
+<tr>
+<td>F72</td>
+<td>專案頁面</td>
+<td>專案資訊 + <strong>最新版本置頂</strong>(說明與檔案下載按鈕直接可見)</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T42)</td>
+</tr>
+<tr>
+<td>F73</td>
+<td>專案歷史</td>
+<td>歷史版本列表(依發布時間倒序),可展開看各版檔案並下載</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T43)</td>
+</tr>
+<tr>
+<td>F74</td>
+<td>上傳介面</td>
+<td>建立版本、選檔上傳、發布(補充:沒有它使用者得用 curl)</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T44)</td>
+</tr>
+<tr>
+<td>F75</td>
+<td>待開通頁</td>
+<td>未開通者看到的指引頁,而非裸 403 JSON(補充)</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T45)</td>
+</tr>
+<tr>
+<td>F76</td>
+<td>管理後台頁</td>
+<td>待開通清單與一鍵開通(補充:否則管理員得手打 API)</td>
+<td>P1</td>
+<td>M7</td>
+<td>⬜ 未實作(T45)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>「最新版本至頂」的定義(F72):</strong> 專案頁最上方固定呈現最新<strong>已發布</strong>版本的
+版本號、發布時間、說明與其檔案下載按鈕;歷史版本收在下方(F73)。與 F26 用同一套「最新」定義。</p>
+<blockquote>
+<p><strong>待確認:</strong> 前端技術選型未定。考量子路徑部署(靜態檔前綴曾讓 PLM 上線時 CSS 全 404)
+與「少一個容器少一份維運」,我建議<strong>伺服器端模板(Jinja2)+ 少量原生 JS</strong>,
+不另起 SPA。這是新的開放問題 Q9,見 §6。</p>
+</blockquote>
 <hr />
 <h2>4. 非功能需求</h2>
 <table>
@@ -636,6 +754,10 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><strong>安全</strong></td>
 <td>不自建帳號/不存密碼/不自簽 JWT;業務庫只存 <code>sub</code>;上傳驗 magic bytes;下載強制 attachment</td>
+</tr>
+<tr>
+<td><strong>容量</strong></td>
+<td><strong>單檔上限 100 MB</strong>(2026-07-26 定案「50~100M」,取上限);專案總容量暫定 5 GB。gateway <code>client_max_body_size</code> 需設 ≥128 MB 留餘裕</td>
 </tr>
 <tr>
 <td><strong>效能</strong></td>
@@ -701,7 +823,74 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <hr />
-<h2>6. 開放問題(待決策)</h2>
+<h2>6. 決策紀錄</h2>
+<h3>6.1 已定案(2026-07-26,Benny 裁示)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>決定</th>
+<th>落點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>病毒掃描納不納入 MVP?</td>
+<td><strong>之後再有,先預留</strong></td>
+<td>F38 → P2 / M8;預留項見 §3.D</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>要不要轉移擁有權?</td>
+<td><strong>需要</strong></td>
+<td>F16 → P1 / M4(T34)</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>要不要最新版捷徑?</td>
+<td><strong>需要</strong></td>
+<td>F26 → P1 / M4(T35),含固定網址設計</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>要不要標籤分類?</td>
+<td><strong>需要</strong></td>
+<td>F42 → P1 / M4(T36),🟡 加表</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>要不要下載次數統計?</td>
+<td><strong>需要</strong></td>
+<td>F43 → P1 / M5(T37),🟡 加欄位</td>
+</tr>
+<tr>
+<td>Q6</td>
+<td>要不要稽核紀錄?</td>
+<td><strong>需要</strong></td>
+<td>F54 → P1 / M6(T38),🟡 加表,只存 user_id</td>
+</tr>
+<tr>
+<td>Q7</td>
+<td>容量上限?</td>
+<td><strong>50~100M</strong> → 取單檔 <strong>100 MB</strong></td>
+<td>F34 + §4;現行預設 512 MB 需調降(T33)</td>
+</tr>
+<tr>
+<td>Q8</td>
+<td>前端範圍?</td>
+<td><strong>主頁、導航列、專案頁面、專案歷史、最新版本至頂</strong></td>
+<td>新增模組 H(F70–F76)/ M7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Q7 我做的兩個補充判斷,若不同意請糾正:</strong></p>
+<ol>
+<li>「50~100M」我取<strong>上限 100 MB</strong>——執行檔動輒數十 MB,取 50 MB 容易卡住合理用途。</li>
+<li>你只指定了單檔上限,<strong>專案總容量</strong>我暫定 <strong>5 GB</strong>;若 VM 磁碟吃緊要調小,請給數字。</li>
+</ol>
+<h3>6.2 仍未定案</h3>
 <table>
 <thead>
 <tr>
@@ -713,52 +902,22 @@ summary { cursor:pointer; color:#12228f; }
 </thead>
 <tbody>
 <tr>
-<td>Q1</td>
-<td>病毒掃描要不要納入 MVP?</td>
+<td>Q9</td>
+<td>前端技術選型:伺服器端模板(Jinja2)還是 SPA?</td>
 <td>你</td>
-<td>不納入的話,平台可能成為惡意執行檔散布管道;至少要維持誠實標示</td>
+<td>我建議 Jinja2——子路徑靜態檔是 Cats 平台踩過的坑,少一個容器也少一份維運</td>
 </tr>
 <tr>
-<td>Q2</td>
-<td>需要「轉移擁有權」嗎(F16)?</td>
-<td>你</td>
-<td>目前 owner 離職就沒人能管該專案</td>
-</tr>
-<tr>
-<td>Q3</td>
-<td>需要「最新版」捷徑嗎(F26)?</td>
-<td>你</td>
-<td>影響下載連結是否穩定可寫進文件</td>
-</tr>
-<tr>
-<td>Q4</td>
-<td>需要標籤與分類嗎(F42)?</td>
-<td>你</td>
-<td>專案數量少時搜尋就夠;多了會需要</td>
-</tr>
-<tr>
-<td>Q5</td>
-<td>需要下載統計嗎(F43)?</td>
-<td>你</td>
-<td>影響是否要記錄下載事件與稽核表設計</td>
-</tr>
-<tr>
-<td>Q6</td>
-<td>需要稽核紀錄嗎(F54)?</td>
-<td>你</td>
-<td>目前只寫 log;若要查詢介面就得建表</td>
-</tr>
-<tr>
-<td>Q7</td>
-<td>單檔與專案容量上限訂多少?</td>
+<td>Q10</td>
+<td>專案總容量上限的確定數值</td>
 <td>你 + Platform</td>
-<td>連動 gateway 的 <code>client_max_body_size</code> 與 VM 磁碟規劃</td>
+<td>暫定 5 GB;連動 VM 磁碟規劃</td>
 </tr>
 <tr>
-<td>Q8</td>
-<td>前端範圍到哪(M7)?</td>
+<td>Q11</td>
+<td>掃毒判 <code>infected</code> 時要封鎖下載還是僅警示?</td>
 <td>你</td>
-<td>目前只有 API,使用者需用 curl</td>
+<td>M8 才需要,但影響 F38 的狀態機設計</td>
 </tr>
 </tbody>
 </table>
@@ -825,16 +984,53 @@ summary { cursor:pointer; color:#12228f; }
 <td>0</td>
 </tr>
 <tr>
+<td>H 前端介面</td>
+<td>7</td>
+<td>0</td>
+<td>7</td>
+<td>0</td>
+</tr>
+<tr>
 <td><strong>合計</strong></td>
-<td><strong>44</strong></td>
+<td><strong>51</strong></td>
 <td><strong>32</strong></td>
-<td><strong>10</strong></td>
+<td><strong>17</strong></td>
 <td><strong>2</strong></td>
 </tr>
 </tbody>
 </table>
-<p>未實作的 10 項中,<strong>除 F63/F64(備份與換版,P0)外皆為 P2</strong>,不阻擋 MVP。</p>
+<p><strong>未實作的 17 項按優先級拆:</strong></p>
+<table>
+<thead>
+<tr>
+<th>優先</th>
+<th>項數</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>2</td>
+<td>F63 備份還原、F64 換版回滾(M6)</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>12</td>
+<td>F16、F26、F42、F43、F54 + 前端 F70–F76</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>3</td>
+<td>F38 掃毒(M8)、F41 檔案類型篩選、F44 README 呈現</td>
+</tr>
+</tbody>
+</table>
+<p>2026-07-26 定案後,原本列為 P2 的五項(F16、F26、F42、F43、F54)全數升為 <strong>P1 並排進 M4–M6</strong>,
+MVP 範圍因此擴大;另新增前端模組 H 共 7 項。</p>
 <blockquote>
+<p>再次提醒:上表的「已實作」只代表程式碼存在。<strong>測試從未執行</strong>(欠項 A1),
+在跑出綠燈之前,這 32 項都不該當成可用。</p>
 <p>再次提醒:上表的「已實作」只代表程式碼存在。<strong>測試從未執行</strong>(欠項 A1),
 在跑出綠燈之前,這 32 項都不該當成可用。</p>
 </blockquote>
@@ -855,6 +1051,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-07-26 00:15</td>
 <td>Claude(Benny 授權)</td>
 <td>初版:7 大模組共 44 個功能項(F01–F64)、7 種使用者角色、5 條使用情境、非功能需求、範圍外清單(對齊開發計畫書 §1.2)、8 項開放問題、需求覆蓋現況總結</td>
+</tr>
+<tr>
+<td>v2.0</td>
+<td>2026-07-26 00:28</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>Q1–Q8 全數定案並回寫</strong>:F16 轉移擁有權、F26 最新版捷徑、F42 標籤、F43 下載統計、F54 稽核紀錄由 P2 升 <strong>P1</strong> 並排進 M4–M6;F38 掃毒維持 P2 移至新增的 <strong>M8</strong>,並明列「先預留」已預留與尚缺的項目;單檔上限定為 <strong>100 MB</strong>(現行預設 512 MB 待調降);<strong>新增模組 H 前端介面 F70–F76</strong>(含最新版本置頂定義與 Jinja2 建議);§6 由「開放問題」改為「決策紀錄」並新增 Q9–Q11;§7 總結重算為 51 項(已 32 / 未 17 / 阻塞 2)並按優先級拆解</td>
 </tr>
 </tbody>
 </table>

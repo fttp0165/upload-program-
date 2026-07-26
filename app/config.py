@@ -67,8 +67,11 @@ class Settings(BaseSettings):
     s3_multipart_chunk_bytes: int = 16 * 1024 * 1024
 
     # --- 上傳限制(gateway 的 client_max_body_size 要 ≥ 這個值,申請路由時一併提出)---
-    max_artifact_bytes: int = 512 * 1024 * 1024
-    max_project_bytes: int = 5 * 1024 * 1024 * 1024
+    # 單檔 100 MB(Q7 裁示「50~100M」取上限);專案 2 GB(Q10 裁示,一般小工具夠用)。
+    # 🔴 調降此值會讓已超標的既有專案立刻無法上傳新檔(既有檔案不受影響)——
+    # 上限調高比調低容易,所以先收緊,個案走 T49 的擴充級距(10 GB)。
+    max_artifact_bytes: int = 100 * 1024 * 1024
+    max_project_bytes: int = 2 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096
 
     # --- 錯誤格式(RFC 7807)---

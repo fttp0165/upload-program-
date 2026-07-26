@@ -61,6 +61,46 @@ def test_路徑前綴正規化(raw, expected):
     assert _settings(api_prefix=raw).api_prefix == expected
 
 
+# --- 容量上限(F34 / T33)-----------------------------------------------------
+
+MB = 1024 * 1024
+GB = 1024 * MB
+
+
+def test_預設單檔上限為100MB():
+    """Q7 裁示「50~100M」,取上限。"""
+    assert _settings().max_artifact_bytes == 100 * MB
+
+
+def test_預設專案容量為2GB():
+    """Q10 裁示「一般員工開發的小工具 2G 就可以了」。"""
+    assert _settings().max_project_bytes == 2 * GB
+
+
+def test_env_example的容量值與程式預設一致():
+    """🔴 防漂移:`config.py` 的預設與 `.env.example` 的示意值是兩份各自為政的數字。
+
+    改了一邊忘了另一邊,部署時就會套用到錯的值,而且不會有任何錯誤訊息。
+    這條測試讓兩者對不上時直接紅燈。
+    """
+    import pathlib
+    import re
+
+    text = pathlib.Path(".env.example").read_text(encoding="utf-8")
+    # 值後面允許接註解(例:`MAX_ARTIFACT_BYTES=104857600  # 100 MB`),
+    # 但仍要求整行只有「變數=數字[空白][註解]」,不接受 `=100abc` 這種殘缺值。
+    declared = {
+        key: int(value)
+        for key, value in re.findall(
+            r"^(MAX_\w+_BYTES)=(\d+)\s*(?:#.*)?$", text, flags=re.MULTILINE
+        )
+    }
+    defaults = _settings()
+
+    assert declared["MAX_ARTIFACT_BYTES"] == defaults.max_artifact_bytes
+    assert declared["MAX_PROJECT_BYTES"] == defaults.max_project_bytes
+
+
 def test_對外網址由設定組出而非從request推導():
     """TLS 在 gateway 終結,從 request 推導會得到 http://,所以一律用設定組。"""
     s = _settings()

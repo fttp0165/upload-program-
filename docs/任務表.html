@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-26 07:45
-<strong>版本:</strong> v1.9</p>
+<strong>最後更新:</strong> 2026-07-26 08:20
+<strong>版本:</strong> v1.10</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -296,9 +296,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T35</td>
 <td>最新版捷徑(F26)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td><code>/projects/{slug}/releases/latest</code> 與其檔案下載網址固定不失效;以 <code>published_at</code> 判定,不用字串排序</td>
+<td>13 條測試(<strong>先紅後綠</strong>):<code>/releases/latest</code> 與 <code>/latest/artifacts/{filename}/download</code>;<strong>關鍵測試刻意讓建立順序/版本號字串/發布時間三種排序給出不同答案</strong>,只有用 <code>published_at</code> 才過</td>
 </tr>
 <tr>
 <td>T36</td>
@@ -638,6 +638,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-26 07:45</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T34 轉移擁有權完成</strong>——本專案第一個走完整 TDD(紅→綠)的任務;測試 103→112</td>
+</tr>
+<tr>
+<td>v1.10</td>
+<td>2026-07-26 08:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T35 最新版捷徑完成</strong>(TDD 紅→綠);測試 112→122;下載回應建構抽成共用函式,避免捷徑路徑的安全標頭與主路徑不一致</td>
 </tr>
 </tbody>
 </table>

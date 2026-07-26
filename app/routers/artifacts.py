@@ -27,12 +27,13 @@ from ..schemas import ArtifactOut
 from ..security import (
     CurrentUser,
     DbSession,
+    get_project,
     parse_uuid,
     require_project_read,
     require_project_role,
 )
 from ..storage import TooLarge
-from .releases import load_release
+from .releases import latest_published_release, load_release
 
 router = APIRouter(prefix="/v1/releases", tags=["artifacts"])
 log = logging.getLogger(__name__)
@@ -214,6 +215,17 @@ async def download_artifact(
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
+    return _download_response(request, artifact)
+
+
+def _download_response(request: Request, artifact: Artifact) -> StreamingResponse:
+    """建構下載回應。
+
+    抽成共用函式的原因:最新版捷徑(F26)也要下載檔案,而**安全標頭絕不能因為換了一條
+    路徑就鬆掉**。兩個端點共用同一段程式碼,就不可能有一邊漏掉 attachment 或 nosniff。
+
+    副作用:從物件儲存串流讀取,並寫一筆下載 log。
+    """
     if artifact.upload_status is not UploadStatus.ready:
         raise problems.not_found("該檔案尚未上傳完成")
 
@@ -267,3 +279,39 @@ def _find_artifact(release, artifact_id: str) -> Artifact:
         if artifact.id == wanted:
             return artifact
     raise problems.not_found("找不到該檔案")
+
+
+# --- 最新版捷徑(F26)-------------------------------------------------------
+#
+# 需要另立一個 router 是因為路徑前綴不同(/v1/projects 而非 /v1/releases),
+# 而 APIRouter 的 prefix 是整個 router 共用的,無法逐條覆寫。
+
+latest_router = APIRouter(prefix="/v1/projects", tags=["artifacts"])
+
+
+@latest_router.get(
+    "/{slug}/releases/latest/artifacts/{filename}/download",
+    summary="下載最新已發布版本的指定檔案",
+)
+async def download_latest_artifact(
+    slug: str,
+    filename: str,
+    request: Request,
+    session: DbSession,
+    identity: CurrentUser,
+) -> StreamingResponse:
+    """以**檔名**定位最新版的檔案(F26)。
+
+    為什麼用檔名而不是 UUID:這條網址的存在意義就是「能寫進文件而不會失效」。
+    `.../latest/artifacts/tool.exe/download` 可讀、可預測、跨版本不變;
+    UUID 每發一次新版就換一組,寫進 wiki 隔天就壞。
+    """
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+    release = await latest_published_release(session, project)
+
+    name = filename.strip()
+    for artifact in release.artifacts:
+        if artifact.filename == name:
+            return _download_response(request, artifact)
+    raise problems.not_found(f"最新版本 {release.version} 中沒有檔案 {name}")

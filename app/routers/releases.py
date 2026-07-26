@@ -37,6 +37,44 @@ async def load_release(session, release_id: str) -> Release:
     return release
 
 
+async def latest_published_release(session, project) -> Release:
+    """取專案最新的**已發布**版本(F26)。
+
+    🔴 以 `published_at` 判定,**不得用版本號字串排序**——版本號是自由字串(非強制 SemVer),
+    字串排序會讓 `v9` 排在 `v10` 前面,發到第十版就會靜默地一直給出舊版而沒人發現。
+    也不用 `created_at`:先建的版本可能後發布,建立順序不等於發布順序。
+
+    draft 不算:latest 是給使用者抓的,draft 是作者的工作區。
+    """
+    stmt = (
+        select(Release)
+        .options(selectinload(Release.project))
+        .where(
+            Release.project_id == project.id,
+            Release.status == ReleaseStatus.published,
+        )
+        .order_by(Release.published_at.desc())
+        .limit(1)
+    )
+    release = (await session.execute(stmt)).scalar_one_or_none()
+    if release is None:
+        raise problems.not_found(f"專案 {project.slug} 尚未發布任何版本")
+    return release
+
+
+@router.get(
+    "/projects/{slug}/releases/latest",
+    response_model=ReleaseOut,
+    summary="最新已發布版本(固定網址,可寫進文件)",
+)
+async def get_latest_release(
+    slug: str, session: DbSession, identity: CurrentUser
+) -> ReleaseOut:
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+    return ReleaseOut.model_validate(await latest_published_release(session, project))
+
+
 @router.get("/projects/{slug}/releases", response_model=ReleasePage, summary="列出版本")
 async def list_releases(
     slug: str,

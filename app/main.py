@@ -87,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(projects.router)
     app.include_router(releases.router)
     app.include_router(artifacts.router)
+    app.include_router(artifacts.latest_router)  # 最新版下載捷徑(F26),前綴不同故另立
     app.include_router(search.router)
     app.include_router(admin.router)
     return app

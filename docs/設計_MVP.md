@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-25 15:53
-**版本:** v2.0
+**最後更新:** 2026-07-26 08:20
+**版本:** v2.1
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -141,10 +141,13 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | GET/POST | `/v1/projects` | 列出 / 建立專案 |
 | GET/PATCH/DELETE | `/v1/projects/{slug}` | 專案詳情 / 修改 / 刪除 |
 | GET/PUT | `/v1/projects/{slug}/members` | 成員與角色 |
+| PUT | `/v1/projects/{slug}/owner` | **轉移擁有權**(原 owner 降 maintainer;管理員可代為執行)|
 | DELETE | `/v1/projects/{slug}/members/{user_id}` | 移除成員 |
 | GET/POST | `/v1/projects/{slug}/releases` | 列出 / 建立版本(draft) |
 | GET/PATCH/DELETE | `/v1/releases/{id}` | 版本詳情 / 改說明 / 刪除 |
 | POST | `/v1/releases/{id}/publish` | draft → published(冪等) |
+| GET | `/v1/projects/{slug}/releases/latest` | **最新已發布版本**(固定網址,依 `published_at` 判定)|
+| GET | `/v1/projects/{slug}/releases/latest/artifacts/{filename}/download` | **以檔名下載最新版檔案**(連結可寫進文件)|
 | PUT | `/v1/releases/{id}/artifacts/{filename}` | 上傳檔案 |
 | GET | `/v1/releases/{id}/artifacts/{aid}/download` | 下載 |
 | DELETE | `/v1/releases/{id}/artifacts/{aid}` | 刪除檔案 |
@@ -190,4 +193,5 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
+| v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **依 Cats 接入指南 v2.0 全面修正**:新增 §1 部署拓撲(含 SVG/ASCII 架構圖)與子路徑連帶影響;**儲存設計由 presigned 直傳改為服務串流轉送**(瀏覽器連不到 backend 網路的 MinIO),並說明捨棄 multipart 的理由;新增判型白名單與下載強制 attachment 細節;API 表更新為實際實作的端點;§5 對齊表補上對應檔案;依憲法第七條補日期、版本與本歷史表。產品範圍與里程碑移至開發計畫書 |

@@ -5,7 +5,7 @@ IdP 只負責「這個人是誰」,「這個人能做什麼」是我們自己的
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -58,7 +58,7 @@ async def patch_user(
 
     if payload.status is not None:
         if payload.status is UserStatus.active and user.activated_at is None:
-            user.activated_at = datetime.now(timezone.utc)
+            user.activated_at = datetime.now(UTC)
         user.status = payload.status
     if payload.platform_role is not None:
         user.platform_role = payload.platform_role

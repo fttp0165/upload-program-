@@ -2,7 +2,13 @@
 
 from collections.abc import AsyncIterator
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from fastapi import Request
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import Settings
@@ -25,8 +31,13 @@ def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
     return async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
 
 
-async def get_session(request) -> AsyncIterator[AsyncSession]:
-    """FastAPI 相依:每個請求一個 session,結束自動關閉。"""
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """FastAPI 相依:每個請求一個 session,結束自動關閉。
+
+    🐛 根本原因(T50):`request` 原本沒有型別註解,FastAPI 便把它當成**查詢參數**,
+    導致所有需要 DB 的端點一律回 422「query.request Field required」。
+    註解不是可有可無的風格問題——FastAPI 靠它決定參數要從哪裡取。
+    """
     factory: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     async with factory() as session:
         yield session

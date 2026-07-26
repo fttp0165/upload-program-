@@ -6,7 +6,7 @@
 
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -25,53 +25,53 @@ from .db import Base
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _uuid_pk() -> Mapped[uuid.UUID]:
     return mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
 
 
-class UserStatus(str, enum.Enum):
+class UserStatus(enum.StrEnum):
     pending = "pending"  # 首登建立,零角色 —— 業務 API 一律 403 待開通
     active = "active"
     disabled = "disabled"
 
 
-class PlatformRole(str, enum.Enum):
+class PlatformRole(enum.StrEnum):
     member = "member"
     admin = "admin"  # 可開通使用者、指派平台角色
 
 
-class Visibility(str, enum.Enum):
+class Visibility(enum.StrEnum):
     internal = "internal"  # 所有已開通使用者可讀
     private = "private"  # 僅專案成員可讀
 
 
-class ProjectRole(str, enum.Enum):
+class ProjectRole(enum.StrEnum):
     owner = "owner"
     maintainer = "maintainer"
     viewer = "viewer"
 
 
-class ReleaseStatus(str, enum.Enum):
+class ReleaseStatus(enum.StrEnum):
     draft = "draft"
     published = "published"
 
 
-class ArtifactKind(str, enum.Enum):
+class ArtifactKind(enum.StrEnum):
     source = "source"  # 原始碼(壓縮檔)
     binary = "binary"  # 執行檔 / 安裝包
     doc = "doc"  # 程式文件
 
 
-class UploadStatus(str, enum.Enum):
+class UploadStatus(enum.StrEnum):
     pending = "pending"  # 已登記,等前端直傳完成
     ready = "ready"  # 已完成並通過驗證
     failed = "failed"
 
 
-class ScanStatus(str, enum.Enum):
+class ScanStatus(enum.StrEnum):
     not_scanned = "not_scanned"  # ⏳ MVP 未接掃毒;下載頁必須據此標示
     clean = "clean"
     infected = "infected"
@@ -172,8 +172,11 @@ class Release(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     project: Mapped[Project] = relationship(back_populates="releases")
+    # 🐛 根本原因(T50):原本是預設的 lazy="select",序列化 ReleaseOut 時才去碰 artifacts,
+    # 在 async session 下會觸發同步 lazy load 而拋 MissingGreenlet。
+    # 版本幾乎總是連同檔案一起呈現,直接設為 selectin 一次查完,也讓這類漏載入不再可能發生。
     artifacts: Mapped[list["Artifact"]] = relationship(
-        back_populates="release", cascade="all, delete-orphan"
+        back_populates="release", cascade="all, delete-orphan", lazy="selectin"
     )
 
 

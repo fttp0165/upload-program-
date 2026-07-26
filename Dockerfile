@@ -43,7 +43,7 @@ HEALTHCHECK --interval=30s --timeout=3s --retries=3 --start-period=20s \
 
 # 正式級伺服器,綁 0.0.0.0(綁 127.0.0.1 的話 gateway 連不到)。
 # graceful-timeout 30s:收到 SIGTERM 後停收新請求、讓既有請求跑完。
-CMD ["gunicorn", "app.main:app", \
+CMD ["gunicorn", "app.asgi:app", \
      "--worker-class", "uvicorn.workers.UvicornWorker", \
      "--bind", "0.0.0.0:8080", \
      "--workers", "2", \

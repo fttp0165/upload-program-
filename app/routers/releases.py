@@ -1,7 +1,7 @@
 """版本(release):一次發布 = 一組檔案。draft 可改可刪,published 定版。"""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
@@ -140,7 +140,7 @@ async def publish_release(
         )
 
     release.status = ReleaseStatus.published
-    release.published_at = datetime.now(timezone.utc)
+    release.published_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(release)
     log.info("發布版本", extra={"release_id": str(release.id), "artifacts": len(ready)})

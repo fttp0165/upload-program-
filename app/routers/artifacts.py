@@ -12,6 +12,7 @@
 
 import logging
 import re
+from datetime import UTC
 from typing import Annotated
 from urllib.parse import quote
 
@@ -189,9 +190,9 @@ async def upload_artifact(
 
 
 def _now():
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def _mark_failed(session, artifact: Artifact) -> None:

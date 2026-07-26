@@ -7,11 +7,12 @@
 
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import problems
 from ..config import Settings
@@ -19,7 +20,6 @@ from ..db import get_session
 from ..oidc import make_pkce
 from ..security import upsert_user
 from ..session import LoginState, SessionData
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["auth"])
 log = logging.getLogger(__name__)
@@ -34,7 +34,6 @@ def _safe_next(raw: str | None) -> str:
 
 @router.get("/auth/login", summary="導向 IdP 登入頁(Auth Code + PKCE)")
 async def login(request: Request, next: Annotated[str | None, Query()] = None):
-    settings: Settings = request.app.state.settings
     oidc = request.app.state.oidc
     try:
         discovery = await oidc.load_discovery()
@@ -95,7 +94,7 @@ async def callback(
         raise problems.unauthorized("token 缺少 sub")
 
     user = await upsert_user(session, sub, settings)
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     await session.commit()
 
     target = f"{settings.external_base}{login_state.next_path}"

@@ -8,11 +8,11 @@ import asyncio
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.db import Base
+from alembic import context
 from app import models  # noqa: F401  —— 匯入以註冊所有 table
+from app.db import Base
 
 config = context.config
 if config.config_file_name is not None:

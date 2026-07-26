@@ -18,7 +18,9 @@ async def test_無憑證是401不是403(client):
 
 
 async def test_token無效回401(client, oidc):
-    resp = await client.get("/v1/projects", headers=auth("tok-偽造的"))
+    # 假 token 必須是 ASCII:HTTP 標頭值不允許非 ASCII,寫中文會炸在客戶端而根本送不出請求
+    # (原本寫成 "tok-偽造的",測試自己壞掉,不是服務的問題)。
+    resp = await client.get("/v1/projects", headers=auth("tok-forged-never-issued"))
     assert resp.status_code == 401
 
 

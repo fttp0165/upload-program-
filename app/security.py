@@ -8,7 +8,7 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -81,7 +81,7 @@ async def upsert_user(session: AsyncSession, sub: str, settings: Settings) -> Us
         sub=sub,
         status=UserStatus.active if is_bootstrap else UserStatus.pending,
         platform_role=PlatformRole.admin if is_bootstrap else PlatformRole.member,
-        activated_at=datetime.now(timezone.utc) if is_bootstrap else None,
+        activated_at=datetime.now(UTC) if is_bootstrap else None,
     )
     session.add(user)
     try:

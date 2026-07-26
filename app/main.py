@@ -6,7 +6,6 @@
 """
 
 import logging
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -93,4 +92,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-app = create_app()
+# 🐛 根本原因(T50):原本這裡有 `app = create_app()`,使得 **import 本模組就會讀環境變數**。
+# 後果是沒有 .env 的情境(測試、alembic、任何想 import 設定的工具)一律 ImportError。
+# 正式進入點改放在 app/asgi.py,本模組只提供工廠函式,不在 import 時產生副作用。

@@ -34,6 +34,19 @@ class ProblemError(Exception):
         self.extra = extra
 
 
+def _type_base(request: Request) -> str:
+    """取 problem type 的網址前綴。
+
+    🐛 根本原因(T50):原本這裡直接呼叫 `get_settings()`,等於**每產生一個錯誤回應就重讀環境變數**。
+    後果是任何沒有完整 .env 的情境(測試、以自訂 Settings 建立的 app)一產生錯誤就先炸在這裡,
+    真正的錯誤反而被蓋掉。改為優先取用 app 自己的設定,只有在拿不到時才回退。
+    """
+    settings = getattr(request.app.state, "settings", None)
+    if settings is not None:
+        return settings.problem_type_base
+    return get_settings().problem_type_base
+
+
 def problem_response(
     request: Request,
     status_code: int,
@@ -44,7 +57,7 @@ def problem_response(
     **extra: Any,
 ) -> JSONResponse:
     body = {
-        "type": f"{get_settings().problem_type_base}/{slug}",
+        "type": f"{_type_base(request)}/{slug}",
         "title": title,
         "status": status_code,
         "detail": detail,
@@ -92,13 +105,13 @@ def conflict(detail: str) -> ProblemError:
 
 
 def payload_too_large(detail: str) -> ProblemError:
-    return ProblemError(
-        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload-too-large", "Payload Too Large", detail
-    )
+    # 用數字字面值而非 status.HTTP_413_*:該常數在新版 Starlette 已改名並發出 DeprecationWarning,
+    # 但我們的相依區間也允許舊版(舊版沒有新名字)。狀態碼本身不會變,直接寫數字最不受版本牽動。
+    return ProblemError(413, "payload-too-large", "Content Too Large", detail)
 
 
 def unprocessable(slug: str, title: str, detail: str, **extra: Any) -> ProblemError:
-    return ProblemError(status.HTTP_422_UNPROCESSABLE_ENTITY, slug, title, detail, **extra)
+    return ProblemError(422, slug, title, detail, **extra)
 
 
 def bad_request(detail: str, slug: str = "bad-request") -> ProblemError:
@@ -136,7 +149,7 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     return problem_response(
         request,
-        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        422,  # 同上:避免綁定會改名的 Starlette 常數
         "validation",
         "Validation failed",
         "請求內容不符合規格,詳見 errors 欄位。",

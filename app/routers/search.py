@@ -2,12 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, or_, select
 
 from ..models import Project, ProjectMember, ProjectTag, Visibility
-from ..schemas import ProjectOut, ProjectPage, TagCount, TagPage
-from ..security import CurrentUser, DbSession, project_role
+from ..schemas import ProjectPage, TagCount, TagPage
+from ..security import CurrentUser, DbSession, project_out
 
 router = APIRouter(prefix="/v1", tags=["search"])
 
@@ -27,6 +27,7 @@ def _visible_condition(identity: CurrentUser):
 
 @router.get("/search", response_model=ProjectPage, summary="搜尋專案")
 async def search(
+    request: Request,
     session: DbSession,
     identity: CurrentUser,
     q: Annotated[str, Query(min_length=1, max_length=128)],
@@ -56,11 +57,8 @@ async def search(
         )
     ).scalars().all()
 
-    items = []
-    for project in rows:
-        out = ProjectOut.model_validate(project)
-        out.my_role = await project_role(session, project, identity.user)
-        items.append(out)
+    settings = request.app.state.settings
+    items = [await project_out(session, project, identity, settings) for project in rows]
     return ProjectPage(total=total, limit=limit, offset=offset, items=items)
 
 

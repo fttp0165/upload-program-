@@ -102,7 +102,9 @@ def settings(tmp_path) -> Settings:
         s3_secret_key="test",
         session_cookie_secure=False,
         max_artifact_bytes=1024 * 1024,
+        # 測試用小數字才跑得快;真實級距數值由 test_config_and_logging 的預設值測試把關。
         max_project_bytes=4 * 1024 * 1024,
+        max_project_extended_bytes=16 * 1024 * 1024,
     )
 
 

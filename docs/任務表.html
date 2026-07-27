@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 05:50
-<strong>版本:</strong> v1.12</p>
+<strong>最後更新:</strong> 2026-07-27 06:05
+<strong>版本:</strong> v1.13</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -352,9 +352,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T49</td>
 <td>專案容量級距與擴充(F17)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟡</td>
-<td><code>projects</code> 加級距欄位(standard/extended);管理員可調;超限的 413 訊息要含目前級距、已用量與申請指引;migration 有 backward</td>
+<td><code>projects</code> 加 <code>quota_tier</code>(standard 2 GB / extended 10 GB);<strong>只有平台管理員可調</strong>;413 訊息含級距、上限、已用量、本次大小與依級距而異的指引;migration up→down→up 演練通過(<strong>本專案第一個加欄位任務</strong>)</td>
 </tr>
 <tr>
 <td>T37</td>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.13</td>
+<td>2026-07-27 06:05</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T49 容量級距完成</strong>(TDD 紅→綠,13 條全紅起步);本專案第一個 🟡 <strong>加欄位</strong>任務,演練確認回滾只掉 <code>quota_tier</code>、其他欄位與資料列不變;<code>ProjectOut</code> 的組裝抽成 <code>security.project_out()</code>(原散在 8 處);測試 143→157</td>
 </tr>
 </tbody>
 </table>

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-27 05:50
-<strong>版本:</strong> v2.2</p>
+<strong>最後更新:</strong> 2026-07-27 06:05
+<strong>版本:</strong> v2.3</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -194,7 +194,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>project</code></td>
 <td>一個程式/工具</td>
-<td><code>id</code>、<code>slug</code>(unique)、<code>name</code>、<code>summary</code>、<code>visibility</code>、<code>owner_id</code>、<code>total_bytes</code></td>
+<td><code>id</code>、<code>slug</code>(unique)、<code>name</code>、<code>summary</code>、<code>visibility</code>、<code>owner_id</code>、<code>total_bytes</code>、<code>quota_tier</code></td>
 </tr>
 <tr>
 <td><code>project_member</code></td>
@@ -260,7 +260,45 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <li><code>Content-Type: application/octet-stream</code> + <code>X-Content-Type-Options: nosniff</code></li>
 <li><code>X-Artifact-SHA256</code>(供使用者自行校驗)、<code>X-Artifact-Scan-Status</code></li>
 </ul>
-<h3>3.4 尚未做的</h3>
+<h3>3.4 容量級距(F17 / <code>app/quota.py</code>)</h3>
+<p>專案總容量分兩級距,<code>projects.quota_tier</code> 只存<strong>代號</strong>,對應的位元組數來自設定:</p>
+<table>
+<thead>
+<tr>
+<th>級距</th>
+<th>設定值</th>
+<th>預設</th>
+<th>誰能改</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>standard</code></td>
+<td><code>MAX_PROJECT_BYTES</code></td>
+<td>2 GB</td>
+<td>——(預設)</td>
+</tr>
+<tr>
+<td><code>extended</code></td>
+<td><code>MAX_PROJECT_EXTENDED_BYTES</code></td>
+<td>10 GB</td>
+<td><strong>只有平台管理員</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼存代號而不是位元組數字</strong>:政策數字若複製到每一列,日後調整級距就變成一次
+資料遷移,而且分不清哪些列是政策預設、哪些是個案調整。存代號則改設定值即可。</p>
+<ul>
+<li>上傳有兩道同樣的檢查:<code>Content-Length</code> 預檢(省頻寬)與收完後檢查(chunked 沒有
+  Content-Length)。兩道共用 <code>quota.too_large()</code> 組訊息,否則必然漂移。</li>
+<li>超限的 413 <strong>不只丟一句 Payload Too Large</strong>:detail 含級距、上限、已用量、本次大小,
+  並給依級距而異的指引(standard 說「可申請擴充」、extended 說「請清理舊版本」——
+  對已是最大級距的人講「可申請」是錯誤指引)。數值同時以 RFC 7807 擴充成員
+  <code>quota_tier</code> / <code>quota_bytes</code> / <code>used_bytes</code> / <code>incoming_bytes</code> 帶出。</li>
+<li><strong>降級允許且不刪檔</strong>:管理員可能正是要用降級逼專案清理;既有檔案仍可下載,
+  只擋新上傳,並記一筆 warning。</li>
+</ul>
+<h3>3.5 尚未做的</h3>
 <p><strong>病毒掃描未接</strong>(T25 待決)。<code>scan_status</code> 預設 <code>not_scanned</code> 並隨下載回傳——
 「內部平台」不是把未掃描執行檔說成安全的理由。</p>
 <hr />
@@ -336,6 +374,11 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <td>GET</td>
 <td><code>/v1/tags</code></td>
 <td><strong>標籤與使用計數</strong>(只計當事人看得到的專案)</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/v1/projects/{slug}/quota</code></td>
+<td><strong>設定容量級距</strong>(standard / extended;<strong>僅平台管理員</strong>)</td>
 </tr>
 <tr>
 <td>DELETE</td>
@@ -535,6 +578,12 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.3</td>
+<td>2026-07-27 06:05</td>
+<td>Claude(Benny 授權)</td>
+<td><code>project</code> 加 <code>quota_tier</code>;新增 §3.4 容量級距(存代號而非數字的理由、兩道檢查共用訊息、413 的內容要求、降級不刪檔),原 §3.4 順延為 §3.5;API 表補上 <code>PUT /v1/projects/{slug}/quota</code>(T49)</td>
 </tr>
 <tr>
 <td>v2.0</td>

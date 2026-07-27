@@ -14,6 +14,7 @@ from .models import (
     ArtifactKind,
     PlatformRole,
     ProjectRole,
+    QuotaTier,
     ReleaseStatus,
     ScanStatus,
     UploadStatus,
@@ -78,6 +79,10 @@ class ProjectOut(ORMModel):
     updated_at: datetime
     my_role: ProjectRole | None = None
     tags: list[str] = []
+    quota_tier: QuotaTier = QuotaTier.standard
+    # 級距對應的上限位元組數。不是 ORM 欄位(政策值來自設定),
+    # 由 security.project_out() 統一填,前端才能顯示「已用 x / 上限 y」。
+    quota_bytes: int | None = None
 
     @field_validator("tags", mode="before")
     @classmethod
@@ -97,6 +102,12 @@ class OwnerTransfer(BaseModel):
     """轉移擁有權的目標人選(F16)。"""
 
     user_id: uuid.UUID
+
+
+class QuotaIn(BaseModel):
+    """設定專案容量級距(F17)。只有平台管理員送得進來。"""
+
+    tier: QuotaTier
 
 
 MAX_TAGS_PER_PROJECT = 10

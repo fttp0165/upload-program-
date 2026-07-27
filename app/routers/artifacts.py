@@ -21,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from .. import filetypes, problems
+from .. import filetypes, problems, quota
 from ..models import Artifact, ArtifactKind, ProjectRole, ReleaseStatus, UploadStatus
 from ..schemas import ArtifactOut
 from ..security import (
@@ -89,10 +89,10 @@ async def upload_artifact(
             raise problems.payload_too_large(
                 f"單檔上限 {settings.max_artifact_bytes} bytes,本次 {content_length} bytes"
             )
-        if release.project.total_bytes + content_length > settings.max_project_bytes:
-            raise problems.payload_too_large(
-                f"專案容量上限 {settings.max_project_bytes} bytes,已用 {release.project.total_bytes} bytes"
-            )
+        # T49:上限依專案級距而定,訊息由 quota 模組統一組(預檢與收完後檢查共用一份,
+        # 否則兩條路徑的訊息必然漂移)。
+        if quota.over_quota(settings, release.project, content_length):
+            raise quota.too_large(settings, release.project, content_length)
 
     existing = (
         await session.execute(
@@ -163,10 +163,11 @@ async def upload_artifact(
             actual=result.sha256,
         )
 
-    if release.project.total_bytes + result.size_bytes > settings.max_project_bytes:
+    # 沒有 Content-Length(chunked)時,只有收完才知道實際大小——這是第二道同樣的檢查。
+    if quota.over_quota(settings, release.project, result.size_bytes):
         await storage.delete(key)
         await _mark_failed(session, artifact)
-        raise problems.payload_too_large(f"專案容量上限 {settings.max_project_bytes} bytes")
+        raise quota.too_large(settings, release.project, result.size_bytes)
 
     artifact.storage_key = key
     artifact.size_bytes = result.size_bytes

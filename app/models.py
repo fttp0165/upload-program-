@@ -48,6 +48,18 @@ class Visibility(enum.StrEnum):
     private = "private"  # 僅專案成員可讀
 
 
+class QuotaTier(enum.StrEnum):
+    """專案容量級距(F17)。
+
+    專案列上只存**級距代號**,不存位元組數字:政策數字散進每一列的話,
+    日後把標準級距從 2 GB 調成 3 GB 就變成一次資料遷移,
+    而且分不清哪些列是政策預設、哪些是個案調整。代號→位元組的對應見 `app/quota.py`。
+    """
+
+    standard = "standard"  # 預設,2 GB
+    extended = "extended"  # 需向平台管理員申請,10 GB
+
+
 class ProjectRole(enum.StrEnum):
     owner = "owner"
     maintainer = "maintainer"
@@ -125,6 +137,10 @@ class Project(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     # 配額用的累計值,artifact 轉 ready / 被刪除時維護。
     total_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    # 容量級距(F17);只有平台管理員能改,對應的上限位元組數見 app/quota.py。
+    quota_tier: Mapped[QuotaTier] = mapped_column(
+        _enum(QuotaTier, "quota_tier"), default=QuotaTier.standard, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 

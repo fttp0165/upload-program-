@@ -73,8 +73,15 @@ def test_預設單檔上限為100MB():
 
 
 def test_預設專案容量為2GB():
-    """Q10 裁示「一般員工開發的小工具 2G 就可以了」。"""
+    """Q10 裁示「一般員工開發的小工具 2G 就可以了」。這是 standard 級距。"""
     assert _settings().max_project_bytes == 2 * GB
+
+
+def test_擴充級距為10GB且大於標準級距():
+    """F17/T49:擴充級距若不比標準大,整個級距機制就沒有意義。"""
+    s = _settings()
+    assert s.max_project_extended_bytes == 10 * GB
+    assert s.max_project_extended_bytes > s.max_project_bytes
 
 
 def test_env_example的容量值與程式預設一致():
@@ -99,6 +106,7 @@ def test_env_example的容量值與程式預設一致():
 
     assert declared["MAX_ARTIFACT_BYTES"] == defaults.max_artifact_bytes
     assert declared["MAX_PROJECT_BYTES"] == defaults.max_project_bytes
+    assert declared["MAX_PROJECT_EXTENDED_BYTES"] == defaults.max_project_extended_bytes
 
 
 def test_對外網址由設定組出而非從request推導():

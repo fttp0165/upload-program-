@@ -104,10 +104,11 @@ def conflict(detail: str) -> ProblemError:
     return ProblemError(status.HTTP_409_CONFLICT, "conflict", "Conflict", detail)
 
 
-def payload_too_large(detail: str) -> ProblemError:
+def payload_too_large(detail: str, **extra: Any) -> ProblemError:
     # 用數字字面值而非 status.HTTP_413_*:該常數在新版 Starlette 已改名並發出 DeprecationWarning,
     # 但我們的相依區間也允許舊版(舊版沒有新名字)。狀態碼本身不會變,直接寫數字最不受版本牽動。
-    return ProblemError(413, "payload-too-large", "Content Too Large", detail)
+    # `extra` 走 RFC 7807 擴充成員(T49 用來帶出級距、上限、已用量),前端不必 parse 中文句子。
+    return ProblemError(413, "payload-too-large", "Content Too Large", detail, **extra)
 
 
 def unprocessable(slug: str, title: str, detail: str, **extra: Any) -> ProblemError:

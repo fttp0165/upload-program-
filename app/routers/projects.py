@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import problems
 from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User, Visibility
+from ..quota import limit_for
 from ..schemas import (
     MemberIn,
     MemberOut,
@@ -17,14 +18,16 @@ from ..schemas import (
     ProjectOut,
     ProjectPage,
     ProjectUpdate,
+    QuotaIn,
     TagsIn,
     normalise_tag,
 )
 from ..security import (
+    AdminUser,
     CurrentUser,
     DbSession,
     get_project,
-    project_role,
+    project_out,
     require_project_read,
     require_project_role,
 )
@@ -48,6 +51,7 @@ def _visible_filter(identity: CurrentUser):
 
 @router.get("", response_model=ProjectPage, summary="列出可見的專案")
 async def list_projects(
+    request: Request,
     session: DbSession,
     identity: CurrentUser,
     q: Annotated[str | None, Query(max_length=128)] = None,
@@ -83,17 +87,14 @@ async def list_projects(
         await session.execute(stmt.order_by(Project.updated_at.desc()).limit(limit).offset(offset))
     ).scalars().all()
 
-    items = []
-    for project in rows:
-        out = ProjectOut.model_validate(project)
-        out.my_role = await project_role(session, project, identity.user)
-        items.append(out)
+    settings = request.app.state.settings
+    items = [await project_out(session, project, identity, settings) for project in rows]
     return ProjectPage(total=total, limit=limit, offset=offset, items=items)
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED, summary="建立專案")
 async def create_project(
-    payload: ProjectCreate, session: DbSession, identity: CurrentUser
+    payload: ProjectCreate, request: Request, session: DbSession, identity: CurrentUser
 ) -> ProjectOut:
     project = Project(
         slug=payload.slug,
@@ -110,24 +111,29 @@ async def create_project(
         raise problems.conflict(f"專案短名 {payload.slug} 已被使用") from None
     await session.refresh(project)
 
-    out = ProjectOut.model_validate(project)
-    out.my_role = ProjectRole.owner
+    # 建立者必然是 owner,不必再查一次成員表
+    out = await project_out(
+        session, project, identity, request.app.state.settings,
+        role=ProjectRole.owner, role_known=True,
+    )
     log.info("建立專案", extra={"project_id": str(project.id), "slug": project.slug})
     return out
 
 
 @router.get("/{slug}", response_model=ProjectOut, summary="專案詳情")
-async def get_project_detail(slug: str, session: DbSession, identity: CurrentUser) -> ProjectOut:
+async def get_project_detail(
+    slug: str, request: Request, session: DbSession, identity: CurrentUser
+) -> ProjectOut:
     project = await get_project(session, slug)
     role = await require_project_read(session, project, identity)
-    out = ProjectOut.model_validate(project)
-    out.my_role = role
-    return out
+    return await project_out(
+        session, project, identity, request.app.state.settings, role=role, role_known=True
+    )
 
 
 @router.patch("/{slug}", response_model=ProjectOut, summary="修改專案")
 async def update_project(
-    slug: str, payload: ProjectUpdate, session: DbSession, identity: CurrentUser
+    slug: str, payload: ProjectUpdate, request: Request, session: DbSession, identity: CurrentUser
 ) -> ProjectOut:
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.maintainer)
@@ -137,9 +143,7 @@ async def update_project(
     await session.commit()
     await session.refresh(project)
 
-    out = ProjectOut.model_validate(project)
-    out.my_role = await project_role(session, project, identity.user)
-    return out
+    return await project_out(session, project, identity, request.app.state.settings)
 
 
 @router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT, summary="刪除專案(連同檔案)")
@@ -159,7 +163,7 @@ async def delete_project(
 
 @router.put("/{slug}/tags", response_model=ProjectOut, summary="整組取代專案標籤")
 async def set_tags(
-    slug: str, payload: TagsIn, session: DbSession, identity: CurrentUser
+    slug: str, payload: TagsIn, request: Request, session: DbSession, identity: CurrentUser
 ) -> ProjectOut:
     """整組取代專案標籤(F42)。
 
@@ -181,14 +185,61 @@ async def set_tags(
     await session.commit()
     await session.refresh(project)
 
-    out = ProjectOut.model_validate(project)
-    out.my_role = await project_role(session, project, identity.user)
-    return out
+    return await project_out(session, project, identity, request.app.state.settings)
+
+
+@router.put("/{slug}/quota", response_model=ProjectOut, summary="設定專案容量級距(平台管理員)")
+async def set_quota(
+    slug: str, payload: QuotaIn, request: Request, session: DbSession, admin: AdminUser
+) -> ProjectOut:
+    """設定專案容量級距(F17):標準 / 擴充。
+
+    🔴 **只有平台管理員能改**。owner 若能自調級距,等於根本沒有上限——
+    F17 明文「由平台管理員核可」。MVP 的「申請」走線下(口頭/郵件),
+    管理員在這裡直接調;站內申請單是 F18(P2,不在本任務)。
+
+    **降級允許,而且不刪檔**:管理員可能正是要用降級逼專案清理。既有檔案保留、仍可下載,
+    只有新上傳會被擋,直到用量降回上限以下。降級後已超標時記一筆 warning,
+    讓這件事在營運上看得見(否則只會表現為使用者莫名其妙傳不上去)。
+
+    參數:slug 專案短名、payload.tier 目標級距。
+    回傳:更新後的 ProjectOut。副作用:改寫 `projects.quota_tier`。
+    """
+    project = await get_project(session, slug)
+    settings = request.app.state.settings
+
+    project.quota_tier = payload.tier
+    await session.commit()
+    await session.refresh(project)
+
+    limit = limit_for(settings, payload.tier)
+    log.info(
+        "調整專案容量級距",
+        extra={
+            "project_id": str(project.id),
+            "slug": project.slug,
+            "quota_tier": payload.tier.value,
+            "quota_bytes": limit,
+            "total_bytes": project.total_bytes,
+        },
+    )
+    if project.total_bytes > limit:
+        log.warning(
+            "專案已用量超過新級距上限,新上傳將被擋下(既有檔案不受影響)",
+            extra={
+                "project_id": str(project.id),
+                "slug": project.slug,
+                "quota_tier": payload.tier.value,
+                "quota_bytes": limit,
+                "total_bytes": project.total_bytes,
+            },
+        )
+    return await project_out(session, project, admin, settings)
 
 
 @router.put("/{slug}/owner", response_model=ProjectOut, summary="轉移擁有權")
 async def transfer_ownership(
-    slug: str, payload: OwnerTransfer, session: DbSession, identity: CurrentUser
+    slug: str, payload: OwnerTransfer, request: Request, session: DbSession, identity: CurrentUser
 ) -> ProjectOut:
     """把專案擁有權移交給另一位已開通使用者(F16)。
 
@@ -203,9 +254,7 @@ async def transfer_ownership(
 
     # 冪等:重複轉給現任 owner 不算錯,直接回現況。
     if payload.user_id == project.owner_id:
-        out = ProjectOut.model_validate(project)
-        out.my_role = await project_role(session, project, identity.user)
-        return out
+        return await project_out(session, project, identity, request.app.state.settings)
 
     new_owner = (
         await session.execute(select(User).where(User.id == payload.user_id))
@@ -264,9 +313,7 @@ async def transfer_ownership(
             "performed_by_admin": identity.user.is_admin,
         },
     )
-    out = ProjectOut.model_validate(project)
-    out.my_role = await project_role(session, project, identity.user)
-    return out
+    return await project_out(session, project, identity, request.app.state.settings)
 
 
 # --- 成員 -------------------------------------------------------------------

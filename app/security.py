@@ -30,6 +30,8 @@ from .models import (
     Visibility,
 )
 from .oidc import OidcClient
+from .quota import project_limit
+from .schemas import ProjectOut
 from .session import SessionData
 
 _ROLE_RANK = {ProjectRole.viewer: 0, ProjectRole.maintainer: 1, ProjectRole.owner: 2}
@@ -182,6 +184,31 @@ async def require_project_role(
             return ProjectRole.owner
         raise problems.forbidden(f"需要專案 {minimum.value} 以上的權限。")
     return role
+
+
+async def project_out(
+    session: AsyncSession,
+    project: Project,
+    identity: Identity,
+    settings: Settings,
+    role: ProjectRole | None = None,
+    role_known: bool = False,
+) -> ProjectOut:
+    """組出「當事人視角」的專案輸出。
+
+    為什麼要有這個函式:`ProjectOut` 有兩個欄位**不是 ORM 欄位**——
+    `my_role`(看的人是誰決定)與 `quota_bytes`(政策值,來自設定)。
+    這段組裝原本散在 8 個地方,漏掉任何一處就是一個欄位靜默變 null 的 bug,
+    而且不會有任何錯誤訊息。集中在這裡,只有一條路。
+
+    參數:session、project、identity 當事人、settings、
+    role/role_known 已知角色時可省一次查詢(role=None 且 role_known=True 表示「確定沒有角色」)。
+    回傳:填好的 ProjectOut。副作用:可能查一次 project_members。
+    """
+    out = ProjectOut.model_validate(project)
+    out.my_role = role if role_known else await project_role(session, project, identity.user)
+    out.quota_bytes = project_limit(settings, project)
+    return out
 
 
 def parse_uuid(value: str, what: str) -> uuid.UUID:

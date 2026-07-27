@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 14:52
-<strong>版本:</strong> v1.16</p>
+<strong>最後更新:</strong> 2026-07-27 15:08
+<strong>版本:</strong> v1.17</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -469,9 +469,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T41</td>
 <td>主頁:專案列表 + 搜尋 + 標籤篩選(F71)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>只顯示當事人看得到的專案;分頁可用</td>
+<td>13 條測試(<strong>先紅後綠</strong>);查詢抽成 <code>queries.query_projects()</code> <strong>與 API 共用</strong>,並有一條測試直接比對網頁與 API 看到的專案集合;標籤可點、分頁帶著篩選條件;URL 編碼在 Python 端做(autoescape 不管 URL 語意);匿名/待開通顯示提示而非錯誤,且不漏出任何專案</td>
 </tr>
 <tr>
 <td>T42</td>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.17</td>
+<td>2026-07-27 15:08</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T41 主頁完成</strong>;可見性查詢抽成共用函式(API 與網頁各寫一份的話,分岔的後果是 private 專案外洩),並以「拿掉可見性過濾 → 測試變紅」實測其非空測;待開通文案取自 <code>problems.pending_activation()</code> 的同一來源;測試 195→208</td>
 </tr>
 <tr>
 <td>v1.16</td>

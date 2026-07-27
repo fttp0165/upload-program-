@@ -101,3 +101,54 @@ a { color: var(--link); }
 }
 
 .err-hint { font-size: .9rem; border-top: 1px solid var(--line); padding-top: 1rem; margin-top: 1.5rem; }
+
+/* --- 首頁:專案列表(T41) --- */
+
+.notice {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+}
+
+.filter-note { font-size: .95rem; }
+
+.project-list { list-style: none; margin: 1.5rem 0 0; padding: 0; }
+
+.project {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+}
+
+.project-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.project-name { font-weight: 600; font-size: 1.05rem; }
+
+.project-slug {
+  color: var(--fg-muted);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: .9rem;
+}
+
+.badge {
+  font-size: .75rem;
+  color: var(--fg-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 .5rem;
+}
+
+.project-summary { margin: .4rem 0 0; color: var(--fg); }
+.project-tags { margin: .5rem 0 0; display: flex; gap: .4rem; flex-wrap: wrap; }
+
+.tag {
+  font-size: .8rem;
+  text-decoration: none;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .05rem .6rem;
+}
+
+.pager { display: flex; align-items: center; gap: 1rem; margin-top: 1.25rem; }

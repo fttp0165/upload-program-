@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 14:52
-**版本:** v2.6
+**最後更新:** 2026-07-27 15:08
+**版本:** v2.7
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -198,6 +198,27 @@ gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資�
 網頁用 `optional_identity`(取不到身分回 `None` 而非拋錯):匿名訪客該看到登入按鈕,
 不是一頁錯誤。顯示名稱來自 **IdP claims**,不從業務庫讀(業務庫只存 `sub`)。
 
+### 🔴 可見性:API 與網頁共用同一份查詢
+
+專案列表的可見性規則(internal 全站可見、private 只有成員與 owner、admin 全部看得到)
+抽在 `app/queries.py` 的 `query_projects()`,**`GET /v1/projects` 與首頁共用**。
+
+各寫一份的話兩份遲早會分岔,而分岔的後果是 **private 專案外洩**。
+測試直接比對同一個非成員在 API 與網頁看到的專案集合是否相同。
+
+網頁對未登入/待開通**不回錯誤**而是顯示提示,但只有已開通者才會走到查詢
+——「不回錯誤」不等於「可以少過濾」。
+
+### 連結:HTML 逸出與 URL 編碼是兩件事
+
+分頁與標籤連結在**路由端用 `urlencode` 組好**再交給模板,不在 Jinja 裡拼字串:
+
+- autoescape 管的是 **HTML 語意**(`<`、`&` 之類)
+- `urlencode` 管的是 **URL 語意**(`&`、`#`、中文)
+
+在模板裡拼很容易只做到一半:`?q=a&b=c` 會塞進額外參數,含 `#` 的輸入會把後面整段吃掉,
+中文標籤則根本組不出合法網址。
+
 ### CSP
 
 `SecurityHeadersMiddleware` 對所有回應加上:
@@ -307,6 +328,7 @@ default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.7 | 2026-07-27 15:08 | Claude(Benny 授權) | §3.7 補上「API 與網頁共用同一份可見性查詢」與「HTML 逸出 vs URL 編碼是兩件事」兩節(T41) |
 | v2.6 | 2026-07-27 14:52 | Claude(Benny 授權) | 新增 §3.7 網頁介面(檔案配置、子路徑的兩個方向、`Mount` 二次剝前綴的根因、optional_identity、CSP)(T40) |
 | v2.5 | 2026-07-27 14:35 | Claude(Benny 授權) | 新增 §4.1 錯誤回應的內容協商(路徑 AND Accept 兩條件、`*/*` 不算的理由、autoescape 與 `Vary`/`nosniff`)(T47) |
 | v2.4 | 2026-07-27 13:55 | Claude(Benny 授權) | `artifact` 加 `download_count`;新增 §3.5 下載次數統計(不做事件表的理由、原子 UPDATE、發起 vs 完成的語意),原 §3.5 順延為 §3.6(T37) |

@@ -4,11 +4,12 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
-from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User, Visibility
+from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User
+from ..queries import query_projects
 from ..quota import limit_for
 from ..schemas import (
     MemberIn,
@@ -20,7 +21,6 @@ from ..schemas import (
     ProjectUpdate,
     QuotaIn,
     TagsIn,
-    normalise_tag,
 )
 from ..security import (
     AdminUser,
@@ -36,19 +36,6 @@ router = APIRouter(prefix="/v1/projects", tags=["projects"])
 log = logging.getLogger(__name__)
 
 
-def _visible_filter(identity: CurrentUser):
-    """internal 全站可見;private 只有成員看得到。"""
-    if identity.user.is_admin:
-        return None
-    return or_(
-        Project.visibility == Visibility.internal,
-        Project.owner_id == identity.user.id,
-        Project.id.in_(
-            select(ProjectMember.project_id).where(ProjectMember.user_id == identity.user.id)
-        ),
-    )
-
-
 @router.get("", response_model=ProjectPage, summary="列出可見的專案")
 async def list_projects(
     request: Request,
@@ -59,34 +46,12 @@ async def list_projects(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ProjectPage:
-    stmt = select(Project)
-    count_stmt = select(func.count()).select_from(Project)
-    if (visible := _visible_filter(identity)) is not None:
-        stmt = stmt.where(visible)
-        count_stmt = count_stmt.where(visible)
-    if q:
-        pattern = f"%{q.strip()}%"
-        keyword = or_(Project.name.ilike(pattern), Project.slug.ilike(pattern), Project.summary.ilike(pattern))
-        stmt = stmt.where(keyword)
-        count_stmt = count_stmt.where(keyword)
-    if tag:
-        # 查詢字串同樣要正規化,否則 `?tag=PYTHON` 會查不到存成 `python` 的標籤。
-        # 這裡不驗長度/空白(那是寫入端的事),只求比對得上;正規化失敗就當作查不到。
-        try:
-            wanted = normalise_tag(tag)
-        except ValueError:
-            wanted = None
-        tagged = Project.id.in_(
-            select(ProjectTag.project_id).where(ProjectTag.tag == wanted)
-        )
-        stmt = stmt.where(tagged)
-        count_stmt = count_stmt.where(tagged)
+    """列出當事人看得到的專案。
 
-    total = (await session.execute(count_stmt)).scalar_one()
-    rows = (
-        await session.execute(stmt.order_by(Project.updated_at.desc()).limit(limit).offset(offset))
-    ).scalars().all()
-
+    🔴 查詢與可見性規則抽在 `queries.query_projects()`,**與首頁網頁共用**:
+    兩份查詢遲早會分岔,而分岔的後果是 private 專案外洩(T41)。
+    """
+    total, rows = await query_projects(session, identity.user, q=q, tag=tag, limit=limit, offset=offset)
     settings = request.app.state.settings
     items = [await project_out(session, project, identity, settings) for project in rows]
     return ProjectPage(total=total, limit=limit, offset=offset, items=items)

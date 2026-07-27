@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-27 06:05
-<strong>版本:</strong> v2.3</p>
+<strong>最後更新:</strong> 2026-07-27 13:55
+<strong>版本:</strong> v2.4</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -214,7 +214,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>artifact</code></td>
 <td>發布內含的檔案</td>
-<td><code>id</code>、<code>release_id</code>、<code>kind</code>、<code>filename</code>、<code>size_bytes</code>、<code>sha256</code>、<code>content_type</code>、<code>storage_key</code>、<code>upload_status</code>、<code>scan_status</code></td>
+<td><code>id</code>、<code>release_id</code>、<code>kind</code>、<code>filename</code>、<code>size_bytes</code>、<code>sha256</code>、<code>content_type</code>、<code>storage_key</code>、<code>upload_status</code>、<code>scan_status</code>、<code>download_count</code></td>
 </tr>
 </tbody>
 </table>
@@ -298,7 +298,20 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <li><strong>降級允許且不刪檔</strong>:管理員可能正是要用降級逼專案清理;既有檔案仍可下載,
   只擋新上傳,並記一筆 warning。</li>
 </ul>
-<h3>3.5 尚未做的</h3>
+<h3>3.5 下載次數統計(F43)</h3>
+<p><code>artifacts.download_count</code> 一個整數欄位;<strong>版本的次數是底下所有檔案的加總,不另存欄位</strong>
+(兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來)。</p>
+<ul>
+<li><strong>刻意不做下載事件表</strong>:F43 只要求「次數」,「誰下載了什麼」是稽核(F54)的職責。
+  用計數欄位的話,「統計不記個資」是<strong>結構上做不到</strong>而不是靠自律——表裡根本沒有可以放人的欄位。</li>
+<li>計數點就是 <code>_download_response()</code>,與安全標頭同一個地方——換一條路徑就不算數的統計等於沒有統計。</li>
+<li>🔴 累計一律用 <code>UPDATE ... SET download_count = download_count + 1</code>。
+  Python 端的 <code>+= 1</code> 是讀-改-寫,併發會默默掉數且不會有任何錯誤訊息。</li>
+<li>算的是「<strong>發起</strong>下載」(回應建構那一刻),不是「完成下載」;中途中斷仍算一次。
+  這個數字的用途是熱門度而非計費,不值得為此把串流路徑複雜化。</li>
+<li><code>upload_status is ready</code> 的檢查在計數之前,所以失敗的下載(404)不會灌水。</li>
+</ul>
+<h3>3.6 尚未做的</h3>
 <p><strong>病毒掃描未接</strong>(T25 待決)。<code>scan_status</code> 預設 <code>not_scanned</code> 並隨下載回傳——
 「內部平台」不是把未掃描執行檔說成安全的理由。</p>
 <hr />
@@ -578,6 +591,12 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.4</td>
+<td>2026-07-27 13:55</td>
+<td>Claude(Benny 授權)</td>
+<td><code>artifact</code> 加 <code>download_count</code>;新增 §3.5 下載次數統計(不做事件表的理由、原子 UPDATE、發起 vs 完成的語意),原 §3.5 順延為 §3.6(T37)</td>
 </tr>
 <tr>
 <td>v2.3</td>

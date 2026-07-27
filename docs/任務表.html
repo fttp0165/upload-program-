@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 06:05
-<strong>版本:</strong> v1.13</p>
+<strong>最後更新:</strong> 2026-07-27 13:55
+<strong>版本:</strong> v1.14</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -359,9 +359,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T37</td>
 <td>下載次數統計(F43)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟡</td>
-<td>下載即累計;統計不記個資;migration 有 backward</td>
+<td>9 條測試(<strong>先紅後綠</strong>);<code>artifacts.download_count</code> 原子 UPDATE 累計,版本計數為加總不另存;兩條下載路徑共用同一個計數點;失敗/無權限的下載不計數;<strong>「不記個資」由結構保證</strong>(無事件表、無下載者欄位)並有測試釘住;migration up→down→up 演練通過</td>
 </tr>
 </tbody>
 </table>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.14</td>
+<td>2026-07-27 13:55</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T37 下載次數統計完成,M5 全數 ✅</strong>;採計數欄位而非事件表,「統計不記個資」成為結構保證;併發測試以 naive <code>+=</code> 實測會掉數(1≠5)證明非空測;測試 157→166</td>
 </tr>
 <tr>
 <td>v1.13</td>

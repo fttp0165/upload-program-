@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 06:05
-**版本:** v2.3
+**最後更新:** 2026-07-27 13:55
+**版本:** v2.4
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -67,7 +67,7 @@ user ──< project_member >── project ──< release >── artifact
 | `project_member` | 專案層權限 | `project_id`、`user_id`、`role`(owner/maintainer/viewer) |
 | `project_tag` | 專案標籤(F42) | `project_id`、`tag`(正規化後的小寫字串);**刻意不做標籤正規化表**,避免孤兒標籤的維運負擔 |
 | `release` | 一次發布 | `id`、`project_id`、`version`、`notes`、`status`(draft/published)、`created_by_id` |
-| `artifact` | 發布內含的檔案 | `id`、`release_id`、`kind`、`filename`、`size_bytes`、`sha256`、`content_type`、`storage_key`、`upload_status`、`scan_status` |
+| `artifact` | 發布內含的檔案 | `id`、`release_id`、`kind`、`filename`、`size_bytes`、`sha256`、`content_type`、`storage_key`、`upload_status`、`scan_status`、`download_count` |
 
 **🔴 業務庫只存 `sub`**——`user` 表**沒有** email / 姓名 / 密碼欄。顯示用的 email 與名稱由 IdP 的
 ID token / userinfo 即時提供,不落地(SSO 契約 §4.2)。PLM 的姓名快取是 §6.1 具名特例,本專案不繼承。
@@ -141,7 +141,21 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 - **降級允許且不刪檔**:管理員可能正是要用降級逼專案清理;既有檔案仍可下載,
   只擋新上傳,並記一筆 warning。
 
-### 3.5 尚未做的
+### 3.5 下載次數統計(F43)
+
+`artifacts.download_count` 一個整數欄位;**版本的次數是底下所有檔案的加總,不另存欄位**
+(兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來)。
+
+- **刻意不做下載事件表**:F43 只要求「次數」,「誰下載了什麼」是稽核(F54)的職責。
+  用計數欄位的話,「統計不記個資」是**結構上做不到**而不是靠自律——表裡根本沒有可以放人的欄位。
+- 計數點就是 `_download_response()`,與安全標頭同一個地方——換一條路徑就不算數的統計等於沒有統計。
+- 🔴 累計一律用 `UPDATE ... SET download_count = download_count + 1`。
+  Python 端的 `+= 1` 是讀-改-寫,併發會默默掉數且不會有任何錯誤訊息。
+- 算的是「**發起**下載」(回應建構那一刻),不是「完成下載」;中途中斷仍算一次。
+  這個數字的用途是熱門度而非計費,不值得為此把串流路徑複雜化。
+- `upload_status is ready` 的檢查在計數之前,所以失敗的下載(404)不會灌水。
+
+### 3.6 尚未做的
 
 **病毒掃描未接**(T25 待決)。`scan_status` 預設 `not_scanned` 並隨下載回傳——
 「內部平台」不是把未掃描執行檔說成安全的理由。
@@ -221,5 +235,6 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.4 | 2026-07-27 13:55 | Claude(Benny 授權) | `artifact` 加 `download_count`;新增 §3.5 下載次數統計(不做事件表的理由、原子 UPDATE、發起 vs 完成的語意),原 §3.5 順延為 §3.6(T37) |
 | v2.3 | 2026-07-27 06:05 | Claude(Benny 授權) | `project` 加 `quota_tier`;新增 §3.4 容量級距(存代號而非數字的理由、兩道檢查共用訊息、413 的內容要求、降級不刪檔),原 §3.4 順延為 §3.5;API 表補上 `PUT /v1/projects/{slug}/quota`(T49) |
 | v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **依 Cats 接入指南 v2.0 全面修正**:新增 §1 部署拓撲(含 SVG/ASCII 架構圖)與子路徑連帶影響;**儲存設計由 presigned 直傳改為服務串流轉送**(瀏覽器連不到 backend 網路的 MinIO),並說明捨棄 multipart 的理由;新增判型白名單與下載強制 attachment 細節;API 表更新為實際實作的端點;§5 對齊表補上對應檔案;依憲法第七條補日期、版本與本歷史表。產品範圍與里程碑移至開發計畫書 |

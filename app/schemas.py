@@ -8,7 +8,7 @@ import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .models import (
     ArtifactKind,
@@ -201,6 +201,7 @@ class ArtifactOut(ORMModel):
     sha256: str
     upload_status: UploadStatus
     scan_status: ScanStatus
+    download_count: int = 0
     created_at: datetime
     completed_at: datetime | None
 
@@ -215,6 +216,15 @@ class ReleaseOut(ORMModel):
     created_at: datetime
     published_at: datetime | None
     artifacts: list[ArtifactOut] = []
+    # 版本的下載次數是底下所有檔案的加總,**不另存欄位**(F43):
+    # 兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來。
+    # artifacts 本來就 selectin 一起載入,加總不用額外查詢。
+    download_count: int = 0
+
+    @model_validator(mode="after")
+    def _sum_downloads(self) -> "ReleaseOut":
+        self.download_count = sum(a.download_count for a in self.artifacts)
+        return self
 
 
 # --- 管理 -------------------------------------------------------------------

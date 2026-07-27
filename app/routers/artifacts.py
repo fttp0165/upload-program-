@@ -18,7 +18,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Header, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from .. import filetypes, problems, quota
@@ -216,19 +216,35 @@ async def download_artifact(
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
-    return _download_response(request, artifact)
+    return await _download_response(request, session, artifact)
 
 
-def _download_response(request: Request, artifact: Artifact) -> StreamingResponse:
-    """建構下載回應。
+async def _download_response(
+    request: Request, session, artifact: Artifact
+) -> StreamingResponse:
+    """建構下載回應,並累計下載次數(F43)。
 
     抽成共用函式的原因:最新版捷徑(F26)也要下載檔案,而**安全標頭絕不能因為換了一條
     路徑就鬆掉**。兩個端點共用同一段程式碼,就不可能有一邊漏掉 attachment 或 nosniff。
+    T37 把計數也放進來,理由相同——換一條路徑就不算數的統計等於沒有統計。
 
-    副作用:從物件儲存串流讀取,並寫一筆下載 log。
+    副作用:從物件儲存串流讀取、**寫一次 `artifacts.download_count`**,並寫一筆下載 log。
     """
     if artifact.upload_status is not UploadStatus.ready:
         raise problems.not_found("該檔案尚未上傳完成")
+
+    # 🔴 用 SQL 的原地加法,不是 `artifact.download_count += 1`。
+    # 後者是讀-改-寫,兩個併發下載會掉一次;而且這種錯不會有任何錯誤訊息,
+    # 只會讓數字默默偏低——下載正是最容易併發的端點。
+    #
+    # 計數放在 ready 檢查**之後**:失敗的下載(404)不該灌水。
+    # 算的是「發起下載」而非「完成下載」,中途中斷仍算一次(見 T37 日誌的取捨)。
+    await session.execute(
+        update(Artifact)
+        .where(Artifact.id == artifact.id)
+        .values(download_count=Artifact.download_count + 1)
+    )
+    await session.commit()
 
     # 🔴 一律 attachment + octet-stream:不讓上傳內容在本服務網域被瀏覽器直接執行。
     safe_name = quote(artifact.filename)
@@ -314,5 +330,5 @@ async def download_latest_artifact(
     name = filename.strip()
     for artifact in release.artifacts:
         if artifact.filename == name:
-            return _download_response(request, artifact)
+            return await _download_response(request, session, artifact)
     raise problems.not_found(f"最新版本 {release.version} 中沒有檔案 {name}")

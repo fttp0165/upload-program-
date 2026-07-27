@@ -247,6 +247,12 @@ class Artifact(Base):
     upload_status: Mapped[UploadStatus] = mapped_column(
         _enum(UploadStatus, "upload_status"), default=UploadStatus.pending, nullable=False
     )
+    # 下載次數(F43)。算的是**發起**下載的次數(回應建構的那一刻),不是完成下載——
+    # 中途中斷仍算一次。這個數字的用途是熱門度而非計費,不值得為了幾個中斷的請求
+    # 把串流路徑複雜化。累計一律用原子 UPDATE,見 routers/artifacts.py 的說明。
+    # 🔴 刻意**不做事件表**:F43 只要求次數,「誰下載了什麼」是稽核(T38/F54)的職責。
+    #    用計數欄位的話,「統計不記個資」是結構上做不到,而不是靠自律。
+    download_count: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     scan_status: Mapped[ScanStatus] = mapped_column(
         _enum(ScanStatus, "scan_status"), default=ScanStatus.not_scanned, nullable=False
     )

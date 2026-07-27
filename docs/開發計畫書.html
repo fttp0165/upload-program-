@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 開發計畫書</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/開發計畫書.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 開發計畫書</h1>
+<p><strong>建立日期:</strong> 2026-07-25 15:53
+<strong>最後更新:</strong> 2026-07-26 00:53
+<strong>版本:</strong> v1.2</p>
+<blockquote>
+<p>本文是 upload-program 的開發藍圖:目標、範圍、里程碑、資料影響分級與回滾原則。
+任務層級的追蹤見 <a href="任務表.md">任務表.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>。
+需求變更<strong>不直接改程式</strong>——先改本文與任務表,再依新任務執行(憲法第一條 4)。</p>
+</blockquote>
+<hr />
+<h2>1. 目標與範圍</h2>
+<h3>1.1 產品目標</h3>
+<p>公司內部的<strong>開發者程式分享平台</strong>——「簡易型 GitHub」。開發者登入後:</p>
+<ol>
+<li><strong>建立專案</strong>(一個程式/工具 = 一個專案)</li>
+<li><strong>開啟專案</strong>後上傳三類內容:<strong>原始碼</strong>、<strong>執行檔</strong>、<strong>程式文件</strong></li>
+<li>以<strong>版本</strong>為單位發布,他人可瀏覽、搜尋、下載</li>
+</ol>
+<h3>1.2 明確不做(MVP 範圍界線)</h3>
+<table>
+<thead>
+<tr>
+<th>不做</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git 協定(<code>git clone</code> / <code>push</code>)、commit 圖、diff</td>
+<td>GitHub 的核心難點;本專案以「版本化的檔案集」取代</td>
+</tr>
+<tr>
+<td>Pull Request / code review / issue 追蹤</td>
+<td>第二期再議</td>
+</tr>
+<tr>
+<td>線上編輯、CI 建置</td>
+<td>上傳既有產物即可</td>
+</tr>
+<tr>
+<td>外網公開</td>
+<td>內部平台,登入才可見</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>一句話界線:<strong>做的是「有版本管理的程式發布倉庫」,不是分散式版本控制系統。</strong></p>
+</blockquote>
+<h3>1.3 非功能目標</h3>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>目標</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>安全</td>
+<td>散布可執行檔的平台——判型、雜湊、強制 attachment 下載為不可退讓項</td>
+</tr>
+<tr>
+<td>容量</td>
+<td>單檔上限 <strong>100 MB</strong>;專案總容量兩級距——標準 <strong>2 GB</strong>(預設)/ 擴充 <strong>10 GB</strong>(需申請)</td>
+</tr>
+<tr>
+<td>可用</td>
+<td><code>/health</code> 60 秒內綠;換版不中斷既有請求(SIGTERM 30 秒優雅關閉)</td>
+</tr>
+<tr>
+<td>規約</td>
+<td>通過 Cats 接入指南 §11 的 Definition of Done 全部檢查項</td>
+</tr>
+<tr>
+<td>可維運</td>
+<td>備份<strong>且演練過還原</strong>;migration 可雙向回滾</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>2. 系統架構</h2>
+<figure class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" width="900" height="640"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="640" fill="#ffffff"/>
+
+  <!-- 使用者 -->
+  <text x="450" y="28" font-size="16" fill="#334" text-anchor="middle">內網使用者</text>
+  <line x1="450" y1="38" x2="450" y2="66" stroke="#334" stroke-width="2"/>
+  <polygon points="450,74 444,62 456,62" fill="#334"/>
+  <text x="464" y="58" font-size="13" fill="#6b7280">HTTPS 443</text>
+
+  <!-- gateway -->
+  <rect x="140" y="78" width="620" height="70" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2.5"/>
+  <text x="450" y="104" font-size="17" font-weight="bold" fill="#12228f" text-anchor="middle">
+    portal-gateway(cats-portal 擁有)
+  </text>
+  <text x="450" y="128" font-size="13" fill="#1a2540" text-anchor="middle">
+    全 VM 唯一持有 80/443 · TLS 在此終結 · 依路徑前綴分流,並剝掉前綴
+  </text>
+
+  <!-- cats-edge -->
+  <rect x="140" y="168" width="620" height="42" rx="8" fill="#e9f5ec" stroke="#1a7f37" stroke-width="2"/>
+  <text x="450" y="186" font-size="14" font-weight="bold" fill="#1a7f37" text-anchor="middle">
+    external network:cats-edge(external: true + name: cats-edge)
+  </text>
+  <text x="450" y="203" font-size="12" fill="#1a7f37" text-anchor="middle">
+    只有「對外容器」上這張網,以 gateway 設定用的短名作 alias
+  </text>
+  <line x1="450" y1="148" x2="450" y2="168" stroke="#12228f" stroke-width="2"/>
+  <line x1="450" y1="210" x2="450" y2="242" stroke="#1a7f37" stroke-width="2"/>
+  <text x="458" y="230" font-size="12" fill="#1a7f37">/«PREFIX»/</text>
+
+  <!-- upload-program stack -->
+  <rect x="112" y="246" width="676" height="248" rx="12" fill="#fffbea" stroke="#997404" stroke-width="2"/>
+  <text x="132" y="270" font-size="15" font-weight="bold" fill="#997404">upload-program stack(獨立 compose)</text>
+
+  <!-- svc -->
+  <rect x="300" y="284" width="300" height="56" rx="8" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="450" y="306" font-size="14" font-weight="bold" fill="#12228f" text-anchor="middle">svc:8080(FastAPI,對外容器)</text>
+  <text x="450" y="326" font-size="11.5" fill="#6b7280" text-anchor="middle">frontend + backend + cats-edge</text>
+
+  <!-- 下游 -->
+  <line x1="380" y1="340" x2="300" y2="386" stroke="#8a93a5" stroke-width="2"/>
+  <line x1="520" y1="340" x2="600" y2="386" stroke="#8a93a5" stroke-width="2"/>
+
+  <rect x="170" y="386" width="230" height="76" rx="8" fill="#fff" stroke="#8a93a5" stroke-width="1.5"/>
+  <text x="285" y="410" font-size="13.5" font-weight="bold" fill="#334" text-anchor="middle">db(PostgreSQL 16)</text>
+  <text x="285" y="430" font-size="11.5" fill="#6b7280" text-anchor="middle">named volume:pgdata</text>
+  <text x="285" y="450" font-size="11.5" fill="#6b7280" text-anchor="middle">只存 sub,無 email/姓名/密碼</text>
+
+  <rect x="500" y="386" width="230" height="76" rx="8" fill="#fff" stroke="#8a93a5" stroke-width="1.5"/>
+  <text x="615" y="410" font-size="13.5" font-weight="bold" fill="#334" text-anchor="middle">minio(S3 相容)</text>
+  <text x="615" y="430" font-size="11.5" fill="#6b7280" text-anchor="middle">named volume:minio-data</text>
+  <text x="615" y="450" font-size="11.5" fill="#6b7280" text-anchor="middle">原始碼 / 執行檔 / 文件</text>
+
+  <text x="450" y="482" font-size="12.5" font-weight="bold" fill="#c0392b" text-anchor="middle">
+    ⛔ db 與 minio 只在 backend 網路:不上 cats-edge、不對主機發布 port
+  </text>
+
+  <!-- 串流說明 -->
+  <rect x="112" y="510" width="676" height="46" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="450" y="530" font-size="12.5" font-weight="bold" fill="#c0392b" text-anchor="middle">
+    瀏覽器連不到 MinIO ⇒ 上傳與下載一律由 svc 串流轉送(不用 presigned 直傳)
+  </text>
+  <text x="450" y="548" font-size="11.5" fill="#c0392b" text-anchor="middle">
+    上傳走 S3 multipart:邊收邊算 SHA-256,記憶體固定一個 chunk,不落暫存檔
+  </text>
+
+  <!-- IdP -->
+  <rect x="300" y="576" width="300" height="50" rx="8" fill="#eef1fb" stroke="#12228f" stroke-width="1.5"/>
+  <text x="450" y="597" font-size="13.5" font-weight="bold" fill="#12228f" text-anchor="middle">Keycloak(IdP)</text>
+  <text x="450" y="615" font-size="11.5" fill="#6b7280" text-anchor="middle">只驗 token(RS256/JWKS),不自建帳號</text>
+  <line x1="450" y1="556" x2="450" y2="576" stroke="#12228f" stroke-width="2" stroke-dasharray="5 3"/>
+</svg></figure><details><summary>同一張圖的文字版(md 版採用)</summary><pre><code>                        內網使用者
+                            │ HTTPS 443
+                  ┌─────────▼──────────┐
+                  │   portal-gateway   │  全 VM 唯一持 80/443,依路徑前綴分流
+                  └─────────┬──────────┘
+                    external network: cats-edge
+                            │  /«PREFIX»/(前綴會被剝掉)
+        ┌───────────────────▼────────────────────┐
+        │  upload-program stack                  │
+        │  ┌──────────────────────────────────┐  │
+        │  │ svc:8080(對外容器,FastAPI)     │  │  ← 只有它上 cats-edge
+        │  └────────┬──────────────┬──────────┘  │
+        │           │ backend      │ backend     │
+        │  ┌────────▼───────┐ ┌────▼──────────┐  │
+        │  │ db(PostgreSQL)│ │ minio(S3 相容)│  │  ← 不曝 port、不上 cats-edge
+        │  │ volume: pgdata │ │ volume: data  │  │
+        │  └────────────────┘ └───────────────┘  │
+        └────────────────────────────────────────┘
+                            │
+                    ┌───────▼────────┐
+                    │ Keycloak(IdP) │  只驗 token,不自建帳號
+                    └────────────────┘
+</code></pre></details>
+
+<p><strong>兩個由拓撲推導出的關鍵決定:</strong></p>
+<ol>
+<li><strong>瀏覽器不直連 MinIO</strong>——它在 <code>backend</code> 網路、不曝 port,且全 VM 只有 gateway 持 443。
+   因此<strong>上傳與下載一律由 svc 串流轉送</strong>,不用 presigned 直傳。</li>
+<li><strong>服務掛在子路徑且前綴被剝掉</strong>——路由註冊在根路徑,只用 <code>root_path</code> 讓 OpenAPI 正確;
+   對外絕對網址(OIDC redirect、cookie path)一律從設定組出,不從 request 推導。</li>
+</ol>
+<hr />
+<h2>3. 里程碑</h2>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>目標</th>
+<th>出場條件(Exit Criteria)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>M1 規則與計畫</strong></td>
+<td>憲法、計畫書、任務表、設計文件到位</td>
+<td>四份文件皆有版本歷史;md + HTML 並存</td>
+</tr>
+<tr>
+<td><strong>M2 骨架與規約落地</strong></td>
+<td>設定 / log / 錯誤格式 / DB / 模型 / 容器 / CI</td>
+<td><code>/health</code> 綠、CI 全綠、Trivy 無 high</td>
+</tr>
+<tr>
+<td><strong>M3 身分接入</strong></td>
+<td>OIDC PKCE、JWKS、待開通、single logout</td>
+<td>冒煙清單前 5 項通過(用測試帳號)</td>
+</tr>
+<tr>
+<td><strong>M4 核心業務</strong></td>
+<td>專案 / 版本 / 成員 / 搜尋</td>
+<td>權限矩陣測試全綠</td>
+</tr>
+<tr>
+<td><strong>M5 檔案</strong></td>
+<td>串流上傳、magic bytes、下載、配額</td>
+<td>惡意檔案測試全綠;大檔實測通過</td>
+</tr>
+<tr>
+<td><strong>M6 接入 Cats</strong></td>
+<td>申請 client、路由 PR、驗收、備份還原演練、稽核紀錄</td>
+<td>接入指南 §11 DoD 全數打勾</td>
+</tr>
+<tr>
+<td><strong>M7 前端</strong></td>
+<td>主頁、導航列、專案頁(最新版置頂)、專案歷史、上傳與管理介面</td>
+<td>使用者不需 curl 即可完成一輪上傳與下載</td>
+</tr>
+<tr>
+<td><strong>M8 第二期</strong></td>
+<td>病毒掃描接上;其餘 P2 項目</td>
+<td>另行規劃,不納入 MVP</td>
+</tr>
+</tbody>
+</table>
+<p><strong>目前位置:</strong> M1 進行中;M2–M5 的程式碼已先行完成(<strong>違反憲法第二、三條</strong>,詳見
+<code>docs/dev-logs/2026-07-25_T00_規則統一與事後補記.md</code>),需補齊測試綠燈與文件後才能結案。</p>
+<hr />
+<h2>4. 對現有資料的影響分級</h2>
+<p>本專案<strong>尚未上線,目前無正式資料</strong>,所有任務暫列 🟢。上線後本表即生效,任務表每項任務都要標分級。</p>
+<table>
+<thead>
+<tr>
+<th>分級</th>
+<th>定義</th>
+<th>要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🟢 不動資料</td>
+<td>只加程式 / 設定 / 文件</td>
+<td>一般流程</td>
+</tr>
+<tr>
+<td>🟡 加欄位、加表</td>
+<td>結構新增,既有列不變</td>
+<td>migration 要 backward;staging 演練</td>
+</tr>
+<tr>
+<td>🔴 UPDATE / 刪除 / 型別變更</td>
+<td>既有資料會被改寫</td>
+<td><strong>動手前備份</strong> + staging 雙向演練 + 離峰執行 + 估時</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. 回滾原則</h2>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>回滾方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>程式</td>
+<td>改 compose 的 image tag 回舊版 → <code>docker compose up -d</code> → <strong>reload portal-gateway</strong></td>
+</tr>
+<tr>
+<td>資料</td>
+<td>migration 的 <code>downgrade()</code>;🔴 級任務另需備份還原程序</td>
+</tr>
+<tr>
+<td>路由</td>
+<td>回退 cats-portal 的 gateway 設定 PR → <code>nginx -t</code> → <code>nginx -s reload</code></td>
+</tr>
+<tr>
+<td>文件</td>
+<td>git revert;版本歷史保留錯誤紀錄,不抹除</td>
+</tr>
+</tbody>
+</table>
+<p><strong>換版不動 DB</strong>:正常升版只換 image tag,資料活在 named volume 裡。</p>
+<hr />
+<h2>6. 待平台方分配(不得自選)</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>暫定值</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服務短名 <code>«NAME»</code></td>
+<td><code>upload-program</code></td>
+<td>⏳ 待分配</td>
+</tr>
+<tr>
+<td>路徑前綴 <code>«PREFIX»</code></td>
+<td><code>/upload/</code></td>
+<td>⏳ 待分配</td>
+</tr>
+<tr>
+<td>cats-edge 別名</td>
+<td><code>upload-program</code></td>
+<td>⏳ 待分配</td>
+</tr>
+<tr>
+<td>GHCR image</td>
+<td><code>ghcr.io/fttp0165/upload-program</code></td>
+<td>⏳ 待分配</td>
+</tr>
+<tr>
+<td>資料庫 / 使用者</td>
+<td><code>upload_db</code> / <code>upload_user</code></td>
+<td>⏳ 待分配</td>
+</tr>
+<tr>
+<td>SSO client_id / secret</td>
+<td><code>upload-program</code></td>
+<td>⏳ 走 SSO 契約 §5 申請</td>
+</tr>
+<tr>
+<td>gateway <code>client_max_body_size</code></td>
+<td><strong>≥ 128 MB</strong>(單檔上限 100 MB + 餘裕)</td>
+<td>⏳ 申請路由時一併提出</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>repo 名 <code>upload-program-</code>(尾端多一個連字號)不符命名規約的 <code>service-&lt;name&gt;</code>,
+是否改名由 Platform 決定,本專案不自行更名。</p>
+</blockquote>
+<hr />
+<h2>7. 接入前的八個問題(接入指南 §10)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>本專案的答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>語言 / 框架?</td>
+<td>Python 3.12 + FastAPI(gunicorn + UvicornWorker)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>容器內部 port?</td>
+<td><strong>8080</strong>,綁 <code>0.0.0.0</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>要不要自己的 DB?資料量級?</td>
+<td>要:PostgreSQL 16。metadata 量小(千筆級);檔案在 MinIO,初估數十 GB</td>
+</tr>
+<tr>
+<td>4</td>
+<td>健康檢查路徑?</td>
+<td><code>/health</code>(liveness,不查 DB)+ <code>/ready</code>(查 DB / MinIO / JWKS)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>能不能在子路徑下運作?</strong></td>
+<td><strong>能</strong>。FastAPI <code>root_path</code> + 對外網址由設定組出;gateway 可<strong>剝前綴</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>靜態檔由誰供應?</td>
+<td>MVP 無靜態檔(純 API);M7 前端上線時再議</td>
+</tr>
+<tr>
+<td>7</td>
+<td>要存哪些使用者相關欄位?</td>
+<td><strong>只有 <code>sub</code></strong>。無 email / 姓名 / 密碼——不觸及個資紅線</td>
+</tr>
+<tr>
+<td>8</td>
+<td>路徑前綴偏好?</td>
+<td><code>/upload/</code>(最終由平台方定)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>第 5 題有一處要向 portal 確認:SSO 契約 §4.1 寫 redirect URI 固定為
+<code>https://&lt;hostname&gt;/oidc/callback/</code>,但在子路徑部署下實際會是
+<code>https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/</code>。申請 client 時需一併登記後者。</p>
+</blockquote>
+<hr />
+<h2>8. 已知風險</h2>
+<table>
+<thead>
+<tr>
+<th>風險</th>
+<th>影響</th>
+<th>對策</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>未接掃毒</strong></td>
+<td>平台可能成為惡意執行檔散布管道</td>
+<td>2026-07-26 定案:<strong>不納入 MVP,先預留接點</strong>(F38 / M8)。期間 <code>scan_status</code> 一律誠實標 <code>not_scanned</code> 並隨下載回傳</td>
+</tr>
+<tr>
+<td>大檔經 svc 串流</td>
+<td>佔用 worker 與 gateway 逾時</td>
+<td>單檔上限降為 100 MB 後風險大幅降低;仍維持 multipart 串流(記憶體固定)並調 gateway <code>client_max_body_size</code> 與逾時</td>
+</tr>
+<tr>
+<td>MVP 範圍因 Q1–Q8 定案而擴大</td>
+<td>M4–M7 工作量增加(新增 F16、F26、F42、F43、F54 + 前端 7 項)</td>
+<td>已排入任務表 T33–T45;若時程吃緊,F42 標籤與 F43 統計是最容易延後的兩項</td>
+</tr>
+<tr>
+<td>換版後 502</td>
+<td>服務中斷</td>
+<td>換版 runbook 強制 <code>disconnect → up → reload gateway</code>(T22)</td>
+</tr>
+<tr>
+<td>MinIO 單點</td>
+<td>檔案不可用</td>
+<td>資料在 named volume;備份與還原演練列為 M6 出場條件(T23)</td>
+</tr>
+<tr>
+<td>磁碟隨時間線性成長</td>
+<td>共用 VM 空間被吃光,影響 portal / PLM / AES_KEY</td>
+<td>標準級距壓在 2 GB;⏳ <strong>舊版本清理策略尚未定案(Q13)——上限只是延後爆炸,清理才是控制手段</strong>;另需磁碟監控告警(M6)</td>
+</tr>
+<tr>
+<td>事後補記的程式碼未經 TDD</td>
+<td>可能有未被測試釘住的行為</td>
+<td>補齊測試並實際跑綠;未跑綠前任務不得標 ✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-25 15:53</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:目標與範圍界線、系統架構(含子路徑與不直連 MinIO 兩項推導)、M1–M7 里程碑與出場條件、資料影響分級、回滾原則、待平台分配清單、接入指南 §10 八問答覆、已知風險</td>
+</tr>
+<tr>
+<td>v1.2</td>
+<td>2026-07-26 00:53</td>
+<td>Claude(Benny 裁示)</td>
+<td>Q10 定案回寫:容量目標改為兩級距(標準 2 GB / 擴充 10 GB);風險表新增「磁碟隨時間線性成長」一列,點出舊版本清理策略(Q13)未定</td>
+</tr>
+<tr>
+<td>v1.1</td>
+<td>2026-07-26 00:28</td>
+<td>Claude(Benny 裁示)</td>
+<td>依功能需求大綱 v2.0 的 Q1–Q8 定案回寫:新增 <strong>M8 第二期</strong>(掃毒);M6 納入稽核紀錄、M7 明確化前端範圍;非功能目標新增容量(單檔 100 MB);gateway <code>client_max_body_size</code> 由 ≥512 MB 改為 <strong>≥128 MB</strong>;風險表更新掃毒與大檔兩列,並新增「MVP 範圍擴大」一列</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

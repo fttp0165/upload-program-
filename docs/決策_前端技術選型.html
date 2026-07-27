@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>決策紀錄:前端技術選型</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/決策_前端技術選型.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>決策紀錄:前端技術選型</h1>
+<p><strong>建立日期:</strong> 2026-07-26 00:41
+<strong>最後更新:</strong> 2026-07-27 14:35
+<strong>版本:</strong> v1.1
+<strong>狀態:</strong> ✅ 已定案(2026-07-26,Benny 裁示)
+<strong>對應:</strong> 功能需求大綱 Q9、模組 H(F70–F76)、任務 T39</p>
+<hr />
+<h2>1. 決定</h2>
+<p><strong>採用 Jinja2 伺服器端模板 + 少量原生 JS,放在現有的 <code>svc</code> 容器內,不另起 SPA、不另加容器與路由。</strong>
+上傳頁維持既有的 <code>PUT</code> raw body API,由 XHR 發送。</p>
+<hr />
+<h2>2. 背景:這個決定被什麼綁住</h2>
+<p>前端不是自由命題。Cats 平台的拓撲先限制了選項:</p>
+<table>
+<thead>
+<tr>
+<th>限制</th>
+<th>出處</th>
+<th>後果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服務掛在 <code>/«PREFIX»/</code> 下,gateway <strong>剝掉前綴</strong></td>
+<td>接入指南 §6</td>
+<td>所有連結與靜態檔路徑都要帶前綴,否則掉到落地頁 404</td>
+</tr>
+<tr>
+<td>靜態檔的「剝前綴 vs 保留前綴」要選對</td>
+<td>接入指南 §6</td>
+<td><strong>PLM v1.1.0 上線時 CSS 全部 404</strong> 就是栽在這</td>
+</tr>
+<tr>
+<td>全 VM 只有 <code>portal-gateway</code> 持 80/443</td>
+<td>接入指南 §1</td>
+<td>多一個前端容器 = 多一條路由 = 多一次 cats-portal 的 PR</td>
+</tr>
+<tr>
+<td>「靜態檔由誰供應?」是接入前必答題</td>
+<td>接入指南 §10 第 6 題</td>
+<td>不決定就申請不到路由</td>
+</tr>
+<tr>
+<td>Python image 目標 ≤300 MB</td>
+<td>platform-charter</td>
+<td>SPA 的 node build stage 會讓 CI 與 image 變複雜</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>3. 選項比較</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>A. Jinja2 + 原生 JS</strong>(採用)</th>
+<th>B. Jinja2 + HTMX</th>
+<th>C. SPA(React / Vue)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>容器數</td>
+<td>1(現有)</td>
+<td>1(現有)</td>
+<td>1~2</td>
+</tr>
+<tr>
+<td>gateway 路由</td>
+<td>1 條(已規劃)</td>
+<td>1 條</td>
+<td>1~2 條,多一次 portal PR</td>
+</tr>
+<tr>
+<td>靜態檔風險</td>
+<td>低——URL 由我們自己組,前綴可控</td>
+<td>低</td>
+<td>中——build 產物要設 base path,錯了就是 PLM 那個坑</td>
+</tr>
+<tr>
+<td>CI / build</td>
+<td>無前端 build</td>
+<td>無前端 build</td>
+<td>多 node stage、多 Trivy 掃描面</td>
+</tr>
+<tr>
+<td>SSO 整合</td>
+<td>直接吃現有 session cookie</td>
+<td>同左</td>
+<td>同源可用 cookie,但 token 落進 JS 就變資安問題</td>
+</tr>
+<tr>
+<td>大檔下載</td>
+<td><code>&lt;a href&gt;</code> 走瀏覽器原生下載</td>
+<td>同左</td>
+<td>fetch + blob 對 100 MB 檔案很難看,通常仍退回 <code>&lt;a&gt;</code></td>
+</tr>
+<tr>
+<td>開發速度</td>
+<td>快</td>
+<td>快,互動更順</td>
+<td>慢,要先搭骨架</td>
+</tr>
+<tr>
+<td>多一份維運</td>
+<td>否</td>
+<td>否</td>
+<td><strong>是</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>判準:</strong> M7 指定的五個畫面(主頁、導航列、專案頁、專案歷史、最新版置頂)<strong>全是讀取與呈現</strong>,
+沒有一個需要 SPA 的用戶端狀態管理。選 SPA 是拿工具的複雜度換不需要的彈性。</p>
+<hr />
+<h2>4. 這個決定的代價(誠實列出)</h2>
+<table>
+<thead>
+<tr>
+<th>代價</th>
+<th>說明</th>
+<th>可接受的理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>互動性上限較低</td>
+<td>複雜的即時篩選、拖放、樹狀瀏覽會比較費工</td>
+<td>這些功能全在 MVP 範圍外(F41、F44 是 P2)</td>
+</tr>
+<tr>
+<td>前端與後端耦合在同一個容器</td>
+<td>改版面也要重建整個 image</td>
+<td>換版 runbook 本來就是換 image tag,成本相同</td>
+</tr>
+<tr>
+<td>前端人才不見得熟 Python 模板</td>
+<td>若之後有前端主力加入,會覺得綁手</td>
+<td>API-first 已就定位,屆時可獨立加 SPA 而不動後端</td>
+</tr>
+</tbody>
+</table>
+<p><strong>止損設計:</strong> 系統是 <strong>API-first</strong>——所有業務邏輯都在 <code>/v1/*</code> 的 JSON API,模板只是消費者。
+日後要換 SPA,後端一行不用改。<strong>這是敢從簡的主因。</strong></p>
+<hr />
+<h2>5. 評估時發現的兩個既有缺口</h2>
+<h3>5.1 坑一:現有上傳 API 用純 HTML 表單做不到</h3>
+<p>上傳設計為 <code>PUT /v1/releases/{id}/artifacts/{filename}</code>,body 是<strong>檔案原始位元組</strong>
+——因為 multipart 解析會把大檔落到暫存檔,違反平台鐵則「容器內不寫檔當狀態」。</p>
+<p>但 HTML <code>&lt;form&gt;</code> 只能發 <strong>GET / POST</strong>,且只能送 urlencoded 或 multipart,<strong>發不出 raw body 的 PUT</strong>。</p>
+<p><strong>決定:維持 PUT,上傳頁用 XHR。</strong> 不新增 multipart 端點——那等於把「不落暫存檔」的設計退回去。
+附帶好處:XHR 提供上傳進度事件,100 MB 的檔案沒有進度條會很難用。</p>
+<p>→ 寫進 <strong>T44</strong> 的驗收標準:上傳頁必須有進度顯示與失敗重試提示。</p>
+<h3>5.2 坑二:錯誤回應目前只會吐 JSON</h3>
+<p><code>app/problems.py</code> 依平台規約一律回 <code>application/problem+json</code>。但 F75 要求
+「未開通者看到<strong>指引頁</strong>,而非裸 403 JSON」——瀏覽器導覽拿到一坨 JSON 是不可接受的體驗。</p>
+<p><strong>決定:依 <code>Accept</code> 標頭做內容協商。</strong> 瀏覽器導覽(<code>Accept: text/html</code>)回 HTML 錯誤頁,
+API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回應,不禁止對瀏覽器回 HTML。</p>
+<p>→ 開新任務 <strong>T47</strong>,列為 <strong>T40 的前置</strong>。</p>
+<blockquote>
+<p><strong>2026-07-27 實作補充(T47 完成):</strong> 只看 <code>Accept</code> 是不夠的——那等於整個 API 表面的
+錯誤格式可以被呼叫端的一個標頭改掉,而平台鐵則寫著「錯誤回應一律 RFC 7807」。
+實作採<strong>路徑 AND Accept 兩個條件</strong>:<code>/v1/*</code> 與 <code>/health</code>、<code>/ready</code> 一律 <code>problem+json</code>;
+其餘路徑且 <code>Accept</code> <strong>明示</strong>含 <code>text/html</code> 才回 HTML(<code>*/*</code> 不算——那是 fetch/XHR 的預設)。</p>
+</blockquote>
+<hr />
+<h2>6. 實作綱要</h2>
+<h3>6.1 相依與檔案配置</h3>
+<ul>
+<li>新增相依:<code>jinja2</code>(其餘沿用現有)</li>
+<li><code>app/templates/</code>(模板)、<code>app/static/</code>(CSS / JS),由 FastAPI 的 <code>StaticFiles</code> 掛在 <code>/static</code></li>
+<li>新增 <code>app/routers/web.py</code> 回傳 <code>HTMLResponse</code>,與 <code>/v1/*</code> 的 API 路由分離</li>
+</ul>
+<h3>6.2 子路徑處理(這裡錯了就是 PLM 的坑)</h3>
+<ul>
+<li>頁面與靜態檔 URL <strong>一律用 <code>settings.api_prefix</code> 組</strong>,不從 request 推導
+  (TLS 在 gateway 終結,推導會得到 <code>http://</code>)</li>
+<li><strong>靜態檔採「剝前綴」</strong>,與主 location 一致:</li>
+</ul>
+<p><code>nginx
+  location /«PREFIX»/static/ {
+      proxy_pass http://upload-program:8080/static/;   # 結尾帶 /static/ = 剝前綴
+  }</code></p>
+<ul>
+<li>我們<strong>不使用 WhiteNoise</strong>,所以不會發生「框架自動剝前綴、gateway 卻保留前綴」的錯配
+  ——PLM 的 404 事故正是這個錯配造成的</li>
+</ul>
+<h3>6.3 上傳</h3>
+<p>XHR <code>PUT</code>,監聽 <code>upload.onprogress</code> 顯示進度;成功後導回版本頁。
+<code>X-Content-SHA256</code> 為選填,前端不強制在瀏覽器算雜湊(大檔太慢)。</p>
+<h3>6.4 下載</h3>
+<p>一律 <code>&lt;a href="…/download"&gt;</code>,由瀏覽器原生處理。後端已強制
+<code>Content-Disposition: attachment</code> + <code>nosniff</code>,前端不需也不得改變此行為。</p>
+<h3>6.5 CSRF</h3>
+<p>session cookie 已是 <code>HttpOnly</code> + <code>Secure</code> + <strong><code>SameSite=Lax</code></strong>,
+跨站送出的 PUT / PATCH / DELETE 不會帶上 cookie,CSRF 風險已大幅降低。
+若日後新增以 <code>POST</code> 表單送出的狀態變更,需另評估是否加 CSRF token。</p>
+<hr />
+<h2>7. 什麼情況下這個決定該被推翻</h2>
+<p>任一條成立就應重新評估,改採 SPA:</p>
+<ol>
+<li>要做<strong>線上瀏覽原始碼、diff、目錄樹</strong>這類重互動功能(目前皆在 MVP 範圍外)</li>
+<li>公司有<strong>既有前端設計系統或元件庫</strong>要沿用</li>
+<li>團隊主力是前端工程師,Python 模板反成阻力</li>
+<li>要做手機 App 或第三方整合 —— <strong>此條已被滿足</strong>(API-first),不構成推翻理由</li>
+</ol>
+<hr />
+<h2>8. 連帶待辦</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>相依</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~T47~~</td>
+<td>~~錯誤回應內容協商(HTML vs problem+json)~~</td>
+<td>✅ <strong>2026-07-27 完成</strong>,T40 前置已解除</td>
+</tr>
+<tr>
+<td>T40</td>
+<td>導航列與版型骨架</td>
+<td>~~需 T47 完成~~ → 可開工</td>
+</tr>
+<tr>
+<td>T44</td>
+<td>上傳介面(XHR + 進度條)</td>
+<td>依 §5.1</td>
+</tr>
+<tr>
+<td>T28</td>
+<td>cats-portal 路由 PR 需含 §6.2 的靜態檔 location 寫法</td>
+<td>接入時</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-27 14:35</td>
+<td>Claude(Benny 授權)</td>
+<td>§5.2 補上 T47 的實作補充(協商規則從「只看 Accept」改為「路徑 AND Accept」及其理由);§8 連帶待辦標記 T47 完成、T40 前置解除</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>2026-07-26 00:41</td>
+<td>Claude(Benny 裁示)</td>
+<td>初版:採用 Jinja2 + 原生 JS;背景限制、三選項比較、代價與止損設計、兩個既有缺口(上傳需 JS、錯誤回應需內容協商)的處理決定、實作綱要(含靜態檔剝前綴寫法與 CSRF 評估)、四項推翻條件、連帶待辦</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

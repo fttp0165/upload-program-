@@ -1,0 +1,219 @@
+# CI —— 接入指南 §9.1 的四項必做:測試+lint → build image → Trivy 掃描 → push GHCR
+#
+# 🔴 紅線提醒:
+# - 有 high / critical CVE **即失敗**,不是印出來當參考
+# - 只在版本 tag 推 image;`latest` 是紅線,且「一個 git tag 對一個 image tag,不可重發同版」
+# - 正式部署是改 compose 的 image tag 後 pull,**不是**在正式機 git pull && docker build
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/upload-program
+  PYTHON_VERSION: "3.12"
+
+concurrency:
+  # 同一分支只跑最新一次,避免連續 push 時排隊浪費
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- 測試與 lint
+  test:
+    name: 測試 / lint / 文件同步
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: 安裝相依
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint(ruff)
+        run: ruff check .
+
+      - name: 測試(pytest)
+        run: pytest -q
+
+      # 憲法第四條:正式文件 md 與 HTML 必須同步。靠人記得跑產生器遲早會漂移,交給 CI 擋。
+      - name: 文件 md/HTML 同步檢查
+        run: python tools/render_docs.py --check
+
+      # 🔴 平台鐵則 8:secret 絕不進 git。這裡只做最基本的把關,不取代 secret scanning。
+      - name: 檢查不該進 git 的檔案
+        run: |
+          set -e
+          if git ls-files | grep -qE '(^|/)\.env$|\.sql$|\.xlsx$|(^|/)\.venv/|\.pyc$'; then
+            echo "::error::偵測到不應進 git 的檔案(.env / *.sql / *.xlsx / .venv / *.pyc)"
+            git ls-files | grep -E '(^|/)\.env$|\.sql$|\.xlsx$|(^|/)\.venv/|\.pyc$'
+            exit 1
+          fi
+          echo "✅ 無違規檔案"
+
+      # SSO 契約 §7 冒煙清單最後一項:repo grep 零 Authentik、零 HS256
+      - name: 檢查 SSO 紅線(零 Authentik、零 HS256)
+        run: |
+          set -e
+          if grep -rniE 'authentik' --include='*.py' --include='*.yml' --include='*.yaml' app/ tests/ 2>/dev/null; then
+            echo "::error::出現 Authentik —— 身分一律走 Keycloak"
+            exit 1
+          fi
+          # 測試檔會刻意產生 HS256 token 來驗「必須拒絕」,那是正確用法,只擋 app/ 底下的簽發
+          if grep -rn 'HS256' app/ 2>/dev/null | grep -v '不接受\|一律拒\|禁'; then
+            echo "::error::app/ 出現 HS256 —— JWT 必須 RS256"
+            exit 1
+          fi
+          echo "✅ 零 Authentik、app/ 無 HS256"
+
+  # ---------------------------------------------------------------- 建置與掃描
+  build:
+    name: Build image + Trivy 掃描
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # 先只建到本機,掃過才決定要不要推
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: upload-program:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 檢查 image 大小(目標 ≤300 MB)
+        run: |
+          BYTES=$(docker image inspect upload-program:ci --format '{{.Size}}')
+          MB=$((BYTES / 1024 / 1024))
+          echo "image 大小:${MB} MB"
+          echo "### image 大小:${MB} MB" >> "$GITHUB_STEP_SUMMARY"
+          # 超標不擋 CI,但要在 PR 上看得到 —— 規約是「超過要在 PR 說明」
+          if [ "$MB" -gt 300 ]; then
+            echo "::warning::image ${MB} MB 超過 300 MB 目標,需在 PR 說明理由"
+          fi
+
+      - name: 檢查以 non-root 啟動
+        run: |
+          set -e
+          USER_ID=$(docker image inspect upload-program:ci --format '{{.Config.User}}')
+          echo "Config.User = '${USER_ID}'"
+          if [ -z "$USER_ID" ] || [ "$USER_ID" = "root" ] || [ "$USER_ID" = "0" ]; then
+            echo "::error::容器以 root 啟動 —— 違反平台鐵則 1"
+            exit 1
+          fi
+          RUNTIME_UID=$(docker run --rm --entrypoint id upload-program:ci -u)
+          echo "執行期 UID = ${RUNTIME_UID}"
+          [ "$RUNTIME_UID" = "1000" ] || { echo "::error::UID 不是 1000"; exit 1; }
+
+      # /health 是 liveness,不查相依 —— 所以不接 DB / MinIO 也必須回 200
+      - name: 冒煙測試 /health(不接任何相依)
+        run: |
+          set -e
+          docker run -d --name smoke -p 18080:8080 \
+            -e PUBLIC_BASE_URL=https://catsapp.example.test \
+            -e API_PREFIX=/upload \
+            -e DATABASE_URL=postgresql+asyncpg://u:p@db:5432/upload_db \
+            -e OIDC_ISSUER=https://auth.example.test/realms/test \
+            -e OIDC_CLIENT_ID=ci -e OIDC_CLIENT_SECRET=ci \
+            -e SESSION_SECRET=ci-only-not-a-real-secret \
+            -e S3_ENDPOINT_URL=http://minio:9000 -e S3_BUCKET=b \
+            -e S3_ACCESS_KEY=a -e S3_SECRET_KEY=b \
+            upload-program:ci
+          # 規約:啟動到 /health 回 200 不得超過 60 秒
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18080/health >/dev/null 2>&1; then
+              echo "✅ /health 在第 ${i} 秒回 200(未接 DB/MinIO)"
+              break
+            fi
+            [ "$i" = "60" ] && { echo "::error::/health 60 秒內未就緒"; docker logs smoke; exit 1; }
+            sleep 1
+          done
+          # /ready 相反:相依不通就該回 503
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/ready)
+          echo "/ready = ${CODE}(無相依時應為 503)"
+          [ "$CODE" = "503" ] || { echo "::error::/ready 在相依不通時未回 503"; exit 1; }
+          # SIGTERM 要能優雅關閉
+          docker stop -t 35 smoke
+          docker rm smoke
+
+      # 🔴 有 high / critical 即失敗
+      # 版本必須帶 v 前綴且確實存在 —— 先前誤寫 `0.28.0`,CI 直接死在 action 解析階段
+      - name: Trivy 掃描
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: upload-program:ci
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+  # ---------------------------------------------------------------- 發布
+  publish:
+    name: Push GHCR(僅版本 tag)
+    runs-on: ubuntu-latest
+    needs: build
+    # 🔴 只有 v* tag 才推;不推 latest、不在每次 push 都發版
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 登入 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 「不可重新發布同一版本」—— 已存在就直接失敗,不覆蓋
+      - name: 確認此版本尚未發布過
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          if docker manifest inspect "${IMAGE_NAME}:${TAG}" >/dev/null 2>&1; then
+            echo "::error::${IMAGE_NAME}:${TAG} 已存在 —— 同一版本不得重新發布,請改用新版號"
+            exit 1
+          fi
+          echo "✅ ${TAG} 尚未發布"
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # 只推明確版號,絕不推 latest
+          tags: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-from: type=gha
+
+      - name: 發布摘要
+        run: |
+          {
+            echo "### 已發布 \`${IMAGE_NAME}:${GITHUB_REF_NAME}\`"
+            echo ""
+            echo "部署方式:改 production compose 的 image tag 後 \`docker compose pull && up -d\`,"
+            echo "接著 **必須** \`docker exec portal-gateway nginx -s reload\`,否則 502。"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,72 @@
+{#
+  首頁:專案列表 + 關鍵字搜尋 + 標籤篩選 + 分頁(T41 / F71)。
+
+  🔴 專案名稱、摘要、標籤全是使用者可控內容,靠 autoescape 逸出,禁用 |safe。
+  🔴 連結一律用 url() 或路由端算好的 *_url —— 前者補路徑前綴,後者另外做了 URL 編碼。
+     模板裡不拼查詢字串:autoescape 管 HTML 語意,不管 URL 語意。
+#}
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if identity is none %}
+  <h1>公司內部程式分享平台</h1>
+  <p class="lead">建立專案,上傳原始碼、執行檔與程式文件,以版本為單位發布、瀏覽與下載。</p>
+  <p class="notice">
+    請先<a href="{{ url('/auth/login') }}">登入</a>以瀏覽專案。
+  </p>
+
+{% elif not identity.user.is_active %}
+  <h1>帳號待開通</h1>
+  <p class="notice">{{ pending_detail }}</p>
+
+{% else %}
+  <h1>專案</h1>
+
+  {% if q or tag %}
+    <p class="muted filter-note">
+      {% if q %}關鍵字「{{ q }}」{% endif %}{% if tag %}標籤「{{ tag }}」{% endif %}
+      —— 共 {{ total }} 個專案
+      <a href="{{ url('/') }}">清除篩選</a>
+    </p>
+  {% endif %}
+
+  {% if projects %}
+    <ul class="project-list">
+      {% for project in projects %}
+        <li class="project">
+          <div class="project-head">
+            <span class="project-name">{{ project.name }}</span>
+            <code class="project-slug">{{ project.slug }}</code>
+            {% if project.visibility.value == 'private' %}
+              <span class="badge">私有</span>
+            {% endif %}
+          </div>
+          {% if project.summary %}<p class="project-summary">{{ project.summary }}</p>{% endif %}
+          {% if project.tags %}
+            <p class="project-tags">
+              {% for item in project.tags %}
+                <a class="tag" href="{{ tag_url(item.tag) }}">{{ item.tag }}</a>
+              {% endfor %}
+            </p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if prev_url or next_url %}
+      <nav class="pager">
+        {% if prev_url %}<a href="{{ prev_url }}">← 上一頁</a>{% endif %}
+        <span class="muted">{{ offset + 1 }}–{{ offset + projects | length }} / 共 {{ total }}</span>
+        {% if next_url %}<a href="{{ next_url }}">下一頁 →</a>{% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <p class="notice">
+      {% if q or tag %}沒有符合條件的專案。{% else %}目前沒有你看得到的專案。{% endif %}
+    </p>
+  {% endif %}
+{% endif %}
+
+{% endblock %}

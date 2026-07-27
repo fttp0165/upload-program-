@@ -134,6 +134,35 @@ class Project(Base):
     releases: Mapped[list["Release"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    # 專案幾乎總是連同標籤一起呈現(列表、詳情、篩選),用 selectin 一次查完;
+    # 同時避免 T50 那類「序列化時才 lazy load」在 async session 下爆掉的問題。
+    tags: Mapped[list["ProjectTag"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ProjectTag(Base):
+    """專案標籤(F42)。
+
+    刻意**不做 tags / project_tags 兩張表的正規化**:MVP 沒有「重新命名標籤」的需求,
+    而正規化會帶來孤兒標籤(最後一個專案移除後,`tags` 留下無人使用的列)這個實打實的
+    維運負擔。列出所有標籤用 `SELECT DISTINCT tag` 就夠。
+    日後真需要正規化,再做一次可回滾的 migration。
+
+    `tag` 一律存**正規化後**的值(小寫、去空白),由 schema 層保證。
+    """
+
+    __tablename__ = "project_tags"
+    __table_args__ = (UniqueConstraint("project_id", "tag", name="uq_project_tag"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tag: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    project: Mapped["Project"] = relationship(back_populates="tags")
 
 
 class ProjectMember(Base):

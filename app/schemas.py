@@ -77,6 +77,15 @@ class ProjectOut(ORMModel):
     created_at: datetime
     updated_at: datetime
     my_role: ProjectRole | None = None
+    tags: list[str] = []
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _flatten(cls, value):
+        """ORM 給的是 ProjectTag 物件清單,對外只吐字串。"""
+        if value and not isinstance(value[0], str):
+            return sorted(item.tag for item in value)
+        return sorted(value or [])
 
 
 class MemberIn(BaseModel):
@@ -88,6 +97,60 @@ class OwnerTransfer(BaseModel):
     """轉移擁有權的目標人選(F16)。"""
 
     user_id: uuid.UUID
+
+
+MAX_TAGS_PER_PROJECT = 10
+MAX_TAG_LENGTH = 32
+
+
+def normalise_tag(raw: str) -> str:
+    """把標籤正規化成可比對、可放進網址的形式(F42)。
+
+    - 去前後空白、轉小寫:`Python` 與 `python` 必須是同一個標籤,否則篩選會漏掉一半
+    - **不允許內含空白**:標籤要能直接放進查詢字串,`?tag=資料 分析` 只會製造麻煩
+    - 允許中文——`工具`、`報表` 是實際會用的標籤
+
+    參數:未正規化的標籤字串。回傳:正規化後的值。不合法時拋 ValueError(由 FastAPI 轉 422)。
+    """
+    tag = raw.strip().lower()
+    if not tag:
+        raise ValueError("標籤不可為空白")
+    if any(ch.isspace() for ch in tag):
+        raise ValueError(f"標籤不可含空白:{raw!r}(請改用連字號)")
+    if len(tag) > MAX_TAG_LENGTH:
+        raise ValueError(f"標籤長度不可超過 {MAX_TAG_LENGTH} 字元:{raw!r}")
+    return tag
+
+
+class TagsIn(BaseModel):
+    """整組取代專案標籤(F42)。
+
+    用「整組取代」而非逐個增刪:前端就是一個標籤輸入框,送出時本來就是整組;
+    整組取代天然冪等,也不必處理「加一個已存在的標籤」這種邊角。
+    """
+
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("tags")
+    @classmethod
+    def _normalise(cls, raw: list[str]) -> list[str]:
+        seen: list[str] = []
+        for item in raw:
+            tag = normalise_tag(item)
+            if tag not in seen:  # 同一次請求內自動去重
+                seen.append(tag)
+        if len(seen) > MAX_TAGS_PER_PROJECT:
+            raise ValueError(f"每個專案最多 {MAX_TAGS_PER_PROJECT} 個標籤,收到 {len(seen)} 個")
+        return sorted(seen)
+
+
+class TagCount(BaseModel):
+    tag: str
+    project_count: int
+
+
+class TagPage(BaseModel):
+    items: list[TagCount]
 
 
 class MemberOut(BaseModel):

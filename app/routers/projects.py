@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
-from ..models import Project, ProjectMember, ProjectRole, User, Visibility
+from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User, Visibility
 from ..schemas import (
     MemberIn,
     MemberOut,
@@ -17,6 +17,8 @@ from ..schemas import (
     ProjectOut,
     ProjectPage,
     ProjectUpdate,
+    TagsIn,
+    normalise_tag,
 )
 from ..security import (
     CurrentUser,
@@ -49,6 +51,7 @@ async def list_projects(
     session: DbSession,
     identity: CurrentUser,
     q: Annotated[str | None, Query(max_length=128)] = None,
+    tag: Annotated[str | None, Query(max_length=32, description="依標籤篩選(F42)")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ProjectPage:
@@ -62,6 +65,18 @@ async def list_projects(
         keyword = or_(Project.name.ilike(pattern), Project.slug.ilike(pattern), Project.summary.ilike(pattern))
         stmt = stmt.where(keyword)
         count_stmt = count_stmt.where(keyword)
+    if tag:
+        # 查詢字串同樣要正規化,否則 `?tag=PYTHON` 會查不到存成 `python` 的標籤。
+        # 這裡不驗長度/空白(那是寫入端的事),只求比對得上;正規化失敗就當作查不到。
+        try:
+            wanted = normalise_tag(tag)
+        except ValueError:
+            wanted = None
+        tagged = Project.id.in_(
+            select(ProjectTag.project_id).where(ProjectTag.tag == wanted)
+        )
+        stmt = stmt.where(tagged)
+        count_stmt = count_stmt.where(tagged)
 
     total = (await session.execute(count_stmt)).scalar_one()
     rows = (
@@ -140,6 +155,35 @@ async def delete_project(
     await session.commit()
     log.info("刪除專案", extra={"project_id": str(project.id), "slug": slug})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{slug}/tags", response_model=ProjectOut, summary="整組取代專案標籤")
+async def set_tags(
+    slug: str, payload: TagsIn, session: DbSession, identity: CurrentUser
+) -> ProjectOut:
+    """整組取代專案標籤(F42)。
+
+    `payload.tags` 進來時已由 schema 正規化(小寫、去空白、去重、排序、數量與長度上限)。
+    副作用:改寫 `project_tags` 中屬於本專案的列。
+    """
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.maintainer)
+
+    wanted = set(payload.tags)
+    current = {row.tag: row for row in project.tags}
+
+    for tag, row in current.items():
+        if tag not in wanted:
+            await session.delete(row)
+    for tag in wanted - current.keys():
+        session.add(ProjectTag(project_id=project.id, tag=tag))
+
+    await session.commit()
+    await session.refresh(project)
+
+    out = ProjectOut.model_validate(project)
+    out.my_role = await project_role(session, project, identity.user)
+    return out
 
 
 @router.put("/{slug}/owner", response_model=ProjectOut, summary="轉移擁有權")

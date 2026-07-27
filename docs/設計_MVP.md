@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-26 08:20
-**版本:** v2.1
+**最後更新:** 2026-07-27 05:50
+**版本:** v2.2
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -65,6 +65,7 @@ user ──< project_member >── project ──< release >── artifact
 | `user` | 平台使用者 | `id`(UUID 內部鍵)、`sub`(unique)、`status`(pending/active/disabled)、`platform_role` |
 | `project` | 一個程式/工具 | `id`、`slug`(unique)、`name`、`summary`、`visibility`、`owner_id`、`total_bytes` |
 | `project_member` | 專案層權限 | `project_id`、`user_id`、`role`(owner/maintainer/viewer) |
+| `project_tag` | 專案標籤(F42) | `project_id`、`tag`(正規化後的小寫字串);**刻意不做標籤正規化表**,避免孤兒標籤的維運負擔 |
 | `release` | 一次發布 | `id`、`project_id`、`version`、`notes`、`status`(draft/published)、`created_by_id` |
 | `artifact` | 發布內含的檔案 | `id`、`release_id`、`kind`、`filename`、`size_bytes`、`sha256`、`content_type`、`storage_key`、`upload_status`、`scan_status` |
 
@@ -142,6 +143,8 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | GET/PATCH/DELETE | `/v1/projects/{slug}` | 專案詳情 / 修改 / 刪除 |
 | GET/PUT | `/v1/projects/{slug}/members` | 成員與角色 |
 | PUT | `/v1/projects/{slug}/owner` | **轉移擁有權**(原 owner 降 maintainer;管理員可代為執行)|
+| PUT | `/v1/projects/{slug}/tags` | **整組取代專案標籤**(冪等;小寫正規化、去重)|
+| GET | `/v1/tags` | **標籤與使用計數**(只計當事人看得到的專案)|
 | DELETE | `/v1/projects/{slug}/members/{user_id}` | 移除成員 |
 | GET/POST | `/v1/projects/{slug}/releases` | 列出 / 建立版本(draft) |
 | GET/PATCH/DELETE | `/v1/releases/{id}` | 版本詳情 / 改說明 / 刪除 |
@@ -152,6 +155,7 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | GET | `/v1/releases/{id}/artifacts/{aid}/download` | 下載 |
 | DELETE | `/v1/releases/{id}/artifacts/{aid}` | 刪除檔案 |
 | GET | `/v1/search?q=` | 跨專案搜尋(只回可見的) |
+| GET | `/v1/projects?tag=` | 依標籤篩選專案(查詢字串同樣正規化)|
 | GET/PATCH | `/v1/admin/users` | 開通 / 停用 / 指派平台角色 |
 
 **發布鎖定:** 已 published 的版本不可再增刪檔案,避免「同一版內容被偷換」;要改就發新版本。
@@ -194,4 +198,5 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 |---|---|---|---|
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
+| v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
 | v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **依 Cats 接入指南 v2.0 全面修正**:新增 §1 部署拓撲(含 SVG/ASCII 架構圖)與子路徑連帶影響;**儲存設計由 presigned 直傳改為服務串流轉送**(瀏覽器連不到 backend 網路的 MinIO),並說明捨棄 multipart 的理由;新增判型白名單與下載強制 attachment 細節;API 表更新為實際實作的端點;§5 對齊表補上對應檔案;依憲法第七條補日期、版本與本歷史表。產品範圍與里程碑移至開發計畫書 |

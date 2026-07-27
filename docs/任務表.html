@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 15:08
-<strong>版本:</strong> v1.17</p>
+<strong>最後更新:</strong> 2026-07-27 15:22
+<strong>版本:</strong> v1.18</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -476,9 +476,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T42</td>
 <td>專案頁:資訊 + <strong>最新版本置頂</strong>(F72)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>最新已發布版本的說明與下載按鈕在頁面最上方直接可見</td>
+<td>16 條測試(<strong>先紅後綠</strong>);下載按鈕排在專案資訊之前;沿用 <code>latest_published_release()</code>(draft 不算、以 published_at 判定);🔴 <strong>匿名一律不查詢</strong>,使存在與不存在的回應完全相同(以「先查再判身分」實測其非空測);private 非成員 404;誠實顯示 <code>not_scanned</code> 與 SHA-256;附 F26 固定連結</td>
 </tr>
 <tr>
 <td>T43</td>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.18</td>
+<td>2026-07-27 15:22</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T42 專案頁完成</strong>;匿名訪客的回應以「不查詢」達成結構性不洩漏(先查再判身分的寫法會讓存在與否從狀態碼看得出來,已實測測試抓得到);首頁卡片接上連結,T41 遺留 #1 結案;測試 208→224</td>
 </tr>
 <tr>
 <td>v1.17</td>

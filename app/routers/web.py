@@ -18,9 +18,11 @@ from fastapi.staticfiles import StaticFiles
 
 from .. import problems
 from ..queries import query_projects
-from ..security import DbSession, OptionalUser
+from ..quota import project_limit
+from ..security import DbSession, OptionalUser, get_project, require_project_read
 from ..templating import render
 from ..web_urls import web_url
+from .releases import latest_published_release
 
 router = APIRouter(include_in_schema=False, tags=["web"])
 
@@ -120,6 +122,67 @@ async def home(
             # 而使用者會同時從 API 與網頁看到它。
             pending_detail=problems.pending_activation().detail,
             # 標籤連結也走 _page_url,才會一併做 URL 編碼(中文標籤必然需要)。
+            tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
+        )
+    )
+
+
+@router.get("/projects/{slug}", summary="專案頁")
+async def project_page(
+    slug: str, request: Request, session: DbSession, identity: OptionalUser
+) -> HTMLResponse:
+    """專案頁:資訊 + **最新已發布版本置頂**(F72)。
+
+    🔴 **匿名與待開通一律不查詢**,直接顯示提示。
+    如果先查專案、查不到就 404、查得到才顯示登入提示,那兩種回應本身就洩漏了
+    「這個專案存不存在」。不查詢的話,兩種情況的回應必然相同——這是結構保證。
+
+    已開通者才走 `require_project_read()`:它對 private 非成員回 **404 而非 403**
+    (403 等於承認專案存在)。網頁與 API 共用同一個函式,規則不會分岔。
+
+    參數:slug 專案短名。回傳:HTML。副作用:無(唯讀)。
+    """
+    settings = request.app.state.settings
+
+    if identity is None or not identity.user.is_active:
+        return HTMLResponse(
+            render(
+                request,
+                "project.html",
+                identity=identity,
+                project=None,
+                pending_detail=problems.pending_activation().detail,
+            )
+        )
+
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+
+    # `latest_published_release()` 沿用 T35 的判定(以 published_at、draft 不算);
+    # 它在「尚未發布任何版本」時拋 404,但那對網頁不是錯誤,接起來改成提示。
+    try:
+        release = await latest_published_release(session, project)
+    except problems.ProblemError:
+        release = None
+
+    return HTMLResponse(
+        render(
+            request,
+            "project.html",
+            identity=identity,
+            project=project,
+            release=release,
+            artifacts=sorted(release.artifacts, key=lambda a: a.filename) if release else [],
+            quota_bytes=project_limit(settings, project),
+            # F26 的固定連結:能貼進文件而不會隨版本失效。T35 做出來的東西
+            # 不放在使用者看得到的地方就沒人會用。
+            latest_url=lambda filename: web_url(
+                settings, f"/v1/projects/{project.slug}/releases/latest/artifacts/{filename}/download"
+            ),
+            # 按鈕用精確網址:使用者按的當下看到哪一版就抓哪一版。
+            download_url=lambda artifact: web_url(
+                settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
+            ),
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
         )
     )

@@ -36,7 +36,7 @@
       {% for project in projects %}
         <li class="project">
           <div class="project-head">
-            <span class="project-name">{{ project.name }}</span>
+            <a class="project-name" href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>
             <code class="project-slug">{{ project.slug }}</code>
             {% if project.visibility.value == 'private' %}
               <span class="badge">私有</span>

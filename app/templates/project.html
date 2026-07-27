@@ -1,0 +1,86 @@
+{#
+  專案頁:資訊 + 最新已發布版本置頂(T42 / F72)。
+
+  🔴 專案名稱、摘要、版本說明、檔名全是使用者可控內容,靠 autoescape 逸出,禁用 |safe。
+  🔴 版面順序刻意是「標題列 → 最新版本 → 專案資訊」:來這頁的人十之八九是要抓最新版,
+     不該讓他先捲過一堆 metadata(Q8 裁示「最新版本至頂」)。
+  🔴 掃毒狀態必須顯示——這是使用者按下載之前最後看到的畫面。
+#}
+{% extends "base.html" %}
+
+{% block title %}{% if project %}{{ project.name }} — {% endif %}upload-program{% endblock %}
+
+{% block content %}
+
+{% if identity is none %}
+  <h1>專案</h1>
+  <p class="notice">請先<a href="{{ url('/auth/login') }}">登入</a>以瀏覽專案。</p>
+
+{% elif not identity.user.is_active %}
+  <h1>帳號待開通</h1>
+  <p class="notice">{{ pending_detail }}</p>
+
+{% else %}
+  <header class="project-header">
+    <h1>{{ project.name }}</h1>
+    <p class="project-head">
+      <code class="project-slug">{{ project.slug }}</code>
+      {% if project.visibility.value == 'private' %}<span class="badge">私有</span>{% endif %}
+      {% for item in project.tags %}
+        <a class="tag" href="{{ tag_url(item.tag) }}">{{ item.tag }}</a>
+      {% endfor %}
+    </p>
+    {% if project.summary %}<p class="lead">{{ project.summary }}</p>{% endif %}
+  </header>
+
+  <section class="latest">
+    <h2>最新版本</h2>
+    {% if release %}
+      <p class="release-head">
+        <span class="release-version">{{ release.version }}</span>
+        <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
+      </p>
+      {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
+
+      {% if artifacts %}
+        <ul class="artifact-list">
+          {% for artifact in artifacts %}
+            <li class="artifact">
+              <div class="artifact-head">
+                <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
+                <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.download_count }} 次下載</span>
+              </div>
+              <dl class="artifact-meta">
+                <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+                <dt>掃毒狀態</dt>
+                <dd>
+                  {{ artifact.scan_status.value }}
+                  {% if artifact.scan_status.value == 'not_scanned' %}
+                    <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
+                  {% endif %}
+                </dd>
+                <dt>固定連結</dt>
+                <dd><code>{{ latest_url(artifact.filename) }}</code></dd>
+              </dl>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="notice">這一版沒有檔案。</p>
+      {% endif %}
+    {% else %}
+      <p class="notice">本專案尚未發布任何版本。</p>
+    {% endif %}
+  </section>
+
+  <section class="project-info">
+    <h2>專案資訊</h2>
+    <dl class="info-grid">
+      <dt>容量</dt><dd>{{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)</dd>
+      <dt>建立時間</dt><dd>{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>最後更新</dt><dd>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+    </dl>
+  </section>
+{% endif %}
+
+{% endblock %}

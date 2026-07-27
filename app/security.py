@@ -133,7 +133,26 @@ async def require_admin(identity: Annotated[Identity, Depends(require_active)]) 
     return identity
 
 
+async def optional_identity(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Identity | None:
+    """取身分,**取不到就回 None 而不是拋錯**——給網頁用的(T40)。
+
+    網頁跟 API 不同:匿名訪客開首頁該看到登入按鈕,不是一頁 401;
+    待開通或被停用的人也該看得到導航列(頁面內容自己再決定要不要擋)。
+
+    參數:request、session。回傳:Identity 或 None。副作用:首登會建立本地 user
+    (與 `get_identity` 相同)。
+    """
+    try:
+        return await get_identity(request, session)
+    except problems.ProblemError:
+        return None
+
+
 CurrentUser = Annotated[Identity, Depends(require_active)]
+OptionalUser = Annotated[Identity | None, Depends(optional_identity)]
 AdminUser = Annotated[Identity, Depends(require_admin)]
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 AppSettings = Annotated[Settings, Depends(get_settings)]

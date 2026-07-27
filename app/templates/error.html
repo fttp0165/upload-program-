@@ -1,57 +1,28 @@
 {#
-  錯誤頁(T47)。
+  錯誤頁(T47 建立,T40 改為繼承共用版型)。
 
-  憲法第四條:一律 light 主題、白底深字,**不使用 prefers-color-scheme 自動切深色**。
-  另一條硬性要求是**無外部資源**——不連 CDN、不載外部字型:內部平台本來就不該外連,
-  而且錯誤頁正是在服務半殘時要顯示的東西,不能依賴任何外部請求成功。
+  🔴 status / title / detail / instance 都可能含**使用者可控內容**
+  (instance 就是請求路徑)。靠 Jinja2 autoescape 逸出,**絕不可改用 |safe**
+  ——本服務散布可執行檔,錯誤頁自己開一個 XSS 與「不讓上傳內容在本網域執行」
+  是同一條紅線的反面。
 
-  🔴 `detail` 與 `instance` 都是使用者可控內容(instance 就是請求路徑)。
-  這裡靠 Jinja2 的 autoescape 逸出;**絕不可改用 |safe**,那等於自開 XSS,
-  而本服務散布可執行檔,這條紅線比一般網站更硬。
-
-  本頁刻意**不 extend 共用版型**:那是 T40 的範圍,現在還沒有 base.html。
-  T40 導入版型骨架時再讓它繼承,樣式一併收斂到 static/。
+  繼承 base.html 之後,錯誤頁自動有導航列,使用者有路可以回首頁(T47 遺留 #1)。
+  樣式一併收斂到 static/app.css(T47 遺留 #2)。
 #}
-<!doctype html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ status }} {{ title }} — upload-program</title>
-<style>
-  :root { color-scheme: light; }
-  body {
-    margin: 0; padding: 3rem 1.25rem;
-    background: #ffffff; color: #1f2328;
-    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
-    line-height: 1.7;
-  }
-  main { max-width: 40rem; margin: 0 auto; }
-  .code { font-size: 3rem; font-weight: 700; color: #57606a; margin: 0; letter-spacing: .02em; }
-  h1 { font-size: 1.5rem; margin: .25rem 0 1rem; color: #1f2328; }
-  .detail {
-    background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
-    padding: 1rem 1.25rem; margin: 0 0 1.5rem;
-  }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 0; }
-  dt { color: #57606a; }
-  dd { margin: 0; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; word-break: break-all; }
-  .hint { color: #57606a; font-size: .9rem; border-top: 1px solid #d0d7de; padding-top: 1rem; }
-</style>
-</head>
-<body>
-<main>
-  <p class="code">{{ status }}</p>
-  <h1>{{ title }}</h1>
-  <p class="detail">{{ detail }}</p>
-  <dl>
-    <dt>路徑</dt><dd>{{ instance }}</dd>
-    {% if trace_id %}<dt>追蹤碼</dt><dd>{{ trace_id }}</dd>{% endif %}
-  </dl>
-  <p class="hint">
-    需要協助時,請把上面的<strong>追蹤碼</strong>一併提供給 upload-program 平台管理員——
-    伺服器端的詳細紀錄靠它才找得到。
-  </p>
-</main>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}{{ status }} {{ title }} — upload-program{% endblock %}
+
+{% block content %}
+<p class="err-code">{{ status }}</p>
+<h1>{{ title }}</h1>
+<p class="err-detail">{{ detail }}</p>
+<dl class="err-meta">
+  <dt>路徑</dt><dd>{{ instance }}</dd>
+  {% if trace_id %}<dt>追蹤碼</dt><dd>{{ trace_id }}</dd>{% endif %}
+</dl>
+<p class="muted err-hint">
+  需要協助時,請把上面的<strong>追蹤碼</strong>一併提供給 upload-program 平台管理員——
+  伺服器端的詳細紀錄靠它才找得到。
+</p>
+{% endblock %}

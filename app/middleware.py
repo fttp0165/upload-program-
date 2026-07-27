@@ -59,4 +59,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        # 🔴 CSP:全站零 inline script / inline style。
+        # T40 導入的時機是刻意的——當時全站零 JS、CSS 也正要搬進 static/,
+        # 是成本最低的一刻;等寫了上傳 JS 再補就得回頭改一輪。
+        # `default-src 'self'` 同時涵蓋 script-src 與 style-src,所以內嵌 <style>/<script>
+        # 一律被擋:這正好把樣式逼進外部檔案(T44 的上傳 JS 同理)。
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        )
         return response

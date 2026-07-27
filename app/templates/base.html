@@ -1,0 +1,48 @@
+{#
+  全站版型骨架與導航列(T40 / F70)。
+
+  🔴 所有 href / src / action **一律經過 url()**——它會補上 api_prefix。
+  gateway 剝掉前綴後轉發,所以服務收到的是 `/static/app.css`,
+  但瀏覽器要的是 `/upload/static/app.css`。漏掉一個就是一次 404 事故
+  (決策文件 §6.2,PLM 出過這個坑)。
+
+  🔴 產出的網址一律 root-relative,不組 scheme/host:TLS 在 gateway 終結,
+  從 request 推導會得到 http://。
+
+  憲法第四條:light 主題,樣式全在 static/app.css,頁面內不放 <style>
+  (CSP 的 default-src 'self' 也會擋掉內嵌樣式)。
+
+  導航列刻意**還沒有「建立專案」入口**:那個頁面要到 T44 才存在,
+  現在放上去就是一條會 404 的懸空連結。已寫進 T44 的驗收標準。
+#}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}upload-program{% endblock %}</title>
+<link rel="stylesheet" href="{{ url('/static/app.css') }}">
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-brand" href="{{ url('/') }}">upload-program</a>
+
+  <form class="nav-search" method="get" action="{{ url('/') }}" role="search">
+    <input type="search" name="q" placeholder="搜尋專案" value="{{ q or '' }}" aria-label="搜尋專案">
+  </form>
+
+  <div class="nav-user">
+    {% if identity %}
+      <span class="nav-name">{{ identity.display_name or identity.sub }}</span>
+      <a class="nav-link" href="{{ url('/auth/logout') }}">登出</a>
+    {% else %}
+      <a class="nav-link" href="{{ url('/auth/login') }}">登入</a>
+    {% endif %}
+  </div>
+</nav>
+
+<main class="page">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -5,17 +5,16 @@ RFC 7807 的義務只及於 API 回應,不禁止對瀏覽器回 HTML;而 F75 要
 「未開通者看到指引頁而非裸 403 JSON」,沒有這層協商就做不到。
 """
 
-from pathlib import Path
 from typing import Any
 
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .logging_setup import trace_id_var
+from .templating import render
 
 CONTENT_TYPE = "application/problem+json"
 
@@ -27,11 +26,6 @@ CONTENT_TYPE = "application/problem+json"
 # `/v1/...`,不含對外前綴;這裡直接比對 `/v1/` 是正確的,不需要拼 api_prefix。
 _API_PREFIXES = ("/v1/",)
 _MACHINE_PATHS = ("/health", "/ready")
-
-_templates = Environment(
-    loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    autoescape=select_autoescape(["html"]),  # 🔴 逸出是這裡的重點,見 error.html 的說明
-)
 
 
 def wants_html(request: Request) -> bool:
@@ -117,7 +111,11 @@ def problem_response(
     }
 
     if wants_html(request):
-        page = _templates.get_template("error.html").render(
+        # 用共用的 templating.render():錯誤頁與其他頁面必須是同一套版型與同一個
+        # autoescape 設定,兩份 Environment 遲早會長歪。
+        page = render(
+            request,
+            "error.html",
             status=status_code,
             title=title,
             detail=detail,

@@ -18,7 +18,7 @@ from .db import create_engine, create_sessionmaker
 from .logging_setup import setup_logging
 from .middleware import SecurityHeadersMiddleware, TraceMiddleware
 from .oidc import OidcClient
-from .routers import admin, artifacts, auth, health, me, projects, releases, search
+from .routers import admin, artifacts, auth, health, me, projects, releases, search, web
 from .session import CookieCodec
 from .storage import ObjectStorage
 
@@ -90,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(artifacts.latest_router)  # 最新版下載捷徑(F26),前綴不同故另立
     app.include_router(search.router)
     app.include_router(admin.router)
+    app.include_router(web.router)  # 網頁介面(T40 起),與 /v1/* 分離
     return app
 
 

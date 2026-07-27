@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 14:35
-**版本:** v2.5
+**最後更新:** 2026-07-27 14:52
+**版本:** v2.6
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -162,6 +162,56 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 
 ---
 
+## 3.7 網頁介面(T40 起)
+
+Jinja2 伺服器端模板,與 `/v1/*` 的 API 路由分離(決策文件 §6.1):
+
+```
+app/templates/base.html   版型骨架 + 導航列(全站共用)
+app/templates/home.html   首頁
+app/templates/error.html  錯誤頁(繼承 base)
+app/static/app.css        全站樣式(light、零外部資源)
+app/routers/web.py        網頁路由 + 靜態檔
+```
+
+### 🔴 子路徑:兩個方向都會出錯
+
+gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資源有兩個路徑:
+
+| | 瀏覽器看到的 | 本服務收到的 |
+|---|---|---|
+| 首頁 | `https://host/upload/` | `/` |
+| 樣式表 | `https://host/upload/static/app.css` | `/static/app.css` |
+
+- **路由註冊用不帶前綴的路徑**;**頁面裡的連結必須帶前綴**,一律經過
+  `web_urls.web_url(settings, path)`,漏一個就是一次 404。
+- 產出的是 **root-relative** 網址,不組 scheme/host——TLS 在 gateway 終結,
+  從 request 推導會得到 `http://`。絕對網址只留給 OIDC redirect_uri。
+- 🐛 **靜態檔不能用 `app.mount("/static", StaticFiles(...))`**:本 app 設了
+  `root_path=api_prefix`(供 `/docs` 產生正確網址),而 Starlette 的 `Mount` 會依
+  root_path **再剝一次**前綴,傳給 StaticFiles 的子路徑就多了一層 → 正式環境全站樣式 404。
+  改用一般路由 `GET /static/{path:path}`,內部仍委派 `StaticFiles.get_response()`
+  以保留其路徑逃逸防護。詳見 T40 開發日誌。
+
+### 身分:網頁不因未登入而 401
+
+網頁用 `optional_identity`(取不到身分回 `None` 而非拋錯):匿名訪客該看到登入按鈕,
+不是一頁錯誤。顯示名稱來自 **IdP claims**,不從業務庫讀(業務庫只存 `sub`)。
+
+### CSP
+
+`SecurityHeadersMiddleware` 對所有回應加上:
+
+```
+default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
+```
+
+導入時機刻意選在 T40——當時全站零 JS、CSS 也正要搬進 `static/`,是成本最低的一刻。
+`default-src 'self'` 同時涵蓋 script-src 與 style-src,**內嵌 `<style>`/`<script>` 一律被擋**,
+這正好把樣式與(未來的)上傳 JS 逼成外部檔案。
+
+---
+
 ## 4. API
 
 - 路徑前綴 ⏳ 由 Platform 分配;版本走路徑 `/v1/...`;錯誤一律 **RFC 7807**;時間 **ISO 8601 含時區**
@@ -257,6 +307,7 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.6 | 2026-07-27 14:52 | Claude(Benny 授權) | 新增 §3.7 網頁介面(檔案配置、子路徑的兩個方向、`Mount` 二次剝前綴的根因、optional_identity、CSP)(T40) |
 | v2.5 | 2026-07-27 14:35 | Claude(Benny 授權) | 新增 §4.1 錯誤回應的內容協商(路徑 AND Accept 兩條件、`*/*` 不算的理由、autoescape 與 `Vary`/`nosniff`)(T47) |
 | v2.4 | 2026-07-27 13:55 | Claude(Benny 授權) | `artifact` 加 `download_count`;新增 §3.5 下載次數統計(不做事件表的理由、原子 UPDATE、發起 vs 完成的語意),原 §3.5 順延為 §3.6(T37) |
 | v2.3 | 2026-07-27 06:05 | Claude(Benny 授權) | `project` 加 `quota_tier`;新增 §3.4 容量級距(存代號而非數字的理由、兩道檢查共用訊息、413 的內容要求、降級不刪檔),原 §3.4 順延為 §3.5;API 表補上 `PUT /v1/projects/{slug}/quota`(T49) |

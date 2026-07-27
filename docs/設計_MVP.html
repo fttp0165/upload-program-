@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-27 14:35
-<strong>版本:</strong> v2.5</p>
+<strong>最後更新:</strong> 2026-07-27 14:52
+<strong>版本:</strong> v2.6</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -314,6 +314,59 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <h3>3.6 尚未做的</h3>
 <p><strong>病毒掃描未接</strong>(T25 待決)。<code>scan_status</code> 預設 <code>not_scanned</code> 並隨下載回傳——
 「內部平台」不是把未掃描執行檔說成安全的理由。</p>
+<hr />
+<h2>3.7 網頁介面(T40 起)</h2>
+<p>Jinja2 伺服器端模板,與 <code>/v1/*</code> 的 API 路由分離(決策文件 §6.1):</p>
+<pre><code>app/templates/base.html   版型骨架 + 導航列(全站共用)
+app/templates/home.html   首頁
+app/templates/error.html  錯誤頁(繼承 base)
+app/static/app.css        全站樣式(light、零外部資源)
+app/routers/web.py        網頁路由 + 靜態檔
+</code></pre>
+<h3>🔴 子路徑:兩個方向都會出錯</h3>
+<p>gateway 以尾斜線 <code>proxy_pass</code> <strong>剝掉前綴</strong>後轉發,所以同一個資源有兩個路徑:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>瀏覽器看到的</th>
+<th>本服務收到的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首頁</td>
+<td><code>https://host/upload/</code></td>
+<td><code>/</code></td>
+</tr>
+<tr>
+<td>樣式表</td>
+<td><code>https://host/upload/static/app.css</code></td>
+<td><code>/static/app.css</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>路由註冊用不帶前綴的路徑</strong>;<strong>頁面裡的連結必須帶前綴</strong>,一律經過
+  <code>web_urls.web_url(settings, path)</code>,漏一個就是一次 404。</li>
+<li>產出的是 <strong>root-relative</strong> 網址,不組 scheme/host——TLS 在 gateway 終結,
+  從 request 推導會得到 <code>http://</code>。絕對網址只留給 OIDC redirect_uri。</li>
+<li>🐛 <strong>靜態檔不能用 <code>app.mount("/static", StaticFiles(...))</code></strong>:本 app 設了
+  <code>root_path=api_prefix</code>(供 <code>/docs</code> 產生正確網址),而 Starlette 的 <code>Mount</code> 會依
+  root_path <strong>再剝一次</strong>前綴,傳給 StaticFiles 的子路徑就多了一層 → 正式環境全站樣式 404。
+  改用一般路由 <code>GET /static/{path:path}</code>,內部仍委派 <code>StaticFiles.get_response()</code>
+  以保留其路徑逃逸防護。詳見 T40 開發日誌。</li>
+</ul>
+<h3>身分:網頁不因未登入而 401</h3>
+<p>網頁用 <code>optional_identity</code>(取不到身分回 <code>None</code> 而非拋錯):匿名訪客該看到登入按鈕,
+不是一頁錯誤。顯示名稱來自 <strong>IdP claims</strong>,不從業務庫讀(業務庫只存 <code>sub</code>)。</p>
+<h3>CSP</h3>
+<p><code>SecurityHeadersMiddleware</code> 對所有回應加上:</p>
+<pre><code>default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
+</code></pre>
+<p>導入時機刻意選在 T40——當時全站零 JS、CSS 也正要搬進 <code>static/</code>,是成本最低的一刻。
+<code>default-src 'self'</code> 同時涵蓋 script-src 與 style-src,<strong>內嵌 <code>&lt;style&gt;</code>/<code>&lt;script&gt;</code> 一律被擋</strong>,
+這正好把樣式與(未來的)上傳 JS 逼成外部檔案。</p>
 <hr />
 <h2>4. API</h2>
 <ul>
@@ -625,6 +678,12 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.6</td>
+<td>2026-07-27 14:52</td>
+<td>Claude(Benny 授權)</td>
+<td>新增 §3.7 網頁介面(檔案配置、子路徑的兩個方向、<code>Mount</code> 二次剝前綴的根因、optional_identity、CSP)(T40)</td>
 </tr>
 <tr>
 <td>v2.5</td>

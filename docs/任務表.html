@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 14:35
-<strong>版本:</strong> v1.15</p>
+<strong>最後更新:</strong> 2026-07-27 14:52
+<strong>版本:</strong> v1.16</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -462,9 +462,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T40</td>
 <td>導航列與版型骨架(F70)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>全站共用;子路徑下所有連結與靜態檔皆正確,無 404</td>
+<td>16 條測試(<strong>先紅後綠</strong>);<code>base.html</code> + <code>app.css</code> + <code>web.py</code>,錯誤頁改為繼承;<strong>解析 HTML 逐一檢查所有 href/src/action 都帶前綴且無絕對網址</strong>;🐛 抓到 <code>root_path</code> 與 Mount 二次剝前綴導致靜態檔全站 404,改用一般路由;新增全站 CSP;<code>optional_identity</code> 讓網頁不因未登入而 401</td>
 </tr>
 <tr>
 <td>T41</td>
@@ -492,7 +492,7 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>上傳介面:建版本、傳檔、發布(F74)</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>不需 curl 即可完成一輪上傳與發布;<strong>XHR PUT 並顯示上傳進度</strong>與失敗提示(HTML 表單發不出 raw body PUT)</td>
+<td>不需 curl 即可完成一輪上傳與發布;<strong>XHR PUT 並顯示上傳進度</strong>與失敗提示(HTML 表單發不出 raw body PUT);<strong>導航列補上「建立專案」入口</strong>(T40 刻意延後,避免懸空連結);JS 須為外部檔案(CSP 禁 inline)</td>
 </tr>
 <tr>
 <td>T45</td>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.16</td>
+<td>2026-07-27 14:52</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T40 導航列與版型骨架完成</strong>;實作中抓到子路徑的真實缺陷(<code>root_path</code> + <code>Mount</code> 二次剝前綴 → 靜態檔正式環境全站 404),已改用一般路由並留下根因註解;順帶導入全站 CSP 並收掉 T47 的兩項遺留;F70 的「建立專案」入口刻意延後到 T44(避免懸空連結)並已寫進其驗收標準;測試 179→195</td>
 </tr>
 <tr>
 <td>v1.15</td>

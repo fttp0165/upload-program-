@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>決策紀錄:前端技術選型</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:41
-<strong>最後更新:</strong> 2026-07-26 00:41
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-27 14:35
+<strong>版本:</strong> v1.1
 <strong>狀態:</strong> ✅ 已定案(2026-07-26,Benny 裁示)
 <strong>對應:</strong> 功能需求大綱 Q9、模組 H(F70–F76)、任務 T39</p>
 <hr />
@@ -198,6 +198,12 @@ summary { cursor:pointer; color:#12228f; }
 <p><strong>決定:依 <code>Accept</code> 標頭做內容協商。</strong> 瀏覽器導覽(<code>Accept: text/html</code>)回 HTML 錯誤頁,
 API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回應,不禁止對瀏覽器回 HTML。</p>
 <p>→ 開新任務 <strong>T47</strong>,列為 <strong>T40 的前置</strong>。</p>
+<blockquote>
+<p><strong>2026-07-27 實作補充(T47 完成):</strong> 只看 <code>Accept</code> 是不夠的——那等於整個 API 表面的
+錯誤格式可以被呼叫端的一個標頭改掉,而平台鐵則寫著「錯誤回應一律 RFC 7807」。
+實作採<strong>路徑 AND Accept 兩個條件</strong>:<code>/v1/*</code> 與 <code>/health</code>、<code>/ready</code> 一律 <code>problem+json</code>;
+其餘路徑且 <code>Accept</code> <strong>明示</strong>含 <code>text/html</code> 才回 HTML(<code>*/*</code> 不算——那是 fetch/XHR 的預設)。</p>
+</blockquote>
 <hr />
 <h2>6. 實作綱要</h2>
 <h3>6.1 相依與檔案配置</h3>
@@ -251,14 +257,14 @@ API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回
 </thead>
 <tbody>
 <tr>
-<td>T47</td>
-<td>錯誤回應內容協商(HTML vs problem+json)</td>
-<td><strong>T40 前置</strong></td>
+<td>~~T47~~</td>
+<td>~~錯誤回應內容協商(HTML vs problem+json)~~</td>
+<td>✅ <strong>2026-07-27 完成</strong>,T40 前置已解除</td>
 </tr>
 <tr>
 <td>T40</td>
 <td>導航列與版型骨架</td>
-<td>需 T47 完成</td>
+<td>~~需 T47 完成~~ → 可開工</td>
 </tr>
 <tr>
 <td>T44</td>
@@ -284,6 +290,12 @@ API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-27 14:35</td>
+<td>Claude(Benny 授權)</td>
+<td>§5.2 補上 T47 的實作補充(協商規則從「只看 Accept」改為「路徑 AND Accept」及其理由);§8 連帶待辦標記 T47 完成、T40 前置解除</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-26 00:41</td>

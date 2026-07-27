@@ -1,16 +1,57 @@
-"""錯誤回應:一律 RFC 7807 Problem Details(平台規約,禁自創格式)。"""
+"""錯誤回應:API 一律 RFC 7807 Problem Details(平台規約,禁自創格式);
+瀏覽器導覽則依 `Accept` 協商成 HTML 錯誤頁(T47)。
 
+RFC 7807 的義務只及於 API 回應,不禁止對瀏覽器回 HTML;而 F75 要求
+「未開通者看到指引頁而非裸 403 JSON」,沒有這層協商就做不到。
+"""
+
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .logging_setup import trace_id_var
 
 CONTENT_TYPE = "application/problem+json"
+
+# 🔴 這些路徑一律回 problem+json,不管呼叫端的 Accept 說什麼。
+# 只看 Accept 的話,`curl -H 'Accept: text/html' /v1/projects` 就能把整個 API 表面的
+# 錯誤格式改掉——平台鐵則「錯誤回應一律 RFC 7807」不該被呼叫端的一個標頭鬆動。
+#
+# 註:gateway 以尾斜線 proxy_pass **剝掉前綴**後轉發,所以到達本服務的路徑就是
+# `/v1/...`,不含對外前綴;這裡直接比對 `/v1/` 是正確的,不需要拼 api_prefix。
+_API_PREFIXES = ("/v1/",)
+_MACHINE_PATHS = ("/health", "/ready")
+
+_templates = Environment(
+    loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    autoescape=select_autoescape(["html"]),  # 🔴 逸出是這裡的重點,見 error.html 的說明
+)
+
+
+def wants_html(request: Request) -> bool:
+    """這個請求該不該收到 HTML 錯誤頁。
+
+    **兩個條件都要成立**:
+
+    1. 路徑不是機器端點(`/v1/*`、`/health`、`/ready`)
+    2. `Accept` **明示**含 `text/html`
+
+    第 2 點的「明示」是關鍵:`*/*`(fetch、XHR、curl 的預設)**不算**。
+    瀏覽器導覽送的是 `text/html,application/xhtml+xml,...,*/*;q=0.8` 會命中;
+    JS 呼叫送 `*/*` 不會命中——這正是「人在看」與「程式在呼叫」的分界。
+
+    參數:request。回傳:True 表示回 HTML。副作用:無。
+    """
+    path = request.url.path
+    if path.startswith(_API_PREFIXES) or path in _MACHINE_PATHS:
+        return False
+    return "text/html" in request.headers.get("accept", "")
 
 
 class ProblemError(Exception):
@@ -55,17 +96,48 @@ def problem_response(
     detail: str,
     headers: dict[str, str] | None = None,
     **extra: Any,
-) -> JSONResponse:
+) -> Response:
+    """產生錯誤回應:API 回 problem+json,瀏覽器導覽回 HTML 錯誤頁。
+
+    協商放在這一個函式裡的理由:四個 exception handler(ProblemError / HTTPException /
+    RequestValidationError / 未處理例外)全都經過這裡,所以不可能有某一類錯誤漏掉。
+    這與 T35(下載回應)、T37(下載計數)是同一個模式——**同一件事只能有一條路**。
+
+    參數:request、status_code、slug(problem type 的尾段)、title、detail、
+    headers(如 401 的 WWW-Authenticate)、extra(RFC 7807 擴充成員)。
+    回傳:JSONResponse 或 HTMLResponse。副作用:無。
+    """
+    trace_id = trace_id_var.get()
+    # `Vary: Accept` 一律要帶(含 JSON 回應):同一個 URL 有兩種表述,
+    # 不標的話快取可能把 HTML 餵給 API 呼叫端,反之亦然。
+    response_headers = {
+        **(headers or {}),
+        "Vary": "Accept",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+    if wants_html(request):
+        page = _templates.get_template("error.html").render(
+            status=status_code,
+            title=title,
+            detail=detail,
+            instance=request.url.path,
+            trace_id=trace_id,
+        )
+        return HTMLResponse(page, status_code=status_code, headers=response_headers)
+
     body = {
         "type": f"{_type_base(request)}/{slug}",
         "title": title,
         "status": status_code,
         "detail": detail,
         "instance": request.url.path,
-        "trace_id": trace_id_var.get(),
+        "trace_id": trace_id,
         **extra,
     }
-    return JSONResponse(body, status_code=status_code, media_type=CONTENT_TYPE, headers=headers)
+    return JSONResponse(
+        body, status_code=status_code, media_type=CONTENT_TYPE, headers=response_headers
+    )
 
 
 # --- 常用錯誤 ---------------------------------------------------------------
@@ -128,13 +200,13 @@ def service_unavailable(detail: str) -> ProblemError:
 # --- exception handlers -----------------------------------------------------
 
 
-async def problem_error_handler(request: Request, exc: ProblemError) -> JSONResponse:
+async def problem_error_handler(request: Request, exc: ProblemError) -> Response:
     return problem_response(
         request, exc.status_code, exc.slug, exc.title, exc.detail, exc.headers, **exc.extra
     )
 
 
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
     return problem_response(
         request,
         exc.status_code,
@@ -147,7 +219,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
-) -> JSONResponse:
+) -> Response:
     return problem_response(
         request,
         422,  # 同上:避免綁定會改名的 Starlette 常數
@@ -161,7 +233,7 @@ async def validation_exception_handler(
     )
 
 
-async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def unhandled_exception_handler(request: Request, exc: Exception) -> Response:
     # 內部錯誤不把 stack trace 吐給呼叫端;細節在 log 裡靠 trace_id 追。
     return problem_response(
         request,

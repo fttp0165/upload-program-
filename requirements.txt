@@ -12,3 +12,5 @@ httpx>=0.27,<1.0
 # 非同步 S3/MinIO client:上傳走 multipart 串流(邊收邊算 SHA-256,不落暫存檔)
 aioboto3>=13.0,<16.0
 itsdangerous>=2.2,<3.0
+# 網頁模板(T47 錯誤頁,T40 起的前端版型):autoescape 是選它而非字串拼接的主因
+jinja2>=3.1,<4.0

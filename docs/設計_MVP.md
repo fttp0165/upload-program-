@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 13:55
-**版本:** v2.4
+**最後更新:** 2026-07-27 14:35
+**版本:** v2.5
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -166,6 +166,28 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 
 - 路徑前綴 ⏳ 由 Platform 分配;版本走路徑 `/v1/...`;錯誤一律 **RFC 7807**;時間 **ISO 8601 含時區**
 
+### 4.1 錯誤回應的內容協商(T47)
+
+錯誤回應有兩種表述,規則是**兩個條件都要成立**才回 HTML:
+
+| 條件 | 規則 |
+|---|---|
+| 路徑 | **不是** `/v1/*`,也不是 `/health`、`/ready` |
+| `Accept` | **明示**含 `text/html`(`*/*` 不算) |
+
+- **為什麼要有「路徑」這一關**:只看 `Accept` 的話,`curl -H 'Accept: text/html' /v1/projects`
+  就能把整個 API 表面的錯誤格式改掉。平台鐵則「錯誤回應一律 RFC 7807」不該被呼叫端的
+  一個標頭鬆動。
+- **為什麼 `*/*` 不算**:那是 fetch、XHR、curl 的預設值——程式在呼叫,不是人在看。
+  瀏覽器導覽送的是 `text/html,application/xhtml+xml,...,*/*;q=0.8`,會命中。
+- 協商實作在 `problems.problem_response()` **一個函式**裡,四個 exception handler 全經過它,
+  所以不可能有某一類錯誤漏掉。
+- 🔴 錯誤頁顯示 `detail` 與 `instance`(= 請求路徑),兩者都是使用者可控內容;
+  靠 **Jinja2 autoescape** 逸出,模板中禁用 `|safe`。本服務散布可執行檔,
+  錯誤頁自己開一個 XSS 與「不讓上傳內容在本網域執行」是同一條紅線的反面。
+- 回應一律帶 `Vary: Accept`(同一 URL 兩種表述,不標會被快取餵錯)與 `X-Content-Type-Options: nosniff`。
+- 錯誤頁 **light 主題、零外部資源**(憲法第四條;而且它正是服務半殘時要顯示的東西)。
+
 | Method | 路徑 | 用途 |
 |---|---|---|
 | GET | `/health` / `/ready` | liveness(不查相依)/ readiness(查 DB、MinIO、JWKS) |
@@ -235,6 +257,7 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.5 | 2026-07-27 14:35 | Claude(Benny 授權) | 新增 §4.1 錯誤回應的內容協商(路徑 AND Accept 兩條件、`*/*` 不算的理由、autoescape 與 `Vary`/`nosniff`)(T47) |
 | v2.4 | 2026-07-27 13:55 | Claude(Benny 授權) | `artifact` 加 `download_count`;新增 §3.5 下載次數統計(不做事件表的理由、原子 UPDATE、發起 vs 完成的語意),原 §3.5 順延為 §3.6(T37) |
 | v2.3 | 2026-07-27 06:05 | Claude(Benny 授權) | `project` 加 `quota_tier`;新增 §3.4 容量級距(存代號而非數字的理由、兩道檢查共用訊息、413 的內容要求、降級不刪檔),原 §3.4 順延為 §3.5;API 表補上 `PUT /v1/projects/{slug}/quota`(T49) |
 | v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **依 Cats 接入指南 v2.0 全面修正**:新增 §1 部署拓撲(含 SVG/ASCII 架構圖)與子路徑連帶影響;**儲存設計由 presigned 直傳改為服務串流轉送**(瀏覽器連不到 backend 網路的 MinIO),並說明捨棄 multipart 的理由;新增判型白名單與下載強制 attachment 細節;API 表更新為實際實作的端點;§5 對齊表補上對應檔案;依憲法第七條補日期、版本與本歷史表。產品範圍與里程碑移至開發計畫書 |

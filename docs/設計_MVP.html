@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-27 13:55
-<strong>版本:</strong> v2.4</p>
+<strong>最後更新:</strong> 2026-07-27 14:35
+<strong>版本:</strong> v2.5</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -319,6 +319,40 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <ul>
 <li>路徑前綴 ⏳ 由 Platform 分配;版本走路徑 <code>/v1/...</code>;錯誤一律 <strong>RFC 7807</strong>;時間 <strong>ISO 8601 含時區</strong></li>
 </ul>
+<h3>4.1 錯誤回應的內容協商(T47)</h3>
+<p>錯誤回應有兩種表述,規則是<strong>兩個條件都要成立</strong>才回 HTML:</p>
+<table>
+<thead>
+<tr>
+<th>條件</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路徑</td>
+<td><strong>不是</strong> <code>/v1/*</code>,也不是 <code>/health</code>、<code>/ready</code></td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td><strong>明示</strong>含 <code>text/html</code>(<code>*/*</code> 不算)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>為什麼要有「路徑」這一關</strong>:只看 <code>Accept</code> 的話,<code>curl -H 'Accept: text/html' /v1/projects</code>
+  就能把整個 API 表面的錯誤格式改掉。平台鐵則「錯誤回應一律 RFC 7807」不該被呼叫端的
+  一個標頭鬆動。</li>
+<li><strong>為什麼 <code>*/*</code> 不算</strong>:那是 fetch、XHR、curl 的預設值——程式在呼叫,不是人在看。
+  瀏覽器導覽送的是 <code>text/html,application/xhtml+xml,...,*/*;q=0.8</code>,會命中。</li>
+<li>協商實作在 <code>problems.problem_response()</code> <strong>一個函式</strong>裡,四個 exception handler 全經過它,
+  所以不可能有某一類錯誤漏掉。</li>
+<li>🔴 錯誤頁顯示 <code>detail</code> 與 <code>instance</code>(= 請求路徑),兩者都是使用者可控內容;
+  靠 <strong>Jinja2 autoescape</strong> 逸出,模板中禁用 <code>|safe</code>。本服務散布可執行檔,
+  錯誤頁自己開一個 XSS 與「不讓上傳內容在本網域執行」是同一條紅線的反面。</li>
+<li>回應一律帶 <code>Vary: Accept</code>(同一 URL 兩種表述,不標會被快取餵錯)與 <code>X-Content-Type-Options: nosniff</code>。</li>
+<li>錯誤頁 <strong>light 主題、零外部資源</strong>(憲法第四條;而且它正是服務半殘時要顯示的東西)。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -591,6 +625,12 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.5</td>
+<td>2026-07-27 14:35</td>
+<td>Claude(Benny 授權)</td>
+<td>新增 §4.1 錯誤回應的內容協商(路徑 AND Accept 兩條件、<code>*/*</code> 不算的理由、autoescape 與 <code>Vary</code>/<code>nosniff</code>)(T47)</td>
 </tr>
 <tr>
 <td>v2.4</td>

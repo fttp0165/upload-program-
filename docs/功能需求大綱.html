@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-07-28 05:35
-<strong>版本:</strong> v3.4</p>
+<strong>最後更新:</strong> 2026-07-28 06:40
+<strong>版本:</strong> v3.5</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -769,18 +769,18 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F75</td>
 <td>待開通頁</td>
-<td>未開通者看到的指引頁,而非裸 403 JSON(補充)</td>
+<td>未開通者看到的指引頁,而非裸 403 JSON(補充);🔴 <strong>顯示使用者自己的 <code>sub</code></strong>——業務庫只存 sub,不顯示就沒有任何對照鍵可交給管理員</td>
 <td>P1</td>
 <td>M7</td>
-<td>⬜ 未實作(T45)</td>
+<td>✅ 已實作(T45)</td>
 </tr>
 <tr>
 <td>F76</td>
 <td>管理後台頁</td>
-<td>待開通清單與一鍵開通(補充:否則管理員得手打 API)</td>
+<td>待開通清單與一鍵開通(補充:否則管理員得手打 API);頁面上寫明「這裡只有 sub」的原因</td>
 <td>P1</td>
 <td>M7</td>
-<td>⬜ 未實作(T45)</td>
+<td>✅ 已實作(T45)</td>
 </tr>
 </tbody>
 </table>
@@ -1065,20 +1065,20 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>H 前端介面</td>
 <td>7</td>
-<td>5</td>
-<td>2</td>
+<td>7</td>
+<td>0</td>
 <td>0</td>
 </tr>
 <tr>
 <td><strong>合計</strong></td>
 <td><strong>53</strong></td>
-<td><strong>42</strong></td>
-<td><strong>9</strong></td>
+<td><strong>44</strong></td>
+<td><strong>7</strong></td>
 <td><strong>2</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>未實作的 9 項按優先級拆:</strong></p>
+<p><strong>未實作的 7 項按優先級拆:</strong></p>
 <table>
 <thead>
 <tr>
@@ -1095,8 +1095,8 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>P1</td>
-<td>3</td>
-<td>F54 + 前端 F75、F76(F70–F74 已完成)</td>
+<td>1</td>
+<td>F54 稽核紀錄(T38);<strong>模組 H 前端 F70–F76 全數完成</strong></td>
 </tr>
 <tr>
 <td>P2</td>
@@ -1152,6 +1152,12 @@ MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>F42 標籤分類由 ⬜ 改 ✅(T36);§7 總結重算(已 35 / 未 16);<strong>M4 全數完成</strong></td>
+</tr>
+<tr>
+<td>v3.5</td>
+<td>2026-07-28 06:40</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>F75 待開通頁、F76 管理後台 ✅,模組 H 全數完成</strong>(T45)。F75 的描述補上這一頁真正的功能:交出使用者自己的 <code>sub</code>——「業務庫只存 sub」這條紅線的代價,是使用者與管理員之間沒有天然對照鍵,這一頁補的就是那條鍵。§7 總結重算(已 44 / 未 7),P1 只剩 F54</td>
 </tr>
 <tr>
 <td>v3.4</td>

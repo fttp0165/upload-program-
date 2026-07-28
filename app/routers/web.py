@@ -8,6 +8,7 @@
 反過來,頁面裡的連結必須帶前綴,那由模板的 `url()` 負責(見 web_urls.py)。
 """
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -16,10 +17,20 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
-from ..models import Project, ProjectRole, Release, ReleaseStatus, UploadStatus, Visibility
+from ..models import (
+    Project,
+    ProjectRole,
+    Release,
+    ReleaseStatus,
+    UploadStatus,
+    User,
+    UserStatus,
+    Visibility,
+)
 from ..queries import query_projects, query_releases
 from ..quota import project_limit
 from ..schemas import ProjectCreate, ReleaseCreate
@@ -27,6 +38,8 @@ from ..security import (
     DbSession,
     OptionalUser,
     get_project,
+    parse_uuid,
+    require_admin,
     require_project_read,
     require_project_role,
 )
@@ -35,6 +48,7 @@ from ..web_urls import web_url
 from .releases import latest_published_release, load_release
 
 router = APIRouter(include_in_schema=False, tags=["web"])
+log = logging.getLogger(__name__)
 
 # 🐛 為什麼靜態檔用一般路由而不是 `app.mount("/static", StaticFiles(...))`:
 #
@@ -397,8 +411,14 @@ async def project_releases_page(
 
 
 def _redirect(request: Request, path: str) -> RedirectResponse:
-    """導向服務內部路徑(自動補前綴)。用 303:POST 之後要換成 GET。"""
-    return RedirectResponse(web_url(request.app.state.settings, path), status_code=303)
+    """導向服務內部路徑(自動補前綴)。用 303:POST 之後要換成 GET。
+
+    `path` 可帶查詢字串(例:`/admin/users?error=self-disable`)——
+    前綴只加在路徑部分。
+    """
+    head, sep, query = path.partition("?")
+    url = web_url(request.app.state.settings, head)
+    return RedirectResponse(f"{url}{sep}{query}", status_code=303)
 
 
 async def _require_web_user(request: Request, identity, next_path: str):
@@ -553,3 +573,143 @@ async def publish_release_form(
         await session.commit()
 
     return _redirect(request, f"/projects/{release.project.slug}")
+
+
+# --- T45 待開通頁與管理後台(F75、F76)--------------------------------------
+
+
+@router.get("/pending", summary="待開通指引頁")
+async def pending_page(request: Request, identity: OptionalUser) -> Response:
+    """待開通的指引頁(F75)。
+
+    🔴 **這一頁最重要的內容是使用者自己的 `sub`。**
+
+    契約 §4.2 規定業務庫只存 `sub`,沒有 email、沒有姓名——所以管理後台的清單
+    只有一排 UUID。使用者要怎麼告訴管理員「我是誰」?管理員又要怎麼認出他?
+    唯一的答案是把 `sub` 顯示給使用者,讓他複製給管理員。
+    少了這一步,這兩邊永遠對不上。
+
+    (這一頁也正好是 SSO 接入計畫 §4.3 說的「第一個管理員先登入一次取得 sub」
+    的取得處——原本那是個沒有落點的手工步驟。)
+
+    已開通者導回首頁:停在一頁「你已經開通了」沒有意義,還會讓人以為出錯。
+
+    參數:無。回傳:HTML 或轉址。副作用:無。
+    """
+    if identity is None:
+        return _login_redirect(request, "/pending")
+    if identity.user.is_active:
+        return _redirect(request, "/")
+
+    return HTMLResponse(
+        render(
+            request,
+            "pending.html",
+            identity=identity,
+            pending_detail=problems.pending_activation().detail,
+        )
+    )
+
+
+async def _require_web_admin(request: Request, identity, next_path: str):
+    """網頁的「必須是平台管理員」關卡。
+
+    🔴 為什麼不直接用 `AdminUser` 依賴:那條路徑對**未登入**者會拋 401,
+    而網頁的未登入語意是「送去 IdP」(T53 裁示的深層頁 302),不是一頁錯誤。
+    非管理員的判斷則**沿用 API 的同一個函式** `require_admin()`——
+    權限規則只能有一條路,兩邊各寫一份遲早分岔,而分岔的後果是越權。
+
+    回傳 Response 表示「已經處理掉了」,回傳 None 表示可以繼續。
+    """
+    if identity is None:
+        return _login_redirect(request, next_path)
+    await require_admin(identity)  # 待開通 / 非管理員 → 403(與 API 同一段語意)
+    return None
+
+
+@router.get("/admin/users", summary="管理後台:使用者")
+async def admin_users_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """管理後台(F76):待開通清單與一鍵開通。
+
+    沒有這一頁的話,管理員得手打 API 才能開通任何人。
+
+    🔴 清單裡**只有 `sub`**——業務庫依契約不存 email/姓名。第一次用的管理員
+    一定會問「怎麼沒有名字」,所以頁面上直接寫明原因:那是紅線不是缺陷。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    rows = (
+        await session.execute(select(User).order_by(User.created_at.desc()).limit(200))
+    ).scalars().all()
+    pending = [u for u in rows if u.status is UserStatus.pending]
+    others = [u for u in rows if u.status is not UserStatus.pending]
+
+    return HTMLResponse(
+        render(
+            request,
+            "admin_users.html",
+            identity=identity,
+            pending_users=pending,
+            other_users=others,
+            me=identity.user,
+            error=request.query_params.get("error"),
+        )
+    )
+
+
+@router.post("/admin/users/{user_id}/activate", summary="一鍵開通")
+async def admin_activate(
+    user_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """開通一位使用者。與 `PATCH /v1/admin/users/{id}` 同一段語意,不另立規則。"""
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    user = (
+        await session.execute(select(User).where(User.id == parse_uuid(user_id, "使用者")))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    if user.status is not UserStatus.active:
+        user.status = UserStatus.active
+        if user.activated_at is None:
+            user.activated_at = datetime.now(UTC)
+        await session.commit()
+        log.info("開通使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
+
+    return _redirect(request, "/admin/users")
+
+
+@router.post("/admin/users/{user_id}/disable", summary="停用使用者")
+async def admin_disable(
+    user_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """停用一位使用者。
+
+    🔴 **不得停用自己**——否則平台可能一個管理員都不剩。這條規則 API 已經有,
+    網頁沿用同一條,不另寫判斷。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    target_id = parse_uuid(user_id, "使用者")
+    if target_id == identity.user.id:
+        return _redirect(request, "/admin/users?error=self-disable")
+
+    user = (
+        await session.execute(select(User).where(User.id == target_id))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    user.status = UserStatus.disabled
+    await session.commit()
+    log.info("停用使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
+    return _redirect(request, "/admin/users")

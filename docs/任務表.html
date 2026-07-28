@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 05:35
-<strong>版本:</strong> v1.24</p>
+<strong>最後更新:</strong> 2026-07-28 06:40
+<strong>版本:</strong> v1.25</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -518,9 +518,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T45</td>
 <td>待開通頁與管理後台頁(F75、F76)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>未開通者看到指引頁而非裸 JSON;管理員可一鍵開通</td>
+<td>18 條測試(<strong>先紅後綠</strong>,16 failed 起步);🔴 <strong>待開通頁顯示使用者自己的 <code>sub</code></strong>——業務庫只存 sub,不顯示的話使用者與管理員之間沒有任何對照鍵,開通流程結構上走不通;管理後台於頁面上寫明「這裡只有 sub」的原因(而非加備註欄位落地個資);未登入 302、非管理員 403 兩種回應分流,權限判斷仍轉呼叫 API 的 <code>require_admin()</code>;不得停用自己;各頁待開通提示連到 <code>/pending</code>;導航列補管理入口</td>
 </tr>
 </tbody>
 </table>
@@ -677,6 +677,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.25</td>
+<td>2026-07-28 06:40</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T45 完成,M7 全數 ✅</strong>。核心發現:「業務庫只存 sub」這條紅線的代價是使用者與管理員之間缺一條對照鍵——<strong>待開通頁把 <code>sub</code> 交到使用者手上</strong>才是這一頁真正的功能,不是安撫文案。計畫寫「直接用 <code>AdminUser</code> 依賴」在執行中證明是錯的(它對未登入者回 401,與 T53 的深層頁 302 相衝),已依第二條 5 回寫修正;權限判斷仍轉呼叫 API 同一個 <code>require_admin()</code>。「不得停用自己」以拿掉判斷實測——管理員停用自己後連轉址頁都載不進來,是這條規則的實地演示。測試 285→303</td>
 </tr>
 <tr>
 <td>v1.24</td>

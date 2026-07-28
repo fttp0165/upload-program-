@@ -1,0 +1,269 @@
+"""T45 待開通頁與管理後台(F75、F76)。
+
+🔴 本檔最重要的一條:**待開通頁必須顯示使用者自己的 `sub`**。
+
+契約 §4.2 規定業務庫只存 `sub`,沒有 email、沒有姓名。所以管理後台的清單裡
+只有一排 UUID。使用者要怎麼告訴管理員「我是誰」?管理員又要怎麼認出他?
+——唯一的答案是把 `sub` 顯示給使用者,讓他複製給管理員。
+少了這一步,這兩邊永遠對不上。
+"""
+
+import re
+
+from tests.conftest import auth, make_user
+
+BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+PREFIX = "/upload"
+
+_LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
+PLATFORM_URLS = {"/account", "/login"}
+
+
+def _links(html: str) -> list[str]:
+    return _LINK_RE.findall(html)
+
+
+# --- F75 待開通頁 -----------------------------------------------------------
+
+
+async def test_待開通者看得到指引頁(client, app, oidc):
+    from app.models import UserStatus
+    from app.problems import pending_activation
+
+    await make_user(app, "sub-pending45", status=UserStatus.pending)
+    token = oidc.issue("sub-pending45")
+
+    resp = await client.get("/pending", headers={**BROWSER, **auth(token)})
+    assert resp.status_code == 200, resp.text
+    assert pending_activation().detail in resp.text
+
+
+async def test_待開通頁顯示使用者自己的sub(client, app, oidc):
+    """🔴 這是使用者唯一能提供給管理員的識別。
+
+    業務庫只存 sub,管理後台的清單也只有 UUID——不把它顯示出來,
+    使用者說「我是王小明」時管理員的畫面上根本沒有那四個字。
+    """
+    from app.models import UserStatus
+
+    await make_user(app, "sub-identify-me", status=UserStatus.pending)
+    token = oidc.issue("sub-identify-me", name="王小明")
+
+    body = (await client.get("/pending", headers={**BROWSER, **auth(token)})).text
+    assert "sub-identify-me" in body, "待開通頁必須顯示使用者自己的 sub"
+
+
+async def test_待開通頁有帳號設定連結(client, app, oidc):
+    """契約 §2.1 / §4.8。"""
+    from app.models import UserStatus
+
+    await make_user(app, "sub-pending45b", status=UserStatus.pending)
+    token = oidc.issue("sub-pending45b")
+
+    body = (await client.get("/pending", headers={**BROWSER, **auth(token)})).text
+    assert 'href="/account"' in body
+
+
+async def test_已開通者開待開通頁會導回首頁(client, active_user):
+    """停在一頁「你已經開通了」沒有意義,還會讓人以為出錯。"""
+    _, token = active_user
+    resp = await client.get(
+        "/pending", headers={**BROWSER, **auth(token)}, follow_redirects=False
+    )
+    assert resp.status_code in (302, 303)
+
+
+async def test_未登入開待開通頁會302(client):
+    resp = await client.get("/pending", headers=BROWSER, follow_redirects=False)
+    assert resp.status_code == 302
+
+
+async def test_各頁的待開通提示連到待開通頁(client, app, oidc):
+    """完整指引在專屬頁面,其他頁面只要指路。"""
+    from app.models import UserStatus
+
+    await make_user(app, "sub-pending45c", status=UserStatus.pending)
+    token = oidc.issue("sub-pending45c")
+
+    body = (await client.get("/", headers={**BROWSER, **auth(token)})).text
+    assert f'href="{PREFIX}/pending"' in body
+
+
+# --- 🔴 F76 管理後台:權限 -------------------------------------------------
+
+
+async def test_非管理員開管理後台回403(client, active_user):
+    _, token = active_user
+    resp = await client.get("/admin/users", headers={**BROWSER, **auth(token)})
+    assert resp.status_code == 403
+
+
+async def test_未登入開管理後台會302(client):
+    resp = await client.get("/admin/users", headers=BROWSER, follow_redirects=False)
+    assert resp.status_code == 302
+
+
+async def test_管理員看得到待開通清單(client, app, oidc, admin_user):
+    from app.models import UserStatus
+
+    _, admin_token = admin_user
+    await make_user(app, "sub-waiting-1", status=UserStatus.pending)
+    await make_user(app, "sub-waiting-2", status=UserStatus.pending)
+
+    body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
+    assert "sub-waiting-1" in body
+    assert "sub-waiting-2" in body
+
+
+async def test_管理後台說明為何只有sub(client, admin_user):
+    """第一次用的管理員一定會問「怎麼沒有名字」。
+
+    與其讓人以為壞掉,不如講清楚:業務庫依契約只存 sub,這是紅線不是缺陷。
+    """
+    _, admin_token = admin_user
+    body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
+    assert "sub" in body
+    assert "不落地" in body or "只存" in body or "個資" in body
+
+
+async def test_管理後台不顯示個資欄位(client, app, oidc, admin_user):
+    """🔴 業務庫結構上就沒有這些欄位,頁面自然也不該有。"""
+    _, admin_token = admin_user
+    await make_user(app, "sub-noleak", status=__import__(
+        "app.models", fromlist=["UserStatus"]).UserStatus.pending)
+
+    body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
+    assert "電子郵件" not in body
+    assert "姓名" not in body
+
+
+# --- 一鍵開通 ---------------------------------------------------------------
+
+
+async def test_一鍵開通(client, app, oidc, admin_user):
+    from sqlalchemy import select
+
+    from app.models import User, UserStatus
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-to-activate", status=UserStatus.pending)
+
+    resp = await client.post(
+        f"/admin/users/{target.id}/activate",
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (302, 303), resp.text
+
+    async with app.state.sessionmaker() as session:
+        user = (await session.execute(select(User).where(User.sub == "sub-to-activate"))).scalar_one()
+        assert user.status is UserStatus.active
+        assert user.activated_at is not None, "開通時間要留下來"
+
+
+async def test_開通後對方立刻能用(client, app, oidc, admin_user):
+    """契約 §7 冒煙第 3 項:派角色 → 即時通行。"""
+    from app.models import UserStatus
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-instant", status=UserStatus.pending)
+    token = oidc.issue("sub-instant")
+
+    before = await client.get("/v1/projects", headers=auth(token))
+    assert before.status_code == 403
+
+    await client.post(
+        f"/admin/users/{target.id}/activate",
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+
+    after = await client.get("/v1/projects", headers=auth(token))
+    assert after.status_code == 200
+
+
+async def test_非管理員不能開通別人(client, active_user, app):
+    from app.models import UserStatus
+
+    _, token = active_user
+    target = await make_user(app, "sub-victim", status=UserStatus.pending)
+
+    resp = await client.post(
+        f"/admin/users/{target.id}/activate",
+        headers={**BROWSER, **auth(token)},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 403
+
+
+# --- 🔴 停用 ----------------------------------------------------------------
+
+
+async def test_不得停用自己(client, app, admin_user):
+    """🔴 停用自己會讓平台可能一個管理員都不剩。API 已有這條規則,網頁沿用同一條。"""
+    admin, admin_token = admin_user
+
+    resp = await client.post(
+        f"/admin/users/{admin.id}/disable",
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=True,
+    )
+    assert "不能停用自己" in resp.text
+
+    from sqlalchemy import select
+
+    from app.models import User, UserStatus
+
+    async with app.state.sessionmaker() as session:
+        me = (await session.execute(select(User).where(User.sub == "sub-admin"))).scalar_one()
+        assert me.status is UserStatus.active, "自己不該被停用"
+
+
+async def test_可以停用別人(client, app, admin_user):
+    from sqlalchemy import select
+
+    from app.models import User, UserStatus
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-to-disable", status=UserStatus.active)
+
+    resp = await client.post(
+        f"/admin/users/{target.id}/disable",
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (302, 303), resp.text
+
+    async with app.state.sessionmaker() as session:
+        user = (await session.execute(select(User).where(User.sub == "sub-to-disable"))).scalar_one()
+        assert user.status is UserStatus.disabled
+
+
+# --- 連結與逸出 -------------------------------------------------------------
+
+
+async def test_新頁面的連結帶前綴且無絕對網址(client, app, oidc, admin_user):
+    from app.models import UserStatus
+
+    _, admin_token = admin_user
+    await make_user(app, "sub-linkcheck45", status=UserStatus.pending)
+
+    resp = await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})
+    assert resp.status_code == 200
+    for link in _links(resp.text):
+        if link in PLATFORM_URLS:
+            continue
+        assert link.startswith(f"{PREFIX}/"), link
+        assert not link.startswith(("http://", "https://", "//")), link
+
+
+async def test_sub含特殊字元時逸出(client, app, oidc, admin_user):
+    """sub 來自 IdP,理論上是 UUID,但不該假設。"""
+    from app.models import UserStatus
+
+    _, admin_token = admin_user
+    await make_user(app, '<script>alert(1)</script>', status=UserStatus.pending)
+
+    body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
+    assert "<script>alert(1)</script>" not in body
+    assert "&lt;script&gt;" in body

@@ -41,6 +41,10 @@
     {% if identity %}
       {% if identity.user.is_active %}
         <a class="nav-link" href="{{ url('/projects/new') }}">建立專案</a>
+        {# T45:管理後台若沒有入口就等於不存在,管理員只能手打網址。 #}
+        {% if identity.user.is_admin %}
+          <a class="nav-link" href="{{ url('/admin/users') }}">管理</a>
+        {% endif %}
       {% endif %}
       <span class="nav-name">{{ identity.display_name or identity.sub }}</span>
       <a class="nav-link" href="{{ account_url }}">帳號設定</a>

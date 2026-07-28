@@ -42,10 +42,10 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program SSO 接入計畫</h1>
 <p><strong>建立日期:</strong> 2026-07-28 02:19
-<strong>最後更新:</strong> 2026-07-28 04:05
-<strong>版本:</strong> v1.1
+<strong>最後更新:</strong> 2026-07-28 06:40
+<strong>版本:</strong> v1.2
 <strong>對應契約:</strong> <code>cats-portal/DOCS/帳號系統接入契約_SSO.md</code> <strong>v1.7</strong>(2026-07-28)
-<strong>相關任務:</strong> T26、T28、T29、T51、T52 ✅、T53
+<strong>相關任務:</strong> T26、T28、T29、T45 ✅、T51、T52 ✅、T53
 <strong>狀態:</strong> ✅ <strong>S0(可自主部分)已全數完成</strong>;等待平台方配發 client 與路徑前綴</p>
 <blockquote>
 <p>依開發憲法第二條 3:接 SSO 是跨多任務的大工程,先立獨立計畫文件,經確認後才動工。
@@ -347,6 +347,19 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 </ol>
 <blockquote>
 <p>這個值<strong>不是 secret</strong>(只是一個 UUID),但仍走 env 不寫死在程式裡。</p>
+<p><strong>✅ 計畫更新(2026-07-28 06:40,T45 完成後回寫)</strong></p>
+<p>上面第 2 步原本沒有落點——「從 IdP 取得 sub」在實務上要嘛請平台方到 Keycloak
+後台查、要嘛自己解 token,兩者都不是接入當下做得順手的事。</p>
+<p><strong>T45 的 <code>/pending</code> 頁把它變成自助:</strong> 該人直接登入 upload-program(會卡在待開通),
+頁面上就印著他自己的 <code>sub</code>,複製即可。所以第 2 步改為:</p>
+<blockquote>
+<ol start="2">
+<li>該人登入 upload-program → 停在 <code>/«PREFIX»/pending</code> → <strong>複製頁面上顯示的 <code>sub</code></strong></li>
+</ol>
+</blockquote>
+<p>填進 <code>BOOTSTRAP_ADMIN_SUBS</code> 並重啟後,他再登入一次即成為管理員。
+這也意味著<strong>「先部署、後拿 sub」是可行的順序</strong>——原計畫把它排成 S2 的前置條件,
+現在它可以在 S2 之中完成,不再是卡住整條路的外部相依。</p>
 </blockquote>
 <hr />
 <h2>5. 接入階段與相依</h2>
@@ -384,7 +397,7 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <td><strong>S2</strong></td>
 <td>T28</td>
 <td>兩邊</td>
-<td><code>/«PREFIX»/</code> 通;<code>client_max_body_size</code> 生效;bootstrap sub 已填</td>
+<td><code>/«PREFIX»/</code> 通;<code>client_max_body_size</code> 生效;bootstrap sub 已填(<strong>可由 <code>/pending</code> 自助取得</strong>,見 §4.3)</td>
 </tr>
 <tr>
 <td><strong>S3</strong></td>
@@ -427,7 +440,7 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <tr>
 <td>3</td>
 <td>無角色 → 業務 API 一律 403 待開通;後台派角色 → 即時通行</td>
-<td>用第二個測試帳號登入 → 打 <code>/v1/projects</code> → 403;bootstrap 管理員開通後再打 → 200</td>
+<td>用第二個測試帳號登入 → 打 <code>/v1/projects</code> → 403;bootstrap 管理員在 <code>/admin/users</code> 一鍵開通後再打 → 200(T45 起不需手打 API)</td>
 <td>兩次回應的 status 與 <code>type</code></td>
 </tr>
 <tr>
@@ -478,7 +491,7 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <tr>
 <td>bootstrap sub 沒先拿到</td>
 <td><strong>沒有人能開通任何人</strong>,系統形同鎖死</td>
-<td>列為 S2 的出場條件(§4.3)</td>
+<td>列為 S2 的出場條件(§4.3);T45 後可由指定人選登入後從 <code>/pending</code> 自助複製,不需平台方協助</td>
 </tr>
 <tr>
 <td>access token 300 秒造成頻繁登出</td>
@@ -561,6 +574,12 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-07-28 06:40</td>
+<td>Claude(Benny 授權)</td>
+<td>依第二條 5 回寫:§4.3 第 2 步「從 IdP 取得 sub」原本沒有落點,<strong>T45 的 <code>/pending</code> 頁把它變成自助</strong>——指定人選登入後直接複製頁面上的 sub,不需平台方到 Keycloak 後台查。連帶讓「先部署、後拿 sub」成為可行順序,bootstrap sub 不再是卡住整條路的外部相依;冒煙第 3 項改用 <code>/admin/users</code> 一鍵開通</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-28 04:05</td>

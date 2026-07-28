@@ -5,12 +5,13 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..models import ProjectRole, Release, ReleaseStatus, UploadStatus
+from ..queries import query_releases
 from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
 from ..security import (
     CurrentUser,
@@ -83,25 +84,22 @@ async def list_releases(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReleasePage:
+    """列出版本。
+
+    🐛 排序依 `published_at` 而非 `created_at`(T43 修正):
+    先建的版本可能後發布,用建立時間排會讓列表第一筆與 `/latest` 指向不同版本。
+    查詢與 draft 可見性抽在 `queries.query_releases()`,**與歷史頁網頁共用**。
+    """
     project = await get_project(session, slug)
     role = await require_project_read(session, project, identity)
 
-    stmt = select(Release).where(Release.project_id == project.id)
-    count_stmt = select(func.count()).select_from(Release).where(Release.project_id == project.id)
-    # 非成員只看得到已發布的版本;draft 是作者的工作區。
-    if role is None and not identity.user.is_admin:
-        stmt = stmt.where(Release.status == ReleaseStatus.published)
-        count_stmt = count_stmt.where(Release.status == ReleaseStatus.published)
-
-    total = (await session.execute(count_stmt)).scalar_one()
-    rows = (
-        await session.execute(
-            stmt.options(selectinload(Release.artifacts))
-            .order_by(Release.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-    ).scalars().all()
+    total, rows = await query_releases(
+        session,
+        project,
+        include_drafts=role is not None or identity.user.is_admin,
+        limit=limit,
+        offset=offset,
+    )
     return ReleasePage(
         total=total,
         limit=limit,

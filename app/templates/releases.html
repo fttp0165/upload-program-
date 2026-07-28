@@ -1,0 +1,92 @@
+{#
+  專案歷史:版本列表(T43 / F73)。
+
+  🔴 版本說明、檔名都是使用者可控內容,靠 autoescape 逸出,禁用 |safe。
+  🔴 展開/收合用原生 <details>,**不用 JS**:CSP 是 default-src 'self',
+     inline script 一律被擋;而且這件事本來就不需要 JS,原生元素的無障礙支援還更好。
+  最新的一版預設展開(loop.first + 在第一頁時),其餘收合。
+#}
+{% extends "base.html" %}
+
+{% block title %}{% if project %}{{ project.name }} 版本歷史 — {% endif %}upload-program{% endblock %}
+
+{% block content %}
+
+{% if identity is none %}
+  <h1>版本歷史</h1>
+  <p class="notice">請先<a href="{{ url('/auth/login') }}">登入</a>以瀏覽專案。</p>
+
+{% elif not identity.user.is_active %}
+  <h1>帳號待開通</h1>
+  <p class="notice">{{ pending_detail }}</p>
+
+{% else %}
+  <header class="project-header">
+    <h1>{{ project.name }} 版本歷史</h1>
+    <p class="project-head">
+      <a href="{{ url('/projects/' ~ project.slug) }}">← 回專案頁</a>
+      <code class="project-slug">{{ project.slug }}</code>
+      <span class="muted">共 {{ total }} 個版本</span>
+    </p>
+  </header>
+
+  {% if releases %}
+    <ul class="release-list">
+      {% for release in releases %}
+        <li>
+          <details class="release" {% if loop.first and offset == 0 %}open{% endif %}>
+            <summary>
+              <span class="release-version">{{ release.version }}</span>
+              {% if release.status.value == 'draft' %}
+                <span class="badge">草稿</span>
+              {% else %}
+                <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              {% endif %}
+              <span class="muted">{{ release.artifacts | length }} 個檔案</span>
+            </summary>
+
+            {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
+
+            {% if release.artifacts %}
+              <ul class="artifact-list">
+                {% for artifact in release.artifacts | sort(attribute='filename') %}
+                  <li class="artifact">
+                    <div class="artifact-head">
+                      <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
+                      <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.download_count }} 次下載</span>
+                    </div>
+                    <dl class="artifact-meta">
+                      <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+                      <dt>掃毒狀態</dt>
+                      <dd>
+                        {{ artifact.scan_status.value }}
+                        {% if artifact.scan_status.value == 'not_scanned' %}
+                          <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
+                        {% endif %}
+                      </dd>
+                    </dl>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="muted">這一版沒有檔案。</p>
+            {% endif %}
+          </details>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if prev_url or next_url %}
+      <nav class="pager">
+        {% if prev_url %}<a href="{{ prev_url }}">← 上一頁</a>{% endif %}
+        <span class="muted">{{ offset + 1 }}–{{ offset + releases | length }} / 共 {{ total }}</span>
+        {% if next_url %}<a href="{{ next_url }}">下一頁 →</a>{% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <p class="notice">本專案尚未有任何版本。</p>
+  {% endif %}
+{% endif %}
+
+{% endblock %}

@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 15:22
-**版本:** v2.8
+**最後更新:** 2026-07-28 01:45
+**版本:** v2.9
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -219,6 +219,19 @@ gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資�
 已開通者才走 `require_project_read()`,它對 private 非成員回 **404 而非 403**
 (403 等於承認專案存在)。網頁與 API 共用同一個函式。
 
+### 🐛 版本列表的排序:`published_at`,不是 `created_at`
+
+`GET /v1/projects/{slug}/releases` 與歷史頁共用 `queries.query_releases()`,
+排序為 **`published_at DESC NULLS FIRST`,再 `created_at DESC`**。
+
+原本 API 用的是 `created_at`,與 `latest_published_release()` 的 `published_at`
+判定**互相矛盾**:先建的版本可能後發布,於是列表第一筆與 `/latest` 會指向不同版本,
+而且兩邊都不會報錯——使用者在歷史頁看到最上面是 v9,點 latest 卻拿到 v10。
+T43 一併修正,並以 T35 那組「建立順序與發布順序相反」的資料釘住。
+
+draft 的 `published_at` 是 NULL,排最前面:那是作者正在做的東西。
+draft 的可見性沿用既有規則——非成員只看得到已發布的版本。
+
 ### 連結:HTML 逸出與 URL 編碼是兩件事
 
 分頁與標籤連結在**路由端用 `urlencode` 組好**再交給模板,不在 Jinja 裡拼字串:
@@ -338,6 +351,7 @@ default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.9 | 2026-07-28 01:45 | Claude(Benny 授權) | §3.7 補上「版本列表的排序」一節,記錄 `created_at` → `published_at` 的缺陷修正(T43) |
 | v2.8 | 2026-07-27 15:22 | Claude(Benny 授權) | §3.7 補上「專案頁:匿名訪客的回應不得洩漏專案是否存在」一節(T42) |
 | v2.7 | 2026-07-27 15:08 | Claude(Benny 授權) | §3.7 補上「API 與網頁共用同一份可見性查詢」與「HTML 逸出 vs URL 編碼是兩件事」兩節(T41) |
 | v2.6 | 2026-07-27 14:52 | Claude(Benny 授權) | 新增 §3.7 網頁介面(檔案配置、子路徑的兩個方向、`Mount` 二次剝前綴的根因、optional_identity、CSP)(T40) |

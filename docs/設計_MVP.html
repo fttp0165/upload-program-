@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-27 15:22
-<strong>版本:</strong> v2.8</p>
+<strong>最後更新:</strong> 2026-07-28 01:45
+<strong>版本:</strong> v2.9</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -373,6 +373,15 @@ app/routers/web.py        網頁路由 + 靜態檔
 不查詢的話兩種情況必然回一樣的東西——這是結構保證,不是靠記得。</p>
 <p>已開通者才走 <code>require_project_read()</code>,它對 private 非成員回 <strong>404 而非 403</strong>
 (403 等於承認專案存在)。網頁與 API 共用同一個函式。</p>
+<h3>🐛 版本列表的排序:<code>published_at</code>,不是 <code>created_at</code></h3>
+<p><code>GET /v1/projects/{slug}/releases</code> 與歷史頁共用 <code>queries.query_releases()</code>,
+排序為 <strong><code>published_at DESC NULLS FIRST</code>,再 <code>created_at DESC</code></strong>。</p>
+<p>原本 API 用的是 <code>created_at</code>,與 <code>latest_published_release()</code> 的 <code>published_at</code>
+判定<strong>互相矛盾</strong>:先建的版本可能後發布,於是列表第一筆與 <code>/latest</code> 會指向不同版本,
+而且兩邊都不會報錯——使用者在歷史頁看到最上面是 v9,點 latest 卻拿到 v10。
+T43 一併修正,並以 T35 那組「建立順序與發布順序相反」的資料釘住。</p>
+<p>draft 的 <code>published_at</code> 是 NULL,排最前面:那是作者正在做的東西。
+draft 的可見性沿用既有規則——非成員只看得到已發布的版本。</p>
 <h3>連結:HTML 逸出與 URL 編碼是兩件事</h3>
 <p>分頁與標籤連結在<strong>路由端用 <code>urlencode</code> 組好</strong>再交給模板,不在 Jinja 裡拼字串:</p>
 <ul>
@@ -699,6 +708,12 @@ app/routers/web.py        網頁路由 + 靜態檔
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.9</td>
+<td>2026-07-28 01:45</td>
+<td>Claude(Benny 授權)</td>
+<td>§3.7 補上「版本列表的排序」一節,記錄 <code>created_at</code> → <code>published_at</code> 的缺陷修正(T43)</td>
 </tr>
 <tr>
 <td>v2.8</td>

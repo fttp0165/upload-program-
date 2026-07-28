@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import problems
-from ..queries import query_projects
+from ..queries import query_projects, query_releases
 from ..quota import project_limit
 from ..security import DbSession, OptionalUser, get_project, require_project_read
 from ..templating import render
@@ -184,5 +184,76 @@ async def project_page(
                 settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
             ),
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
+        )
+    )
+
+
+@router.get("/projects/{slug}/releases", summary="專案歷史(版本列表)")
+async def project_releases_page(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> HTMLResponse:
+    """專案歷史:版本列表,**依發布時間倒序**,可展開看各版檔案並下載(F73)。
+
+    🔴 匿名/待開通一律不查詢,理由同專案頁:先查再判身分的話,
+    存在與不存在會回不同狀態碼,回應本身就洩漏了答案。
+
+    查詢與 draft 可見性走 `queries.query_releases()`,與 API 共用同一份。
+
+    參數:slug 專案短名、offset 分頁位移。回傳:HTML。副作用:無(唯讀)。
+    """
+    settings = request.app.state.settings
+
+    if identity is None or not identity.user.is_active:
+        return HTMLResponse(
+            render(
+                request,
+                "releases.html",
+                identity=identity,
+                project=None,
+                pending_detail=problems.pending_activation().detail,
+            )
+        )
+
+    project = await get_project(session, slug)
+    role = await require_project_read(session, project, identity)
+
+    total, releases = await query_releases(
+        session,
+        project,
+        include_drafts=role is not None or identity.user.is_admin,
+        limit=PAGE_SIZE,
+        offset=offset,
+    )
+
+    base = f"/projects/{project.slug}/releases"
+    next_url = (
+        _page_url(settings, base, q=None, tag=None, offset=offset + PAGE_SIZE)
+        if offset + PAGE_SIZE < total
+        else None
+    )
+    prev_url = (
+        _page_url(settings, base, q=None, tag=None, offset=max(0, offset - PAGE_SIZE))
+        if offset > 0
+        else None
+    )
+
+    return HTMLResponse(
+        render(
+            request,
+            "releases.html",
+            identity=identity,
+            project=project,
+            releases=releases,
+            total=total,
+            offset=offset,
+            next_url=next_url,
+            prev_url=prev_url,
+            download_url=lambda artifact: web_url(
+                settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
+            ),
         )
     )

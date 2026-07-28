@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-27 15:22
-<strong>版本:</strong> v1.18</p>
+<strong>最後更新:</strong> 2026-07-28 01:45
+<strong>版本:</strong> v1.19</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -483,9 +483,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T43</td>
 <td>專案歷史:版本列表(F73)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>依發布時間倒序;可展開看各版檔案並下載</td>
+<td>16 條測試(<strong>先紅後綠</strong>);🐛 <strong>修正既有缺陷</strong>——<code>GET /v1/projects/{slug}/releases</code> 原本依 <code>created_at</code> 倒序,與 <code>/latest</code> 的 <code>published_at</code> 判定矛盾,列表第一筆可能與 latest 指向不同版本且兩邊都不報錯;查詢抽成 <code>queries.query_releases()</code> 與 API 共用;draft NULLS FIRST 且非成員看不到;<code>&lt;details&gt;</code> 展開(不用 JS,CSP 禁 inline)</td>
 </tr>
 <tr>
 <td>T44</td>
@@ -656,6 +656,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.19</td>
+<td>2026-07-28 01:45</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T43 專案歷史完成</strong>;寫計畫時發現 <code>list_releases</code> 的排序缺陷(<code>created_at</code> vs <code>published_at</code>)並一併修正——<strong>這改變了既有 API 的回應順序</strong>,已在日誌與設計文件記錄;測試 224→240</td>
 </tr>
 <tr>
 <td>v1.18</td>

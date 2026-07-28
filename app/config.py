@@ -85,6 +85,14 @@ class Settings(BaseSettings):
     max_project_extended_bytes: int = 10 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096
 
+    # --- 稽核紀錄(F54 / T38)---
+    # 🔴 保留期是 T37 承諾的一部分:當時刻意不做下載事件表,理由是「誰下載了什麼」
+    # 屬於稽核,而稽核「有自己的保存期限與存取權限」。沒有保留期的話,那就只是
+    # 把一張無限長大的個資表推給未來。
+    # ⚠️ 本服務**沒有排程器**,這個值不會自己生效——由 `tools/purge_audit.py`
+    # 搭配 VM 的 cron(或人工)執行。這一點在 dev-log 列為遺留問題,不假裝已自動化。
+    audit_retention_days: int = Field(default=365, ge=1)
+
     # --- 錯誤格式(RFC 7807)---
     problem_type_base: str = "https://catsapp.sporton.com.tw/errors"
 

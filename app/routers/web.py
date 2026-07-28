@@ -17,11 +17,13 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
+from ..audit import AuditAction, record
 from ..models import (
+    AuditEvent,
     Project,
     ProjectRole,
     Release,
@@ -680,6 +682,15 @@ async def admin_activate(
         user.status = UserStatus.active
         if user.activated_at is None:
             user.activated_at = datetime.now(UTC)
+        # 與 `PATCH /v1/admin/users/{id}` 產生**相同的 action**——稽核紀錄不該
+        # 因為管理員用的是網頁還是 API 而長得不一樣(test_audit.py 釘住)。
+        record(
+            session,
+            action=AuditAction.user_activate,
+            actor_id=identity.user.id,
+            target_type="user",
+            target_id=user.id,
+        )
         await session.commit()
         log.info("開通使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
 
@@ -710,6 +721,84 @@ async def admin_disable(
         raise problems.not_found("找不到該使用者")
 
     user.status = UserStatus.disabled
+    record(
+        session,
+        action=AuditAction.user_disable,
+        actor_id=identity.user.id,
+        target_type="user",
+        target_id=user.id,
+    )
     await session.commit()
     log.info("停用使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
     return _redirect(request, "/admin/users")
+
+
+@router.get("/admin/audit", summary="管理後台:稽核紀錄")
+async def admin_audit_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """稽核紀錄頁(F54)。
+
+    有 API 就夠了嗎?不夠——與 T45 同一個理由:沒有頁面的話管理員得手打 API,
+    而一個要手打 curl 才看得到的稽核紀錄,實際上等於沒有人會去看。
+
+    🔴 權限與 `GET /v1/admin/audit` 同一條(平台管理員),經 `_require_web_admin()`
+    轉呼叫 API 用的 `require_admin()`——不另寫一份判斷。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/audit")
+    if handled is not None:
+        return handled
+
+    action = request.query_params.get("action") or None
+    conditions = [AuditEvent.action == action] if action else []
+    offset = max(0, int(request.query_params.get("offset") or 0))
+
+    total = (
+        await session.execute(select(func.count()).select_from(AuditEvent).where(*conditions))
+    ).scalar_one()
+    rows = (
+        await session.execute(
+            select(AuditEvent)
+            .where(*conditions)
+            .order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
+            .limit(PAGE_SIZE)
+            .offset(offset)
+        )
+    ).scalars().all()
+
+    settings = request.app.state.settings
+    return HTMLResponse(
+        render(
+            request,
+            "admin_audit.html",
+            identity=identity,
+            events=rows,
+            total=total,
+            offset=offset,
+            action=action,
+            actions=sorted(a.value for a in AuditAction),
+            retention_days=settings.audit_retention_days,
+            prev_url=(
+                _audit_url(settings, action, max(0, offset - PAGE_SIZE)) if offset else None
+            ),
+            next_url=(
+                _audit_url(settings, action, offset + PAGE_SIZE)
+                if offset + PAGE_SIZE < total
+                else None
+            ),
+        )
+    )
+
+
+def _audit_url(settings, action: str | None, offset: int) -> str:
+    """稽核頁的分頁/篩選連結。
+
+    與 `_page_url()` 同一個理由:在 Python 端用 `urlencode` 組,不在模板裡拼字串
+    ——模板的 autoescape 管 HTML 逸出,不管 URL 編碼,兩者是不同的問題。
+    """
+    params = [("action", action)] if action else []
+    if offset:
+        params.append(("offset", str(offset)))
+    query = urlencode(params)
+    url = web_url(settings, "/admin/audit")
+    return f"{url}?{query}" if query else url

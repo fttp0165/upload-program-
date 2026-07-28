@@ -22,6 +22,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from .. import filetypes, problems, quota
+from ..audit import AuditAction, record
 from ..models import Artifact, ArtifactKind, ProjectRole, ReleaseStatus, UploadStatus
 from ..schemas import ArtifactOut
 from ..security import (
@@ -177,6 +178,14 @@ async def upload_artifact(
     artifact.upload_status = UploadStatus.ready
     artifact.completed_at = _now()
     release.project.total_bytes += result.size_bytes
+    record(
+        session,
+        action=AuditAction.artifact_upload,
+        actor_id=identity.user.id,
+        target_type="artifact",
+        target_id=artifact.id,
+        target_label=artifact.filename,
+    )
     await session.commit()
     await session.refresh(artifact)
 
@@ -216,11 +225,11 @@ async def download_artifact(
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
-    return await _download_response(request, session, artifact)
+    return await _download_response(request, session, artifact, identity)
 
 
 async def _download_response(
-    request: Request, session, artifact: Artifact
+    request: Request, session, artifact: Artifact, identity
 ) -> StreamingResponse:
     """建構下載回應,並累計下載次數(F43)。
 
@@ -228,7 +237,12 @@ async def _download_response(
     路徑就鬆掉**。兩個端點共用同一段程式碼,就不可能有一邊漏掉 attachment 或 nosniff。
     T37 把計數也放進來,理由相同——換一條路徑就不算數的統計等於沒有統計。
 
-    副作用:從物件儲存串流讀取、**寫一次 `artifacts.download_count`**,並寫一筆下載 log。
+    副作用:從物件儲存串流讀取、**寫一次 `artifacts.download_count`**、
+    **寫一筆稽核(F54)**,並寫一筆下載 log。
+
+    🔴 T38 把稽核也放在這裡,理由與計數相同:換一條路徑就不留紀錄的稽核等於沒有稽核。
+    `identity` 是為了稽核才加進參數列的——`download_count` 刻意不記是誰
+    (T37 的個資決定),「誰下載了什麼」只存在稽核表,而稽核表只有平台管理員看得到。
     """
     if artifact.upload_status is not UploadStatus.ready:
         raise problems.not_found("該檔案尚未上傳完成")
@@ -243,6 +257,14 @@ async def _download_response(
         update(Artifact)
         .where(Artifact.id == artifact.id)
         .values(download_count=Artifact.download_count + 1)
+    )
+    record(
+        session,
+        action=AuditAction.artifact_download,
+        actor_id=identity.user.id,
+        target_type="artifact",
+        target_id=artifact.id,
+        target_label=artifact.filename,
     )
     await session.commit()
 
@@ -281,11 +303,21 @@ async def delete_artifact(
         raise problems.conflict("已發布的版本不可刪除檔案;請建立新版本。")
 
     artifact = _find_artifact(release, artifact_id)
+    # 刪除前先取:delete 之後屬性會過期,而「刪掉的是哪個檔」正是稽核的重點。
+    artifact_id_value, artifact_name = artifact.id, artifact.filename
     if artifact.storage_key:
         await request.app.state.storage.delete(artifact.storage_key)
     if artifact.upload_status is UploadStatus.ready:
         release.project.total_bytes = max(0, release.project.total_bytes - artifact.size_bytes)
     await session.delete(artifact)
+    record(
+        session,
+        action=AuditAction.artifact_delete,
+        actor_id=identity.user.id,
+        target_type="artifact",
+        target_id=artifact_id_value,
+        target_label=artifact_name,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -330,5 +362,5 @@ async def download_latest_artifact(
     name = filename.strip()
     for artifact in release.artifacts:
         if artifact.filename == name:
-            return await _download_response(request, session, artifact)
+            return await _download_response(request, session, artifact, identity)
     raise problems.not_found(f"最新版本 {release.version} 中沒有檔案 {name}")

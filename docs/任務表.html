@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 06:40
-<strong>版本:</strong> v1.25</p>
+<strong>最後更新:</strong> 2026-07-28 07:30
+<strong>版本:</strong> v1.26</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -387,9 +387,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T38</td>
 <td>稽核紀錄(F54)</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟡</td>
-<td>可查詢誰在何時做了什麼;<strong>只存 user_id,不存 email/姓名</strong>;migration 有 backward</td>
+<td>25 條測試(<strong>先紅後綠</strong>,24 failed 起步);15 個 action、15 個寫入點,全部經 <code>audit.record()</code> 單一入口(該函式同時寫 stdout log,收掉「log 記了但 audit 沒記」);🔴 <strong><code>target_label</code> 存快照而非只存外鍵</strong>——東西刪掉後 UUID join 不回任何東西,而「誰刪掉了什麼」正是稽核最重要的用途;🔴 <strong>與業務同一個 transaction</strong>,保證「有紀錄 ⇔ 事情真的發生了」;🔴 <strong>只有平台管理員可查</strong>(T37「統計只到次數」那個個資決定的延續);<code>action</code> 刻意不下 DB CHECK(阻力會讓人選擇不記);保留期 365 天 + <code>tools/purge_audit.py</code>;migration up→down→up 演練通過</td>
 </tr>
 <tr>
 <td>T26</td>
@@ -677,6 +677,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.26</td>
+<td>2026-07-28 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T38 稽核紀錄完成,MVP 可自主的部分全數結束</strong>(剩下 T26–T29 全等平台方)。本任務的本質是<strong>兌現 T37 開的支票</strong>:T37 不做下載事件表時說稽核「有自己的保存期限與存取權限」,T38 讓那句話有落點。🐛 <strong>T37 的紅測試立刻抓到 T38</strong>——「一次下載不在任何表新增列」在 F54 之後不再成立,但處理方式是改成<strong>具名例外</strong>(只允許 <code>audit_events</code> 增加恰好一列,比原本更嚴),不是放寬斷言;<code>設計_MVP.md</code> §3.5 依第二條 5 回寫範圍。核心設計:快照而非外鍵、同交易不留假紀錄、action 不下 DB CHECK。測試 303→328</td>
 </tr>
 <tr>
 <td>v1.25</td>

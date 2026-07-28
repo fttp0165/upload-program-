@@ -1,0 +1,76 @@
+{#
+  管理後台:稽核紀錄(T38 / F54)。
+
+  🔴 這一頁顯示的 `target_label` 是使用者取的 slug / 檔名,屬**使用者可控內容**,
+  靠 autoescape 逸出,禁用 |safe。
+
+  🔴 「操作者」欄只有 `actor_id`。與 admin_users.html 同一個理由:業務庫只存 sub,
+  稽核表更只存本地 user id——頁面上直接寫明,免得有人以為是壞掉或想去補個姓名欄位。
+
+  篩選連結由路由端的 `_audit_url()` 算好(URL 編碼不是 autoescape 的職責)。
+#}
+{% extends "base.html" %}
+
+{% block title %}稽核紀錄 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>稽核紀錄</h1>
+
+<p class="muted">
+  誰在何時做了什麼(F54)。這裡的「操作者」只有本地帳號識別碼——業務庫依契約只存
+  <code>sub</code>,稽核表更只存 <code>user_id</code>,<strong>不落地個資</strong>。
+  要對上人,拿識別碼到<a href="{{ url('/admin/users') }}">使用者管理</a>回查。
+</p>
+
+<p class="err-hint">
+  保留期 <strong>{{ retention_days }}</strong> 天。⚠️ 本服務沒有排程器,清除需由
+  <code>tools/purge_audit.py</code> 搭配 VM 的 cron 或人工執行 —— 這個數字不會自己生效。
+</p>
+
+<p class="project-tags">
+  <a class="tag" href="{{ url('/admin/audit') }}">全部</a>
+  {% for item in actions %}
+    <a class="tag" href="{{ url('/admin/audit') }}?action={{ item }}">{{ item }}</a>
+  {% endfor %}
+</p>
+
+{% if action %}
+  <p class="muted filter-note">動作「{{ action }}」—— 共 {{ total }} 筆</p>
+{% endif %}
+
+{% if events %}
+  <ul class="project-list">
+    {% for event in events %}
+      <li class="project">
+        <div class="project-head">
+          <code class="project-slug">{{ event.action }}</code>
+          <span class="muted">{{ event.occurred_at.isoformat(timespec='seconds') }}</span>
+          {% if event.target_label %}<strong>{{ event.target_label }}</strong>{% endif %}
+        </div>
+        <dl class="artifact-meta">
+          <dt>操作者</dt>
+          <dd><code>{{ event.actor_id or '(系統)' }}</code></dd>
+          <dt>目標</dt>
+          <dd><code>{{ event.target_type }} {{ event.target_id or '—' }}</code></dd>
+          {% if event.trace_id %}
+            <dt>trace_id</dt>
+            <dd><code>{{ event.trace_id }}</code></dd>
+          {% endif %}
+        </dl>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if prev_url or next_url %}
+    <nav class="pager">
+      {% if prev_url %}<a href="{{ prev_url }}">← 上一頁</a>{% endif %}
+      <span class="muted">{{ offset + 1 }}–{{ offset + events | length }} / 共 {{ total }}</span>
+      {% if next_url %}<a href="{{ next_url }}">下一頁 →</a>{% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <p class="notice">沒有符合條件的稽核紀錄。</p>
+{% endif %}
+
+{% endblock %}

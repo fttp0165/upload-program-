@@ -264,3 +264,25 @@ class ReleasePage(Page):
 
 class UserPage(Page):
     items: list[UserOut]
+
+
+class AuditEventOut(ORMModel):
+    """一筆稽核事件(F54)。
+
+    🔴 只有 `actor_id`,沒有 email / 姓名——要顯示是誰,呼叫端拿 `actor_id`
+    換 `sub` 後自行向 IdP 取即時資料。稽核不是繞過個資紅線的後門。
+    """
+
+    id: uuid.UUID
+    occurred_at: datetime
+    action: str
+    actor_id: uuid.UUID | None
+    target_type: str
+    target_id: uuid.UUID | None
+    # 事發當下的人可讀快照(slug / version / filename);目標刪除後靠它才知道刪了什麼。
+    target_label: str
+    trace_id: str
+
+
+class AuditPage(Page):
+    items: list[AuditEventOut]

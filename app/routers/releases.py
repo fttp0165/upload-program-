@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from .. import problems
+from ..audit import AuditAction, record
 from ..models import ProjectRole, Release, ReleaseStatus, UploadStatus
 from ..queries import query_releases
 from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
@@ -127,14 +128,24 @@ async def create_release(
         created_by_id=identity.user.id,
     )
     session.add(release)
+    # 先 flush 再記稽核(同 projects.create_project):版本號重複時不留假紀錄,
+    # 而且 `release.id` 要 flush 之後才存在。
     try:
-        await session.commit()
+        await session.flush()
     except IntegrityError:
         await session.rollback()
         raise problems.conflict(f"版本 {payload.version} 已存在") from None
 
+    record(
+        session,
+        action=AuditAction.release_create,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{project.slug}:{release.version}",
+    )
+    await session.commit()
     await session.refresh(release)
-    log.info("建立版本", extra={"release_id": str(release.id), "version": release.version})
     return ReleaseOut.model_validate(release)
 
 
@@ -177,6 +188,14 @@ async def publish_release(
 
     release.status = ReleaseStatus.published
     release.published_at = datetime.now(UTC)
+    record(
+        session,
+        action=AuditAction.release_publish,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
     await session.commit()
     await session.refresh(release)
     log.info("發布版本", extra={"release_id": str(release.id), "artifacts": len(ready)})
@@ -193,9 +212,19 @@ async def delete_release(
     await require_project_role(session, release.project, identity, ProjectRole.owner)
 
     project = release.project
+    # 刪除前先取:delete 之後這些屬性就過期了,而它們正是稽核唯一有價值的部分。
+    release_id_value, label = release.id, f"{project.slug}:{release.version}"
     freed = sum(a.size_bytes for a in release.artifacts if a.upload_status is UploadStatus.ready)
     await request.app.state.storage.delete_prefix(f"projects/{project.id}/releases/{release.id}/")
     await session.delete(release)
     project.total_bytes = max(0, project.total_bytes - freed)
+    record(
+        session,
+        action=AuditAction.release_delete,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release_id_value,
+        target_label=label,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -261,3 +261,53 @@ class Artifact(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     release: Mapped[Release] = relationship(back_populates="artifacts")
+
+
+class AuditEvent(Base):
+    """稽核事件(F54 / T38):誰在何時做了什麼。
+
+    🔴 **只存 `actor_id`**,不存 email / 姓名——與本檔開頭的紅線一致。
+    要顯示是誰,查詢時再拿 `actor_id` 換 `sub`、向 IdP 取即時資料。
+    稽核不是繞過個資紅線的後門。
+
+    🔴 **`target_label` 是快照,不是外鍵。**
+    稽核最重要的用途之一是「誰刪掉了什麼」,而東西一旦刪掉,`target_id` 就
+    join 不回任何東西——結果是「某人在某時刪了 `9f2c…`」,最需要它的時候最沒用。
+    所以寫入的當下就把人可讀的定位(slug / version / filename)快照下來。
+    稽核記的是**當時的事實**,不是現在的狀態;這就是快照與外鍵的差別。
+
+    ⚠️ `target_label` 只放識別用字串,**不放使用者輸入的自由文字**
+    (專案摘要、版本說明)——那會讓稽核表變成個資的第二個落地處。
+
+    副作用:本表只增不改;清除由保留期工具負責(見 `app/audit.py::purge_expired`)。
+    """
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        # 查詢一律「最近的在前」,再依 action / 目標篩選。
+        Index("ix_audit_occurred_at", "occurred_at"),
+        Index("ix_audit_action", "action"),
+        Index("ix_audit_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+    # 🔴 `action` 刻意用 String 而非 `_enum()`(其他欄位都用後者)。
+    # 理由:稽核動作的字彙會隨功能持續成長,把它釘進 schema 等於「每加一個被稽核的
+    # 動作就要一次 migration」——而**阻力會讓人選擇不記**,那是稽核最糟的失效方式:
+    # 表存在、看起來正常,但漏掉的動作不會留下任何跡象。
+    # 守門改由 `audit.AuditAction`(唯一字彙來源)加 test_audit.py 的兩條測試負責。
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    # 🔴 RESTRICT 而非 CASCADE:稽核紀錄不得因為使用者被刪除而消失。
+    # 換句話說,有稽核紀錄的使用者就刪不掉——這是刻意的。
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    # 目標可能已被刪除,所以**不是**外鍵——留著 UUID 供比對,查不回去也無妨。
+    target_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    target_label: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    # 事件當下的請求識別碼,可與 stdout log 互相對照。
+    trace_id: Mapped[str] = mapped_column(String(64), default="", nullable=False)

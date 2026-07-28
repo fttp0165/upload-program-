@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program SSO 接入申請書(致 cats-portal / Platform)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/SSO接入申請_給portal.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program SSO 接入申請書(致 cats-portal / Platform)</h1>
+<p><strong>建立日期:</strong> 2026-07-28 03:28
+<strong>最後更新:</strong> 2026-07-28 03:28
+<strong>版本:</strong> v1.0
+<strong>申請方:</strong> upload-program(公司內部開發者程式分享平台)
+<strong>依據:</strong> <code>帳號系統接入契約_SSO.md</code> <strong>v1.7</strong> §5 申請流程
+<strong>狀態:</strong> 📤 待 portal 受理</p>
+<blockquote>
+<p><strong>這份文件的定位:</strong> 契約的權威在 cats-portal,本文件<strong>不是契約、不改契約</strong>,
+而是契約 §5 要求的<strong>申請內容 + 合規聲明</strong>。我方的內部施工計畫另見
+<a href="SSO接入計畫.md">SSO接入計畫.md</a>,不需 portal 審閱。</p>
+<p>本文件有一項<strong>需要 portal 裁決的偏離</strong>(§4)與<strong>三項回饋建議</strong>(§7),
+其餘皆為照契約辦理。</p>
+</blockquote>
+<hr />
+<h2>1. 申請摘要(一頁看完)</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App 名稱</td>
+<td>upload-program — 內部開發者程式分享平台(上傳原始碼/執行檔/文件,以版本發布下載)</td>
+</tr>
+<tr>
+<td>申請的 <code>client_id</code></td>
+<td><code>upload-program</code></td>
+</tr>
+<tr>
+<td>client 型別</td>
+<td><strong>confidential</strong>(伺服器端算繪的 FastAPI 服務,可保管 secret)</td>
+</tr>
+<tr>
+<td>流程</td>
+<td>Authorization Code + <strong>PKCE</strong>(禁 implicit、禁 HS256)</td>
+</tr>
+<tr>
+<td>redirect URI</td>
+<td><code>https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/</code> — <strong>前綴待貴方分配</strong></td>
+</tr>
+<tr>
+<td>需要的 claims</td>
+<td><code>email</code>、<code>email_verified</code>、<code>preferred_username</code> / <code>name</code>(<strong>僅顯示,不落地</strong>)</td>
+</tr>
+<tr>
+<td><strong>不</strong>需要</td>
+<td><code>groups</code>(業務授權以本地角色為準)、S2S / client_credentials</td>
+</tr>
+<tr>
+<td>需要 refresh token</td>
+<td><strong>是</strong>(理由見 §7.2,涉及一個我方已修的缺陷)</td>
+</tr>
+<tr>
+<td>預計接入時程</td>
+<td>拿到 client 與前綴後,設定與冒煙約需 1 個工作天</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>2. 合規聲明(逐條對照契約義務)</h2>
+<p><strong>程式已完成並有自動化測試背書</strong>,可隨時提供 repo 供稽核。
+測試總數 249,CI 全綠(lint / 測試 / 文件同步 / git 紅線 / SSO 紅線 / Trivy)。</p>
+<h3>2.1 §3 Token 契約</h3>
+<table>
+<thead>
+<tr>
+<th>契約要求</th>
+<th>我方落實</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只接受 <strong>RS256</strong>;<code>alg=none</code>/HS256 拒</td>
+<td>✅</td>
+<td>15 條測試,使用<strong>真實 RSA 金鑰</strong>而非 mock</td>
+</tr>
+<tr>
+<td>JWKS 取自 §2 端點、快取 1h、<strong>支援 kid 輪替</strong></td>
+<td>✅</td>
+<td>同上(含新舊 kid 並存的案例)</td>
+</tr>
+<tr>
+<td>驗 <code>iss</code> + <code>aud</code> + <code>exp</code> + 簽章</td>
+<td>✅</td>
+<td>竄改簽章 / 過期 / 別人的 <code>aud</code> → 皆 401</td>
+</tr>
+<tr>
+<td>時鐘容忍 <strong>±30 秒</strong></td>
+<td>✅</td>
+<td>設定值 <code>CLOCK_SKEW_SECONDS=30</code>,有測試</td>
+</tr>
+<tr>
+<td>驗失敗回 <strong>401</strong>(不與 403 混用)</td>
+<td>✅</td>
+<td>錯誤格式一律 RFC 7807,401/403 語意分離有專門測試</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>我方已知悉契約 §3.3 的誠實標註:±30s <strong>不是</strong> realm 開關,而是各 App 驗證端的義務。
+我方以設定值實作,不假設 IdP 會代勞。</p>
+</blockquote>
+<h3>2.2 §4 App 接入義務</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>契約要求</th>
+<th>我方落實</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4.1</td>
+<td>Auth Code + PKCE;redirect URI 固定</td>
+<td>✅ <code>S256</code> challenge;URI 由設定組出,不從 request 推導</td>
+</tr>
+<tr>
+<td>4.2</td>
+<td>本地 user 表<strong>只存 <code>sub</code></strong>,無 email/姓名/密碼欄</td>
+<td>✅ <strong>結構上不存在這些欄位</strong>(非靠自律);顯示用資料只在記憶體中傳遞。<strong>明確不援引 §6.1 的 PLM 快取例外</strong></td>
+</tr>
+<tr>
+<td>4.3</td>
+<td>首登建零角色 → <strong>403 待開通</strong>,文案須指引</td>
+<td>✅ 文案:「你的帳號已建立但尚未開通。請聯絡 upload-program 平台管理員為你指派角色後再使用。」</td>
+</tr>
+<tr>
+<td>4.4</td>
+<td>deny-by-default;派角色在自己後台</td>
+<td>✅ <code>/v1/admin/users</code>,<strong>完全不碰 Keycloak</strong></td>
+</tr>
+<tr>
+<td>4.5</td>
+<td>登出導 IdP logout(single logout)</td>
+<td>✅ 22 條測試:導 <code>end_session_endpoint</code>、帶 <code>id_token_hint</code>、清兩個 cookie、<strong>IdP 掛掉仍能登出</strong></td>
+</tr>
+<tr>
+<td>4.6</td>
+<td>secret 走 env,不進 git</td>
+<td>✅ <code>.env.example</code> 只列變數名;CI 有 git 紅線檢查</td>
+</tr>
+<tr>
+<td>4.7</td>
+<td>401/403/404 語意不混用</td>
+<td>✅ 另外:private 專案對非成員一律 <strong>404 而非 403</strong>(不洩漏存在)</td>
+</tr>
+<tr>
+<td>4.8</td>
+<td><strong>禁自建</strong>註冊/改密碼/忘記密碼</td>
+<td>✅ 一行都沒有寫;UI 放「帳號設定」連結指向 <code>/account</code>(§2.1)</td>
+</tr>
+<tr>
+<td>4.8</td>
+<td>自助註冊 ON 後會看到陌生 <code>sub</code> 首登</td>
+<td>✅ 知悉且行為正確——他們會卡在待開通頁,這是預期的</td>
+</tr>
+<tr>
+<td>4.9</td>
+<td>測試一律假帳號,嚴禁真實個資</td>
+<td>✅ 所有 <code>sub</code>/token 都是編出來的字串;CI 檢查</td>
+</tr>
+</tbody>
+</table>
+<h3>2.3 🔴 §4.10 同源環境的額外義務(v1.5 新增)</h3>
+<p>我方認知:MIS 只核可單一 hostname,<strong>IdP 與各 App 共用 origin</strong>——
+瀏覽器的同源政策不再提供隔離,<strong>我方一旦出現 XSS 即等同全平台帳號淪陷</strong>。
+此條在我方內部已列為最高等級風險。</p>
+<table>
+<thead>
+<tr>
+<th>契約要求</th>
+<th>我方落實</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>session cookie <code>Path=/«PREFIX»/</code> + HttpOnly + SameSite=Lax</td>
+<td>✅</td>
+<td>Path 由設定的前綴導出,不寫死</td>
+</tr>
+<tr>
+<td>嚴格 CSP(至少 <code>default-src 'self'</code>,禁 unsafe-inline)</td>
+<td>✅</td>
+<td>實際值:<code>default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'</code></td>
+</tr>
+<tr>
+<td>前端 base path 設為自己的子路徑</td>
+<td>✅</td>
+<td>頁面內連結一律 root-relative 並帶前綴;<strong>不使用 WhiteNoise</strong></td>
+</tr>
+<tr>
+<td>使用者輸入的輸出一律消毒</td>
+<td>✅</td>
+<td>Jinja2 autoescape;模板禁用 <code>\|safe</code>;有 XSS 迴歸測試</td>
+</tr>
+<tr>
+<td><strong>不得</strong>把 token 存進 <code>localStorage</code></td>
+<td>✅</td>
+<td>token <strong>只在 HttpOnly cookie</strong>;目前全站零 JS</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>我方另有<strong>自我加嚴</strong>的相關措施(非契約要求,但與同源風險同向):
+上傳檔案驗 <strong>magic bytes</strong> 且 <strong>HTML/SVG 任何情況皆拒收</strong>;
+下載一律 <code>Content-Disposition: attachment</code> + <code>nosniff</code>
+——本服務散布可執行檔,絕不讓上傳內容在本網域被瀏覽器執行。</p>
+</blockquote>
+<hr />
+<h2>3. 需要 portal 提供的項目</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>client_id</code> + <code>client_secret</code></td>
+<td>依 §5,secret 另行傳遞(不進聊天/git)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>路徑前綴 <code>«PREFIX»</code></strong></td>
+<td>暫定 <code>/upload/</code>;<strong>redirect URI 需含此前綴,拿到前才無法定案</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>gateway 路由</td>
+<td><code>client_max_body_size</code> <strong>≥ 128 MB</strong>(單檔上限 100 MB + 餘裕);靜態檔 location 採<strong>剝前綴</strong>寫法 <code>proxy_pass http://upload-program:8080/static/;</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>.env.keycloak</code> 樣板</td>
+<td>依 §5 第 2 步</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>4. ⚠️ 需要 portal 裁決的一項偏離</h2>
+<h3>§7 冒煙清單第 1 項:「未登入開你的 App → 302 到登入頁」</h3>
+<p><strong>我方做法與字面略有出入,先行提出而非接入當天才被退回。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>我方行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>深層頁</strong>(<code>/«PREFIX»/projects/*</code> 等)</td>
+<td>✅ <strong>302 到 IdP 登入頁</strong>,並帶 <code>next</code> 於登入後導回原頁</td>
+</tr>
+<tr>
+<td><strong>首頁</strong>(<code>/«PREFIX»/</code>)</td>
+<td>保留一頁「請先登入」的落地說明頁,頁上有登入按鈕</td>
+</tr>
+</tbody>
+</table>
+<p><strong>理由:</strong> upload-program 是內部工具,首頁承擔「這是什麼系統、找誰開通」的說明功能。
+契約 §4.3 要求待開通頁「不是冷冰冰的 Forbidden」,我方認為同一精神也適用於
+未登入者的第一印象——直接彈到 IdP 會讓不知道自己該不該有權限的人無所適從。</p>
+<p><strong>我方立場:</strong> 此為<strong>請求裁決</strong>,不是既成事實。
+若 portal 認為應嚴格照字面,改為「全部 302」對我方成本很低(一個分支 + 四條測試調整),
+<strong>請直接回覆要求,我方即刻改正。</strong></p>
+<p>參考:貴方登記表中 <code>portal-landing</code> 的處理是「首頁不做授權,只是門牌」,
+與我方首頁的定位相近,故推測此解讀可被接受——但仍請明示。</p>
+<hr />
+<h2>5. 建議的 §9 登記表內容</h2>
+<p>接入完成後,建議於契約 §9 加入以下一列(前綴確定後補齊):</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th>client_id</th>
+<th>型別</th>
+<th>redirect URI</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>upload-program</strong>(程式分享平台)</td>
+<td><code>upload-program</code></td>
+<td>confidential</td>
+<td><code>https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/</code></td>
+<td>⏳ 待建立</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. 驗收方式</h2>
+<p>接入後我方將依契約 §7 執行六項冒煙,並留存證據:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>證據形式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>未登入 → 302</td>
+<td>深層頁的 302 記錄(依 §4 的裁決結果)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>登入 → 本地 user 只有 <code>sub</code></td>
+<td><code>SELECT * FROM users</code> 的實際輸出</td>
+</tr>
+<tr>
+<td>3</td>
+<td>無角色 403 → 派角色後通行</td>
+<td>兩次請求的 status 與 problem <code>type</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>竄改/過期/別人的 aud → 401</td>
+<td>四種情境的 status</td>
+</tr>
+<tr>
+<td>5</td>
+<td>single logout</td>
+<td>登出後開另一接入 App 需重登</td>
+</tr>
+<tr>
+<td>6</td>
+<td>repo grep 零 Authentik / 零 HS256 / <code>.env</code> 不在 git</td>
+<td>CI job 輸出</td>
+</tr>
+</tbody>
+</table>
+<p><strong>歡迎 portal 派員在場見證或事後索取證據。</strong></p>
+<hr />
+<h2>7. 回饋建議(供契約下一版參考,非申請事項)</h2>
+<p>依契約 §8「App 側要改需求走 §5 流程」,以下三點為我方接入過程中的發現,
+<strong>僅供參考,不影響本次申請</strong>。</p>
+<h3>7.1 §4.1 的 redirect URI 寫法未反映 D2″ 的子路徑</h3>
+<p>§4.1 目前寫「redirect URI 固定為 <code>https://&lt;你的 hostname&gt;/oidc/callback/</code>」,
+但 D2″ 之後所有 App 都掛在子路徑下,實際值應含前綴
+(§9 登記表中 compliance 的值 <code>.../compliance/oidc/callback/</code> 即為明證)。</p>
+<p><strong>建議:</strong> §4.1 的範例改為 <code>https://catsapp.sporton.com.tw/&lt;你的子路徑&gt;/oidc/callback/</code>,
+避免新接入的 App 照字面登記而漏掉前綴——這種錯只會在登入當下才發現。</p>
+<h3>7.2 🐛 access token 300 秒對「伺服器端算繪的 App」有一個不明顯的陷阱</h3>
+<p>§3.3 將 access token 定為 300 秒,理由(收權即時性)我方完全認同。</p>
+<p>但我方接入時發現:<strong>伺服器端算繪、沒有前端 JS 的 App,沒有任何角色會去呼叫
+refresh</strong>。瀏覽器導覽不會自己 refresh,而 SSO session 有 10 小時——
+結果是<strong>使用者登入 5 分鐘後,所有頁面靜默退回「未登入」</strong>,伺服器沒有任何錯誤。</p>
+<p>我方已修正(在伺服器端以 refresh_token grant 換發,<strong>真的去問 IdP</strong>,
+IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。</p>
+<p><strong>建議:</strong> 契約可補一句提醒——「若你的 App 是伺服器端算繪、無前端 JS,
+必須在伺服器端處理續期;不要假設瀏覽器會替你 refresh」。
+compliance(<code>mozilla-django-oidc</code> session 模式)與 sporton_core 的網頁部分
+<strong>可能面臨相同問題</strong>。</p>
+<blockquote>
+<p>附帶提醒:此缺陷在我方 240 條測試中<strong>一條都沒抓到</strong>,
+因為測試用的假 IdP token 永不過期。建議各 App 檢查自己的測試替身是否也抹平了過期行為。</p>
+</blockquote>
+<h3>7.3 §4.3 的「雞生蛋」問題建議在契約中明示</h3>
+<p>契約要求首登一律零角色 + deny-by-default,但<strong>開通的人自己也要先登入</strong>——
+第一個使用者登入後,沒有任何人有權開通他,系統實質鎖死。</p>
+<p>我方以設定檔中的 bootstrap admin <code>sub</code> 清單解決(該人首登即為管理員)。
+這需要<strong>在部署前先取得該人的 <code>sub</code></strong>,是一個容易到上線當天才發現的前置條件。</p>
+<p><strong>建議:</strong> 契約 §4.3 或 §5 流程補一句提醒各 App 準備此機制,
+或由 portal 在交付 <code>.env.keycloak</code> 時一併提供指定人員的 <code>sub</code>。</p>
+<hr />
+<h2>8. 附註:repo 命名</h2>
+<p>我方 repo 名為 <code>upload-program-</code>(<strong>尾端多一個連字號</strong>),不符命名規約的
+<code>service-&lt;name&gt;</code> 形式。這是建立時的疏失。</p>
+<p><strong>是否改名請 Platform 決定,我方不自行更名</strong>(改名會影響 GHCR image 路徑與既有連結)。
+若需改名,請一併指示目標名稱與時程。</p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-28 03:28</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:依契約 v1.7 §5 提出申請摘要、逐條合規聲明(§3 token / §4 接入義務 / 🔴 §4.10 同源義務)、需 portal 提供的四項、<strong>一項請求裁決的偏離</strong>(§7 冒煙第 1 項的未登入行為)、建議的 §9 登記內容、驗收方式與證據形式、<strong>三項回饋建議</strong>(redirect URI 未反映子路徑、access token 300s 對伺服器端算繪 App 的陷阱、§4.3 的雞生蛋問題)、repo 命名疏失的處置請示</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

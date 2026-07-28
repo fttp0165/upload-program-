@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 01:45
-<strong>版本:</strong> v1.19</p>
+<strong>最後更新:</strong> 2026-07-28 02:20
+<strong>版本:</strong> v1.21</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,11 +413,32 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td><code>/«PREFIX»/</code> 通;<strong>靜態檔 location 採剝前綴寫法</strong>(見決策文件 §6.2);<code>client_max_body_size</code> ≥128 MB;不影響既有 <code>/</code>、<code>/TMP_GEN/</code>、<code>/plm/</code></td>
 </tr>
 <tr>
+<td>T51</td>
+<td>SSO 契約 v1.7 對齊(設定值 / §2.1 帳號設定連結 / §4.8 文案 / §4.10 測試化)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td><code>OIDC_ISSUER</code> 改為 D2″ 的子路徑形式;導航列有指向 <code>/account</code> 的帳號設定連結;待開通文案能指引找對人;<strong>§4.10 五項同源義務逐條有測試</strong>(cookie Path、CSP、base path、輸出消毒、禁 localStorage)</td>
+</tr>
+<tr>
+<td>T52</td>
+<td>網頁 session 自動續期(access token 300s)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>🐛 access token 5 分鐘過期但網頁零 JS 不會呼叫 <code>/auth/refresh</code>,登入 5 分鐘後全站靜默退回未登入;伺服器端在驗證失敗時以 refresh token 自動換發並更新 cookie;<strong>測試要能模擬 token 過期</strong>(FakeOidc 永不過期,抓不到)</td>
+</tr>
+<tr>
+<td>T53</td>
+<td>深層頁未登入導向 IdP(§7 冒煙第 1 項)</td>
+<td>⬜</td>
+<td>🟢</td>
+<td>專案頁/歷史頁等未登入時 302 到 <code>/auth/login</code> 並帶 <code>next</code> 導回原頁;<strong>首頁保留落地提示頁</strong>(Benny 2026-07-28 裁示);🔴 302 不得因此洩漏專案是否存在</td>
+</tr>
+<tr>
 <td>T29</td>
 <td>接入冒煙清單(SSO 契約 §7)全數通過</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>六項全綠;repo grep 零 Authentik、零 HS256</td>
+<td>六項全綠;repo grep 零 Authentik、零 HS256;第 1 項依 T53 的裁示(深層頁 302、首頁落地頁)與 cats-portal 說明並取得認可</td>
 </tr>
 </tbody>
 </table>
@@ -656,6 +677,18 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.21</td>
+<td>2026-07-28 02:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T52 完成</strong>:網頁 session 在 access token 過期時由伺服器端向 IdP 續期。<strong>先補測試替身(FakeOidc 原本 token 永不過期)才看得見這個缺陷</strong>——240 條測試一條都抓不到;續期真的去問 IdP,不自行延長,收權即時性不受損;測試 240→249</td>
+</tr>
+<tr>
+<td>v1.20</td>
+<td>2026-07-28 02:06</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>收到 SSO 契約 v1.7 並逐條對照</strong>(原對齊 v1.0,期間有 v1.3 token 壽命定案、v1.5 同源義務、v1.6 註冊政策三次實質變更)。依第一條 4「需求變更先更新計畫」新增 <strong>T51 契約對齊</strong>、<strong>T52 網頁 session 自動續期</strong>(🐛 真缺陷)、<strong>T53 深層頁未登入 302</strong>;T29 補上第 1 項的處置方式</td>
 </tr>
 <tr>
 <td>v1.19</td>

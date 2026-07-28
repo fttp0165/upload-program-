@@ -16,7 +16,11 @@ from . import problems
 from .config import Settings, get_settings
 from .db import create_engine, create_sessionmaker
 from .logging_setup import setup_logging
-from .middleware import SecurityHeadersMiddleware, TraceMiddleware
+from .middleware import (
+    SecurityHeadersMiddleware,
+    SessionRenewalMiddleware,
+    TraceMiddleware,
+)
 from .oidc import OidcClient
 from .routers import admin, artifacts, auth, health, me, projects, releases, search, web
 from .session import CookieCodec
@@ -72,6 +76,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.storage = ObjectStorage(settings)
     app.state.cookies = CookieCodec(settings)
 
+    # 續期的 cookie 要寫進最終回應,所以掛在最外層(最後執行 dispatch 的後半段)。
+    app.add_middleware(SessionRenewalMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(TraceMiddleware)
 

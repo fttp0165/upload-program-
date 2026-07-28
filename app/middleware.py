@@ -69,3 +69,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         )
         return response
+
+
+class SessionRenewalMiddleware(BaseHTTPMiddleware):
+    """把自動續期換到的新 session 寫回 cookie(T52)。
+
+    為什麼需要中介層:續期發生在**相依注入**階段,那時還沒有 response 物件可以設 cookie。
+    中介層是唯一同時看得到「請求開始」與「回應完成」的地方。
+
+    不用 `BackgroundTask`——它在回應**送出之後**才跑,設 cookie 已經來不及。
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        renewed = getattr(request.state, "renewed_session", None)
+        if renewed is not None:
+            # 走 CookieCodec 的公開介面,確保 HttpOnly / Secure / SameSite / Path
+            # 這些同源義務(契約 §4.10)不會因為換一條路徑就鬆掉。
+            request.app.state.cookies.set_session(response, renewed)
+        return response

@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-28 01:45
-**版本:** v2.9
+**最後更新:** 2026-07-28 02:20
+**版本:** v2.10
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -193,6 +193,21 @@ gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資�
   改用一般路由 `GET /static/{path:path}`,內部仍委派 `StaticFiles.get_response()`
   以保留其路徑逃逸防護。詳見 T40 開發日誌。
 
+### 🔴 網頁 session 自動續期(契約 §3.3:access token 300 秒)
+
+SSO 契約把 access token 壓到 **300 秒**(收權即時性),但本服務的網頁是伺服器端算繪、
+全站零 JS,沒有人會去打 `POST /auth/refresh`;session cookie 卻活 10 小時。
+不續期的話,**登入 5 分鐘後所有頁面靜默退回「請先登入」**。
+
+做法(T52):`_session_token()` 驗不過且手上有 refresh token 時,**向 IdP 換發**,
+新 session 由 `SessionRenewalMiddleware` 寫回 cookie
+(續期發生在相依注入階段,那時還沒有 response 物件)。
+
+- 🔴 **一定是真的去問 IdP**(refresh_token grant),不自行延長任何東西——
+  300 秒的目的就是「管理員收權 / IdP 停用帳號後,既發 token 最長只再活 5 分鐘」。
+  IdP 停用帳號 → refresh 失敗 → 立刻登出。本地的 `status=disabled` 檢查也仍在。
+- token 仍有效時**不打 IdP**;Bearer 呼叫端**不自動續期**(他們自己管 token)。
+
 ### 身分:網頁不因未登入而 401
 
 網頁用 `optional_identity`(取不到身分回 `None` 而非拋錯):匿名訪客該看到登入按鈕,
@@ -351,6 +366,7 @@ default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.10 | 2026-07-28 02:20 | Claude(Benny 授權) | §3.7 補上「網頁 session 自動續期」一節(契約 §3.3 access token 300 秒;續期必須真的問 IdP,不得繞過收權)(T52) |
 | v2.9 | 2026-07-28 01:45 | Claude(Benny 授權) | §3.7 補上「版本列表的排序」一節,記錄 `created_at` → `published_at` 的缺陷修正(T43) |
 | v2.8 | 2026-07-27 15:22 | Claude(Benny 授權) | §3.7 補上「專案頁:匿名訪客的回應不得洩漏專案是否存在」一節(T42) |
 | v2.7 | 2026-07-27 15:08 | Claude(Benny 授權) | §3.7 補上「API 與網頁共用同一份可見性查詢」與「HTML 逸出 vs URL 編碼是兩件事」兩節(T41) |

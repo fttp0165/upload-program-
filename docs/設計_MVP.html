@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program MVP 設計</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:35
-<strong>最後更新:</strong> 2026-07-28 01:45
-<strong>版本:</strong> v2.9</p>
+<strong>最後更新:</strong> 2026-07-28 02:20
+<strong>版本:</strong> v2.10</p>
 <blockquote>
 <p>技術設計文件。產品範圍與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;任務追蹤見 <a href="任務表.md">任務表.md</a>。
 <strong>上位文件:</strong> 平台通用規約(<code>platform-charter</code>)、Cats 新服務接入指南 v2.0、
@@ -356,6 +356,19 @@ app/routers/web.py        網頁路由 + 靜態檔
   root_path <strong>再剝一次</strong>前綴,傳給 StaticFiles 的子路徑就多了一層 → 正式環境全站樣式 404。
   改用一般路由 <code>GET /static/{path:path}</code>,內部仍委派 <code>StaticFiles.get_response()</code>
   以保留其路徑逃逸防護。詳見 T40 開發日誌。</li>
+</ul>
+<h3>🔴 網頁 session 自動續期(契約 §3.3:access token 300 秒)</h3>
+<p>SSO 契約把 access token 壓到 <strong>300 秒</strong>(收權即時性),但本服務的網頁是伺服器端算繪、
+全站零 JS,沒有人會去打 <code>POST /auth/refresh</code>;session cookie 卻活 10 小時。
+不續期的話,<strong>登入 5 分鐘後所有頁面靜默退回「請先登入」</strong>。</p>
+<p>做法(T52):<code>_session_token()</code> 驗不過且手上有 refresh token 時,<strong>向 IdP 換發</strong>,
+新 session 由 <code>SessionRenewalMiddleware</code> 寫回 cookie
+(續期發生在相依注入階段,那時還沒有 response 物件)。</p>
+<ul>
+<li>🔴 <strong>一定是真的去問 IdP</strong>(refresh_token grant),不自行延長任何東西——
+  300 秒的目的就是「管理員收權 / IdP 停用帳號後,既發 token 最長只再活 5 分鐘」。
+  IdP 停用帳號 → refresh 失敗 → 立刻登出。本地的 <code>status=disabled</code> 檢查也仍在。</li>
+<li>token 仍有效時<strong>不打 IdP</strong>;Bearer 呼叫端<strong>不自動續期</strong>(他們自己管 token)。</li>
 </ul>
 <h3>身分:網頁不因未登入而 401</h3>
 <p>網頁用 <code>optional_identity</code>(取不到身分回 <code>None</code> 而非拋錯):匿名訪客該看到登入按鈕,
@@ -708,6 +721,12 @@ draft 的可見性沿用既有規則——非成員只看得到已發布的版�
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>領域模型新增 <code>project_tag</code>(含單表設計的理由);API 表補上標籤三個端點(T36)</td>
+</tr>
+<tr>
+<td>v2.10</td>
+<td>2026-07-28 02:20</td>
+<td>Claude(Benny 授權)</td>
+<td>§3.7 補上「網頁 session 自動續期」一節(契約 §3.3 access token 300 秒;續期必須真的問 IdP,不得繞過收權)(T52)</td>
 </tr>
 <tr>
 <td>v2.9</td>

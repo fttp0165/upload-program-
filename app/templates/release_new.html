@@ -1,0 +1,41 @@
+{#
+  建立版本(T44 / F74)。純 HTML 表單。建立出來的是 **draft**,
+  傳完檔案再按發布——與 API 的流程完全一致,不另開捷徑。
+#}
+{% extends "base.html" %}
+{% block title %}建立版本 — upload-program{% endblock %}
+
+{% block content %}
+{% if project is none %}
+  <h1>帳號待開通</h1>
+  <p class="notice">{{ pending_detail }}</p>
+{% else %}
+  <h1>建立新版本</h1>
+  <p class="muted">
+    專案:<a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>
+  </p>
+
+  {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+
+  <form method="post" action="{{ url('/projects/' ~ project.slug ~ '/releases/new') }}" class="stack-form">
+    <label>
+      <span>版本號</span>
+      <input type="text" name="version" value="{{ form.version or '' }}" required
+             placeholder="v1.0.0" maxlength="64">
+      <small class="muted">英數與 . _ + - ;不強制 SemVer</small>
+    </label>
+
+    <label>
+      <span>版本說明</span>
+      <textarea name="notes" rows="6" maxlength="20000">{{ form.notes or '' }}</textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">建立草稿</button>
+      <a href="{{ url('/projects/' ~ project.slug) }}">取消</a>
+    </div>
+  </form>
+
+  <p class="muted">建立後會進入上傳頁;傳完檔案再按「發布」。</p>
+{% endif %}
+{% endblock %}

@@ -8,21 +8,31 @@
 反過來,頁面裡的連結必須帶前綴,那由模板的 `url()` 負責(見 web_urls.py)。
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from .. import problems
+from ..models import Project, ProjectRole, Release, ReleaseStatus, UploadStatus, Visibility
 from ..queries import query_projects, query_releases
 from ..quota import project_limit
-from ..security import DbSession, OptionalUser, get_project, require_project_read
+from ..schemas import ProjectCreate, ReleaseCreate
+from ..security import (
+    DbSession,
+    OptionalUser,
+    get_project,
+    require_project_read,
+    require_project_role,
+)
 from ..templating import render
 from ..web_urls import web_url
-from .releases import latest_published_release
+from .releases import latest_published_release, load_release
 
 router = APIRouter(include_in_schema=False, tags=["web"])
 
@@ -147,6 +157,91 @@ def _login_redirect(request: Request, next_path: str) -> RedirectResponse:
     settings = request.app.state.settings
     target = _page_url(settings, "/auth/login", q=None, tag=None, offset=0)
     return RedirectResponse(f"{target}?{urlencode({'next': next_path})}", status_code=302)
+
+
+# 🐛 **路由順序有意義**:FastAPI 依註冊順序比對,`/projects/new` 必須排在
+# `/projects/{slug}` **之前**,否則 "new" 會被當成 slug,永遠回 404。
+# 這種錯不會有任何警告——只會在某一條網址上安靜地壞掉。
+@router.get("/projects/new", summary="建立專案(表單)")
+async def new_project_form(request: Request, identity: OptionalUser) -> Response:
+    """建立專案的表單。純 HTML,不需要 JS。"""
+    if (blocked := await _require_web_user(request, identity, "/projects/new")) is not None:
+        return blocked
+    return HTMLResponse(
+        render(
+            request,
+            "project_new.html",
+            identity=identity,
+            form={},
+            error=None,
+            pending_detail=problems.pending_activation().detail,
+        )
+    )
+
+
+@router.post("/projects/new", summary="建立專案(送出)")
+async def create_project_form(
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    slug: Annotated[str, Form()] = "",
+    name: Annotated[str, Form()] = "",
+    summary: Annotated[str, Form()] = "",
+    visibility: Annotated[str, Form()] = "internal",
+) -> Response:
+    """建立專案。
+
+    驗證失敗或短名重複時**回到表單並顯示訊息**,不丟一頁錯誤讓使用者重打;
+    使用者填過的值一併帶回(逸出由 autoescape 負責)。
+    """
+    if (blocked := await _require_web_user(request, identity, "/projects/new")) is not None:
+        return blocked
+    form = {"slug": slug, "name": name, "summary": summary, "visibility": visibility}
+
+    def _back(message: str) -> Response:
+        return HTMLResponse(
+            render(
+                request,
+                "project_new.html",
+                identity=identity,
+                form=form,
+                error=message,
+                pending_detail=problems.pending_activation().detail,
+            ),
+            status_code=200,
+        )
+
+    if identity is None or not identity.user.is_active:
+        return _back(problems.pending_activation().detail)
+
+    # 走與 API 完全相同的 schema 驗證,不另寫一套規則。
+    try:
+        payload = ProjectCreate(
+            slug=slug, name=name, summary=summary, visibility=Visibility(visibility)
+        )
+    except Exception as exc:
+        return _back(f"欄位不正確:{exc}")
+
+    project = Project(
+        slug=payload.slug,
+        name=payload.name,
+        summary=payload.summary,
+        visibility=payload.visibility,
+        owner_id=identity.user.id,
+    )
+    session.add(project)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        # 🐛 rollback 會讓 session 裡**所有** ORM 物件過期。導航列要讀
+        # `identity.user.is_active`,而模板算繪是同步的——過期屬性在那裡 lazy load
+        # 就是 `MissingGreenlet`。先在還有 async 上下文的地方把它取回來。
+        # (這是 T50「序列化時才 lazy load」那個家族的第三次變形。)
+        await session.refresh(identity.user)
+        return _back(f"專案短名 {payload.slug} 已被使用,請換一個。")
+
+    return _redirect(request, f"/projects/{payload.slug}")
 
 
 @router.get("/projects/{slug}", summary="專案頁")
@@ -286,3 +381,175 @@ async def project_releases_page(
             ),
         )
     )
+
+
+# --- T44 上傳介面(F74)-----------------------------------------------------
+#
+# 🔴 為什麼只有「傳檔」需要 JS:HTML <form> 只能發 GET/POST,且只能送 urlencoded
+# 或 multipart,**發不出 raw body 的 PUT**(決策文件 §5.1)。建專案/建版本/發布
+# 一律走純表單 POST——沒有 JS 的人仍能做完前三步,只有傳檔那一步需要 JS。
+#
+# 🔴 CSRF:決策文件 §6.5 要求「新增以 POST 表單送出的狀態變更時另評估」。
+# 已評估(T44):`SameSite=Lax` 只在頂層 GET 導覽時送 cookie,跨站 <form method="post">
+# 不會帶上 → 被當成未登入 → 擋下。因此**不加 CSRF token**。
+# 這個結論完全建立在該 cookie 屬性上,所以那個屬性本身有測試釘住
+# (test_web_upload.py::test_session_cookie為SameSite_Lax)。
+
+
+def _redirect(request: Request, path: str) -> RedirectResponse:
+    """導向服務內部路徑(自動補前綴)。用 303:POST 之後要換成 GET。"""
+    return RedirectResponse(web_url(request.app.state.settings, path), status_code=303)
+
+
+async def _require_web_user(request: Request, identity, next_path: str):
+    """網頁的「必須已開通」關卡。
+
+    未登入 → 302 到 IdP(沿用 T53);待開通 → None 交給呼叫端顯示指引。
+    回傳 Response 表示「已經處理掉了」,回傳 None 表示可以繼續。
+    """
+    if identity is None:
+        return _login_redirect(request, next_path)
+    return None
+
+
+@router.get("/projects/{slug}/releases/new", summary="建立版本(表單)")
+async def new_release_form(
+    slug: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}/releases/new")
+    if not identity.user.is_active:
+        return HTMLResponse(
+            render(
+                request,
+                "release_new.html",
+                identity=identity,
+                project=None,
+                form={},
+                error=None,
+                pending_detail=problems.pending_activation().detail,
+            )
+        )
+    project = await get_project(session, slug)
+    # 🔴 權限與 API 同一套:private 非成員 404、成員但權限不足 403。
+    await require_project_role(session, project, identity, ProjectRole.maintainer)
+    return HTMLResponse(
+        render(request, "release_new.html", identity=identity, project=project, form={}, error=None)
+    )
+
+
+@router.post("/projects/{slug}/releases/new", summary="建立版本(送出)")
+async def create_release_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    version: Annotated[str, Form()] = "",
+    notes: Annotated[str, Form()] = "",
+) -> Response:
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}/releases/new")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.maintainer)
+
+    form = {"version": version, "notes": notes}
+
+    def _back(message: str) -> Response:
+        return HTMLResponse(
+            render(
+                request,
+                "release_new.html",
+                identity=identity,
+                project=project,
+                form=form,
+                error=message,
+            ),
+            status_code=200,
+        )
+
+    try:
+        payload = ReleaseCreate(version=version, notes=notes)
+    except Exception as exc:
+        return _back(f"欄位不正確:{exc}")
+
+    release = Release(
+        project_id=project.id,
+        version=payload.version,
+        notes=payload.notes,
+        created_by_id=identity.user.id,
+    )
+    session.add(release)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        # 同上:rollback 讓 ORM 物件過期,模板讀到就炸。
+        await session.refresh(identity.user)
+        await session.refresh(project)
+        return _back(f"版本 {payload.version} 已存在,請換一個版本號。")
+
+    await session.refresh(release)
+    return _redirect(request, f"/releases/{release.id}/upload")
+
+
+@router.get("/releases/{release_id}/upload", summary="上傳檔案(頁面)")
+async def upload_page(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """上傳頁:XHR PUT + 進度條(F74)。
+
+    🔴 JS 一律外部檔案(`static/upload.js`)——CSP `default-src 'self'` 會擋 inline script。
+    上傳靠 **HttpOnly session cookie**,JS 完全碰不到 token,也不需要碰(契約 §4.10)。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/releases/{release_id}/upload")
+    if not identity.user.is_active:
+        return HTMLResponse(
+            render(
+                request,
+                "upload.html",
+                identity=identity,
+                release=None,
+                pending_detail=problems.pending_activation().detail,
+            )
+        )
+
+    release = await load_release(session, release_id)
+    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+
+    settings = request.app.state.settings
+    return HTMLResponse(
+        render(
+            request,
+            "upload.html",
+            identity=identity,
+            release=release,
+            project=release.project,
+            artifacts=sorted(release.artifacts, key=lambda a: a.filename),
+            # JS 要打的端點:由伺服器算好前綴放進 data-* 屬性,
+            # JS 不自己拼路徑(它不知道前綴是什麼)。
+            upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
+            max_artifact_bytes=settings.max_artifact_bytes,
+        )
+    )
+
+
+@router.post("/releases/{release_id}/publish", summary="發布版本(送出)")
+async def publish_release_form(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """發布。純表單 POST,不需要 JS。"""
+    if identity is None:
+        return _login_redirect(request, f"/releases/{release_id}/upload")
+    release = await load_release(session, release_id)
+    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+
+    if release.status is not ReleaseStatus.published:
+        if not any(a.upload_status is UploadStatus.ready for a in release.artifacts):
+            # 與 API 同一條規則:空版本不可發布。
+            return _redirect(request, f"/releases/{release.id}/upload?error=empty")
+        release.status = ReleaseStatus.published
+        release.published_at = datetime.now(UTC)
+        await session.commit()
+
+    return _redirect(request, f"/projects/{release.project.slug}")

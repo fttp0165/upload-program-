@@ -14,3 +14,7 @@ aioboto3>=13.0,<16.0
 itsdangerous>=2.2,<3.0
 # 網頁模板(T47 錯誤頁,T40 起的前端版型):autoescape 是選它而非字串拼接的主因
 jinja2>=3.1,<4.0
+# 解析 HTML 表單的 urlencoded body(T44 的建專案/建版本/發布表單)。
+# 🔴 這**不是**回頭用 multipart 傳檔——檔案上傳仍是 raw body PUT 串流,
+# 那個決定(不落暫存檔)沒有改變。這個套件只負責表單欄位。
+python-multipart>=0.0.9,<0.1

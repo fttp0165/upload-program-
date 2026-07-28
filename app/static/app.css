@@ -233,3 +233,34 @@ a { color: var(--link); }
 .release[open] > summary { border-bottom: 1px solid var(--line); padding-bottom: .6rem; }
 .release .artifact-list { margin-top: .75rem; }
 .release .release-notes { margin: .75rem 0 0; white-space: pre-wrap; }
+
+/* --- 表單與上傳(T44) --- */
+
+.stack-form { display: grid; gap: 1rem; max-width: 34rem; margin-top: 1.25rem; }
+.stack-form label { display: grid; gap: .3rem; }
+.stack-form label > span { font-weight: 600; }
+
+.stack-form input[type="text"],
+.stack-form input[type="file"],
+.stack-form textarea,
+.stack-form select {
+  width: 100%;
+  padding: .45rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.stack-form textarea { resize: vertical; }
+.form-actions { display: flex; align-items: center; gap: 1rem; }
+button.btn { border: none; cursor: pointer; font: inherit; }
+button.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.notice.error { border-color: #cf222e; background: #fff5f5; }
+
+#upload-progress { width: 100%; max-width: 34rem; margin-top: 1rem; }
+.artifact-section { margin-top: 2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.artifact-section h2, #uploader h2 { font-size: 1.05rem; }
+.publish-form { margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; }

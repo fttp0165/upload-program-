@@ -1,0 +1,89 @@
+{#
+  上傳頁(T44 / F74):XHR PUT + 進度條。
+
+  🔴 **JS 一律外部檔案**(`static/upload.js`)——CSP `default-src 'self'` 會擋 inline script。
+  🔴 JS 需要的參數(端點、上限)由伺服器算好放進 `data-*`:JS 不知道路徑前綴是什麼,
+     也不該自己拼——那正是 PLM 404 事故那一類的錯。
+  🔴 上傳靠 **HttpOnly session cookie**,JS 完全碰不到 token,也不需要碰(契約 §4.10)。
+#}
+{% extends "base.html" %}
+{% block title %}上傳檔案 — upload-program{% endblock %}
+
+{% block content %}
+{% if release is none %}
+  <h1>帳號待開通</h1>
+  <p class="notice">{{ pending_detail }}</p>
+{% else %}
+  <h1>{{ release.version }}</h1>
+  <p class="muted">
+    專案:<a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>
+    · 狀態:{{ release.status.value }}
+  </p>
+
+  {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
+
+  {% if release.status.value == 'published' %}
+    <p class="notice">此版本**已發布**,不可再變更檔案。要調整請建立新版本。</p>
+  {% else %}
+    <section id="uploader"
+             data-upload-base="{{ upload_base }}"
+             data-max-bytes="{{ max_artifact_bytes }}">
+      <h2>上傳檔案</h2>
+      <div class="stack-form">
+        <label>
+          <span>檔案</span>
+          <input type="file" id="file-input">
+        </label>
+        <label>
+          <span>類型</span>
+          <select id="kind-input" name="kind">
+            <option value="binary">binary —— 執行檔 / 安裝包</option>
+            <option value="source">source —— 原始碼壓縮檔</option>
+            <option value="doc">doc —— 程式文件</option>
+          </select>
+        </label>
+        <div class="form-actions">
+          <button type="button" id="upload-button" class="btn">開始上傳</button>
+        </div>
+      </div>
+
+      <progress id="upload-progress" value="0" max="100" hidden>0%</progress>
+      <p id="upload-status" class="muted" role="status" aria-live="polite"></p>
+    </section>
+  {% endif %}
+
+  <section class="artifact-section">
+    <h2>已上傳的檔案</h2>
+    {% if artifacts %}
+      <ul class="artifact-list">
+        {% for artifact in artifacts %}
+          <li class="artifact">
+            <div class="artifact-head">
+              <strong>{{ artifact.filename }}</strong>
+              <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.upload_status.value }}</span>
+            </div>
+            <dl class="artifact-meta">
+              <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+              <dt>掃毒狀態</dt><dd>{{ artifact.scan_status.value }}</dd>
+            </dl>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">還沒有檔案。版本至少要有一個檔案才能發布。</p>
+    {% endif %}
+  </section>
+
+  {% if release.status.value != 'published' %}
+    <form method="post" action="{{ url('/releases/' ~ release.id ~ '/publish') }}" class="publish-form">
+      <button type="submit" class="btn" {% if not artifacts %}disabled{% endif %}>發布這個版本</button>
+      <span class="muted">發布後不可再變更檔案。</span>
+    </form>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{# 🔴 外部檔案,不是 inline——CSP `default-src 'self'` 會擋掉 inline script。 #}
+<script src="{{ url('/static/upload.js') }}" defer></script>
+{% endblock %}

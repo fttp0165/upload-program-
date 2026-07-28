@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 02:20
-<strong>版本:</strong> v1.21</p>
+<strong>最後更新:</strong> 2026-07-28 02:25
+<strong>版本:</strong> v1.22</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -396,7 +396,7 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>申請 SSO client(§5)並登記契約 §9</td>
 <td>⬜</td>
 <td>🟢</td>
-<td>拿到 client_id/secret;redirect URI 含子路徑前綴</td>
+<td>拿到 client_id/secret;redirect URI 含子路徑前綴;<strong>申請內容見 <a href="plans/SSO接入計畫.md">plans/SSO接入計畫.md</a> §4</strong>(含 🔴 第一個管理員的 sub——沒有它系統會鎖死)</td>
 </tr>
 <tr>
 <td>T27</td>
@@ -677,6 +677,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.22</td>
+<td>2026-07-28 02:25</td>
+<td>Claude(Benny 授權)</td>
+<td>依第二條 3 新增 <strong><a href="plans/SSO接入計畫.md">docs/plans/SSO接入計畫.md</a></strong>(跨 T26/T28/T29/T51/T52/T53 的大工程,先立獨立計畫);T26 掛上申請內容指標;<code>tools/render_docs.py</code> 的 TARGETS 納入 <code>plans/</code></td>
 </tr>
 <tr>
 <td>v1.21</td>

@@ -13,7 +13,7 @@ from typing import Annotated
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Query, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import problems
@@ -127,10 +127,32 @@ async def home(
     )
 
 
+def _login_redirect(request: Request, next_path: str) -> RedirectResponse:
+    """未登入的深層頁 → 302 到 IdP 登入,並帶 `next` 導回原頁(T53)。
+
+    裁示(2026-07-28):**深層頁 302、首頁留落地頁**。首頁承擔「這是什麼系統、
+    找誰開通」的說明功能;深層頁則沒有這個需要——直接送人去登入才是最短路徑,
+    也符合 SSO 契約 §7 冒煙第 1 項。
+
+    🔴 **這個轉址不得洩漏專案是否存在**:呼叫端必須在**查詢之前**就決定要不要轉,
+    否則「存在就 302、不存在就 404」會讓轉址與否本身變成答案
+    (T42 好不容易做到的結構保證會就此破功)。
+
+    🔴 `next` 由 `auth.login()` 的 `_safe_next()` 再驗一次(只收站內相對路徑),
+    擋開放轉址——它終究來自使用者的網址。
+
+    參數:request、next_path 登入後要回去的服務內部路徑。
+    回傳:302。副作用:無。
+    """
+    settings = request.app.state.settings
+    target = _page_url(settings, "/auth/login", q=None, tag=None, offset=0)
+    return RedirectResponse(f"{target}?{urlencode({'next': next_path})}", status_code=302)
+
+
 @router.get("/projects/{slug}", summary="專案頁")
 async def project_page(
     slug: str, request: Request, session: DbSession, identity: OptionalUser
-) -> HTMLResponse:
+) -> Response:
     """專案頁:資訊 + **最新已發布版本置頂**(F72)。
 
     🔴 **匿名與待開通一律不查詢**,直接顯示提示。
@@ -144,7 +166,11 @@ async def project_page(
     """
     settings = request.app.state.settings
 
-    if identity is None or not identity.user.is_active:
+    # 🔴 匿名/待開通一律**在查詢之前**就決定,不碰資料庫——否則存在與不存在會回不同東西。
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    if not identity.user.is_active:
+        # 已登入但未開通:再送去 IdP 只會轉一圈回來,要給的是指引。
         return HTMLResponse(
             render(
                 request,
@@ -195,7 +221,7 @@ async def project_releases_page(
     session: DbSession,
     identity: OptionalUser,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> HTMLResponse:
+) -> Response:
     """專案歷史:版本列表,**依發布時間倒序**,可展開看各版檔案並下載(F73)。
 
     🔴 匿名/待開通一律不查詢,理由同專案頁:先查再判身分的話,
@@ -207,7 +233,10 @@ async def project_releases_page(
     """
     settings = request.app.state.settings
 
-    if identity is None or not identity.user.is_active:
+    # 🔴 理由同專案頁:在查詢之前決定,轉址與否不得洩漏專案是否存在。
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}/releases")
+    if not identity.user.is_active:
         return HTMLResponse(
             render(
                 request,

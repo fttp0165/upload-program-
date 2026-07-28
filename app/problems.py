@@ -158,7 +158,8 @@ def pending_activation() -> ProblemError:
         status.HTTP_403_FORBIDDEN,
         "pending-activation",
         "帳號待開通",
-        "你的帳號已建立但尚未開通。請聯絡 upload-program 平台管理員為你指派角色後再使用。",
+        "你的帳號已建立但尚未開通。請聯絡 upload-program 平台管理員為你指派角色後再使用;"
+        "你可以在「帳號設定」查看自己的帳號資料。",
     )
 
 

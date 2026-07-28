@@ -42,11 +42,11 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program SSO 接入計畫</h1>
 <p><strong>建立日期:</strong> 2026-07-28 02:19
-<strong>最後更新:</strong> 2026-07-28 02:19
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-28 04:05
+<strong>版本:</strong> v1.1
 <strong>對應契約:</strong> <code>cats-portal/DOCS/帳號系統接入契約_SSO.md</code> <strong>v1.7</strong>(2026-07-28)
 <strong>相關任務:</strong> T26、T28、T29、T51、T52 ✅、T53
-<strong>狀態:</strong> 📋 計畫成文,等待平台方配發 client 與路徑前綴</p>
+<strong>狀態:</strong> ✅ <strong>S0(可自主部分)已全數完成</strong>;等待平台方配發 client 與路徑前綴</p>
 <blockquote>
 <p>依開發憲法第二條 3:接 SSO 是跨多任務的大工程,先立獨立計畫文件,經確認後才動工。
 契約權威在 cats-portal,本檔<strong>只引用、不複製維護</strong>;本檔負責的是
@@ -192,25 +192,26 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <tr>
 <td>1</td>
 <td><code>.env.example</code> 的 <code>OIDC_ISSUER</code> 仍是舊的獨立網域形式</td>
-<td>T51 改為 D2″ 的子路徑形式</td>
+<td>✅ T51 已改為 D2″ 的子路徑形式</td>
 </tr>
 <tr>
 <td>2</td>
 <td>導航列沒有指向 Account Console 的「帳號設定」連結(§2.1、§4.8)</td>
-<td>T51</td>
+<td>✅ T51</td>
 </tr>
 <tr>
 <td>3</td>
 <td>§4.10 五項義務<strong>沒有逐條測試</strong>,只是「剛好有做」</td>
-<td>T51 寫成測試</td>
+<td>✅ T51 已寫成測試</td>
 </tr>
 <tr>
 <td>4</td>
 <td>未登入開深層頁不 302(§7 冒煙第 1 項)</td>
-<td>T53(裁示:深層頁 302、首頁留落地頁)</td>
+<td>✅ T53(深層頁 302、首頁留落地頁)</td>
 </tr>
 </tbody>
 </table>
+<p><strong>四項缺口已全數關閉(2026-07-28)。</strong> 交付清單見 <a href="待portal提供資訊.md">待portal提供資訊.md</a>。</p>
 <h3>2.4 已修正的缺陷</h3>
 <p><strong>T52 網頁 session 自動續期</strong> ✅(2026-07-28)。
 契約 §3.3 把 access token 壓到 <strong>300 秒</strong>,但本服務網頁零 JS,沒有人會打
@@ -369,9 +370,9 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <tbody>
 <tr>
 <td><strong>S0</strong></td>
-<td>T51、T53</td>
+<td>T51 ✅、T53 ✅</td>
 <td>我們</td>
-<td>測試全綠;§4.10 五項逐條有測試</td>
+<td>✅ <strong>已達成</strong>(2026-07-28):測試 267 passed;§4.10 五項逐條有測試</td>
 </tr>
 <tr>
 <td><strong>S1</strong></td>
@@ -560,6 +561,12 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-28 04:05</td>
+<td>Claude(Benny 授權)</td>
+<td>S0 兩項(T51、T53)完成,四項缺口全數關閉;狀態改為「等待平台方配發 client 與路徑前綴」;掛上 <a href="待portal提供資訊.md">待portal提供資訊.md</a> 交付清單</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-28 02:19</td>

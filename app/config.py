@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     post_login_path: str = "/"
     post_logout_path: str = "/"
 
+    # 契約 §2.1 的 Account Console 短網址(改密碼/個資)。§4.8 禁止 App 自建這些頁面,
+    # 只需在 UI 放連結指向它。**刻意不帶本服務的前綴**——它是平台層的 302 轉址,
+    # 加上前綴會變成一條不存在的路徑。設定化的理由與「路徑前綴不自選」相同:
+    # 平台的東西由平台決定。
+    account_console_url: str = "/account"
+
     # 簽我們自己的 session cookie 用(不是 JWT 簽章金鑰)。
     session_secret: str
     session_cookie_name: str = "upload_session"

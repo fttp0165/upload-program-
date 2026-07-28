@@ -36,5 +36,7 @@ def render(request, template: str, **context) -> str:
     context.setdefault("identity", None)
     return _env.get_template(template).render(
         url=lambda path: web_url(settings, path),
+        # 🔴 平台層短網址(契約 §2.1),**不經過 url()**——它不帶本服務的前綴。
+        account_url=settings.account_console_url,
         **context,
     )

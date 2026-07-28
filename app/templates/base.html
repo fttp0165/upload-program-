@@ -14,6 +14,12 @@
 
   導航列刻意**還沒有「建立專案」入口**:那個頁面要到 T44 才存在,
   現在放上去就是一條會 404 的懸空連結。已寫進 T44 的驗收標準。
+
+  🔴 「帳號設定」用 `account_url` 而**不是** `url()`:它是契約 §2.1 的平台層短網址,
+  由 gateway 302 轉址,加上本服務的前綴會變成一條不存在的路徑。
+  這是「所有連結都要帶前綴」那條紅線的**具名例外**,例外本身有測試保護
+  (test_sso_contract.py)。契約 §4.8 禁止 App 自建註冊/改密碼頁,
+  只需放這個連結。
 #}
 <!doctype html>
 <html lang="zh-Hant">
@@ -34,8 +40,10 @@
   <div class="nav-user">
     {% if identity %}
       <span class="nav-name">{{ identity.display_name or identity.sub }}</span>
+      <a class="nav-link" href="{{ account_url }}">帳號設定</a>
       <a class="nav-link" href="{{ url('/auth/logout') }}">登出</a>
     {% else %}
+      <a class="nav-link" href="{{ account_url }}">帳號設定</a>
       <a class="nav-link" href="{{ url('/auth/login') }}">登入</a>
     {% endif %}
   </div>

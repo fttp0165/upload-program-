@@ -17,6 +17,12 @@ ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 200
 
 _LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
 
+# 契約 §2.1 的平台層短網址:由 gateway 302 轉址,**刻意不帶各 App 的前綴**
+# (加上前綴會變成一條不存在的路徑)。這是下面「所有連結帶前綴」那條紅線的
+# **具名例外**——不是把斷言放寬,例外本身在 test_sso_contract.py 有測試保護。
+PLATFORM_URLS = {"/account", "/login"}
+
+
 
 def _links(html: str) -> list[str]:
     return _LINK_RE.findall(html)
@@ -251,6 +257,8 @@ async def test_專案頁所有連結帶前綴且無絕對網址(client, active_u
     found = _links(resp.text)
     assert found
     for link in found:
+        if link in PLATFORM_URLS:
+            continue
         assert link.startswith(f"{PREFIX}/"), link
         assert not link.startswith(("http://", "https://", "//")), link
 

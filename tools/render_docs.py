@@ -35,6 +35,7 @@ TARGETS = [
     "開發計畫書.md",
     "任務表.md",
     "設計_MVP.md",
+    "runbook_換版與備份還原.md",
     "plans/SSO接入計畫.md",
     "plans/SSO接入申請_給portal.md",
     "plans/待portal提供資訊.md",

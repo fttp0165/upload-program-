@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>狀況同步:upload-program 已上線(致 cats-portal)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/狀況同步_給portal_20260729上線.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>狀況同步:upload-program 已上線(致 cats-portal)</h1>
+<p><strong>建立日期:</strong> 2026-07-29 10:00
+<strong>最後更新:</strong> 2026-07-29 10:00
+<strong>版本:</strong> v1.0
+<strong>發文方:</strong> upload-program
+<strong>收文方:</strong> cats-portal / Platform
+<strong>目的:</strong> 同步 2026-07-29 首次上線的結果、<strong>我方在貴方轄區做過的兩項操作</strong>(需要貴方
+commit 回權威 repo)、三項回饋建議,以及 T29 冒煙的完成進度。</p>
+<hr />
+<h2>1. 一頁摘要:已上線</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>部署版本</td>
+<td><code>ghcr.io/fttp0165/upload-program:v0.1.0</code></td>
+</tr>
+<tr>
+<td><code>/upload/</code> 路由</td>
+<td>✅ 已啟用(依施工單 §3.0 順序:容器先上線 → <code>getent</code> 確認 → 解除註解 → <code>nginx -t</code> → reload)</td>
+</tr>
+<tr>
+<td>冒煙</td>
+<td><code>/upload/</code> 200、<code>/upload</code> 301、<code>/upload/static/app.css</code> 200;<strong>既有四條(<code>/</code>、<code>/plm/</code>、<code>/TMP_GEN/</code>、<code>/core/health</code>)全程 200 零差異</strong></td>
+</tr>
+<tr>
+<td>SSO 登入</td>
+<td>✅ 端到端通(Keycloak 登入 → 回跳 → 建號 → 待開通 → bootstrap 開通)</td>
+</tr>
+<tr>
+<td>第一個管理員</td>
+<td>✅ 已開通(過程踩到我方一個 bug,見 §4,已修)</td>
+</tr>
+</tbody>
+</table>
+<h2>2. 🔴 我方在貴方轄區做的兩項操作(請 commit 回權威 repo)</h2>
+<p>貴我雙方目前由同一位操作者執行,以下改動已直接在 VM 生效,
+但<strong>權威 repo(cats-portal)還沒有這兩個變更</strong>——不補 commit 就是現場與 repo 漂移,
+下次有人照 repo 重建 gateway 會把它們蓋掉:</p>
+<h3>2.1 解除 <code>/upload/</code> 三個 location 的註解</h3>
+<p><code>gateway/nginx/conf.d/default.conf</code>:<code>location = /upload</code>、<code>/upload/static/</code>、
+<code>/upload/</code> 三個區塊已解除註解(內容未動,與貴方備妥的版本一致)。
+現場留有備份 <code>default.conf.bak-*</code> 與 <code>default.conf.pre-upload</code>。
+⚠️ 貴方有一條 <strong>CI 斷言釘住「容器上線前不得啟用」</strong>——commit 時要一併更新,
+否則貴方自己的 CI 會紅。</p>
+<h3>2.2 🔴 修正 gateway 的 TLS 憑證(影響全平台,不只我方)</h3>
+<p><strong>發現</strong>:<code>ssl_certificate</code> 原指向 <code>/etc/nginx/certs/server.crt</code>——那是一張
+<strong><code>CN=sportonhr1cb</code> 的自簽憑證</strong>(舊機器時代的遺留),不是 catsapp 的憑證。
+所有使用者(含 PLM、sporton_core)一直拿到這張錯憑證;瀏覽器的「不安全」警告
+有一半是它造成的(另一半是 client 端未安裝 catsRootCA)。</p>
+<p><strong>修正</strong>:<code>catsapp.fullchain.crt</code> / <code>catsapp.key</code> 已從 <code>~/cats-ca/</code> 複製到
+<code>gateway/nginx/certs/</code>,<code>default.conf</code> 的 <code>ssl_certificate</code>/<code>ssl_certificate_key</code>
+兩行已改指過去(sed 自動備份 <code>default.conf.bak-cert</code>),<code>nginx -t</code> 通過後 reload。
+驗證:<code>openssl s_client</code> 現在回 <code>subject=CN=catsapp.sporton.com.tw</code>、issuer 為 RootCA。</p>
+<p><strong>請貴方</strong>:把憑證檔與 conf 變更 commit 回權威 repo,並評估是否公告
+(已裝 catsRootCA 的使用者,瀏覽器警告會消失;行為變化雖是好事,仍值得知會)。</p>
+<h2>3. 三項回饋建議</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>發現</th>
+<th>建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>🔴 <code>cats-edge</code> 內 <code>catsapp.sporton.com.tw</code> <strong>別名掛在 keycloak</strong>(只聽 8080)。任何容器對正式網域打 HTTPS 都是 <code>Connection refused</code>——我方 OIDC discovery 就是這樣掛的,現以 <code>extra_hosts: host-gateway</code> hairpin 繞過</td>
+<td>把別名改掛 <strong>portal-gateway</strong>(它聽 443 ssl):所有 App 在 cats-edge 內直連即通、憑證與對外一致,各 App 不必自備 hairpin。改掛後通知我方,即可移除 workaround</td>
+</tr>
+<tr>
+<td>2</td>
+<td>施工單 §2.1 靜態檔區塊的說明註解寫「不加尾斜線 → <strong>保留</strong> <code>/upload/static/</code> 前綴交上游」,但實際指令 <code>proxy_pass ...:8080/static/;</code> 是<strong>剝前綴</strong>(帶 URI 替換)。<strong>指令正確</strong>(實測 app.css 200),是註解文字寫反</td>
+<td>修正該行註解,免得下一個照著註解讀的人誤會</td>
+</tr>
+<tr>
+<td>3</td>
+<td>secret 交付檔內有多個變數,我方第一次抓錯(取到另一個 64 字元的值),症狀是「授權碼交換失敗」401,查了一輪才定位</td>
+<td>交付檔內註明哪個變數是 client secret,或檔案只放必要變數</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 我方側的透明揭露:bootstrap 缺陷(已修)</h2>
+<p>我方「待開通頁顯示自己的 sub」的自助流程(貴方已採納入契約 §4.3)有一個
+我方自己的實作洞:bootstrap 清單原本只在<strong>建號時</strong>生效,而自助流程保證帳號
+會先以 pending 存在——第一個管理員升不了級,現場以 SQL 解鎖。
+<strong>已修</strong>(pending 帳號在清單內時登入即升級;disabled 不升;含測試),
+將隨 <code>v0.1.1</code> 發布。<strong>契約 §4.3 引用此做法的段落建議補一句</strong>:
+「實作須讓清單對『已存在的 pending 帳號』也生效」,免得下一個照契約做的 App
+複製同一個洞。</p>
+<h2>5. T29 冒煙進度(契約 §7 六項 + 施工單三項)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>未登入 → 302(深層頁)/ 落地頁(首頁)</td>
+<td>✅ 已驗(上線當天)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>登入 → 本地 user 只有 <code>sub</code></td>
+<td>✅ 已驗(<code>\dt</code> + users 表僅 sub)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>無角色 403 → 開通後通行</td>
+<td>✅ 已驗(bootstrap 開通全程)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>竄改/過期/別人的 aud → 401</td>
+<td>⏳ 自動化測試已涵蓋;對真實 IdP 的實測待補</td>
+</tr>
+<tr>
+<td>5</td>
+<td>single logout</td>
+<td>⏳ 待驗</td>
+</tr>
+<tr>
+<td>6</td>
+<td>repo grep 零 Authentik / 零 HS256</td>
+<td>✅ CI 常駐</td>
+</tr>
+<tr>
+<td>7</td>
+<td>cookie <code>Path=/upload/</code> 實測</td>
+<td>⏳ 待驗(DevTools)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>重導網址帶前綴</td>
+<td>✅ 已驗(登入流程即證據)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>~90MB 大檔上傳</td>
+<td>⏳ 待驗</td>
+</tr>
+<tr>
+<td>—</td>
+<td>既有系統零影響</td>
+<td>✅ 已驗(四條 200,reload 前後皆測)</td>
+</tr>
+</tbody>
+</table>
+<p>剩餘四項(4/5/7/9)我方會補齊證據後正式提交 T29 結案,屆時請貴方在契約 §9
+登記表把 upload-program 的狀態改為「已上線」。</p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-29 10:00</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:上線宣告、兩項在 portal 轄區的操作(路由解註解、🔴 gateway 憑證由 sportonhr1cb 自簽修正為 catsapp fullchain——請 commit 回權威 repo 並更新 CI 斷言)、三項回饋(keycloak 別名陷阱/施工單註解寫反/交付檔變數標示)、我方 bootstrap 缺陷透明揭露與契約 §4.3 補充建議、T29 進度(9 項中 5 項已驗)</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

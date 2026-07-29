@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-29 07:50
-<strong>版本:</strong> v1.2
+<strong>最後更新:</strong> 2026-07-29 09:40
+<strong>版本:</strong> v1.3
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -73,7 +73,7 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 
 <tbody>
 <tr>
 <td>1</td>
-<td>從安全管道收取 <code>idp/.env.keycloak.upload-program</code>(client secret),填入部署 <code>.env</code>(chmod 600,不進 git)</td>
+<td>從安全管道收取 <code>idp/.env.keycloak.upload-program</code>(client secret),填入部署 <code>.env</code>(chmod 600,不進 git)。⚠️ <strong>取 <code>*CLIENT_SECRET=</code> 那個變數</strong>(標準長度 32 字元)——2026-07-29 實測曾抓錯成另一個 64 字元變數,症狀是登入走到最後一步「授權碼交換失敗」401</td>
 <td>我方</td>
 </tr>
 <tr>
@@ -83,7 +83,7 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 
 </tr>
 <tr>
 <td>3</td>
-<td>容器上線:<code>docker compose up -d</code>(容器名 <code>upload-program</code>、監聽 8080、已在 <code>cats-edge</code>)</td>
+<td>容器上線:<code>docker login ghcr.io</code>(image 是 private,需 <code>read:packages</code> PAT)→ <code>docker compose up -d</code>。compose 已含 <code>extra_hosts</code> hairpin 與內部 CA 掛載(2026-07-29 實測必需,理由見 compose 註釋)</td>
 <td>我方</td>
 </tr>
 <tr>
@@ -116,7 +116,7 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 
 <p>之後的每次換版走下面的 §A;首次上線的特殊之處只有第 5、6 步。</p>
 <h2>A. 換版(部署新版本)</h2>
 <h3>A.0 前置確認(第一次部署後,每次都一樣)</h3>
-<pre><code class="language-bash">cd /srv/upload-program          # 部署目錄(實際路徑以 VM 為準)
+<pre><code class="language-bash">cd /opt/upload-program          # 部署目錄(VM 慣例:/opt/&lt;服務名&gt;,2026-07-29 實測定案)
 docker compose config -q        # compose 語法與 .env 齊全性
 </code></pre>
 <h3>A.1 發版:打 tag,讓 CI 產 image</h3>
@@ -127,7 +127,7 @@ docker compose config -q        # compose 語法與 .env 齊全性
 <strong>不推 latest</strong>。等 CI 全綠(含 Trivy)再進下一步——CI 紅著就部署,
 等於把 CI 白裝了。</p>
 <h3>A.2 VM 上換版</h3>
-<pre><code class="language-bash">cd /srv/upload-program
+<pre><code class="language-bash">cd /opt/upload-program
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
 ./backup.sh   # 即 §C.1 的指令組
 
@@ -207,26 +207,10 @@ docker compose exec svc alembic downgrade -1
 <h3>C.1 備份指令(repo 內 <code>tools/backup.sh</code>,scp 到部署目錄即可)</h3>
 <p>🔴 正式機不 git pull,所以這支腳本要隨 compose 一起 <strong>scp 到部署目錄</strong>;
 內容如下(權威版本在 repo 的 <code>tools/backup.sh</code>,兩處若有歧異以 repo 為準):</p>
-<pre><code class="language-bash">#!/usr/bin/env bash
-set -euo pipefail
-STAMP=$(date +%Y%m%d-%H%M%S)
-DEST=/srv/backups/upload-program/$STAMP    # ⏳ 最終目的地待定(Q12 一併確認);先本機
-mkdir -p &quot;$DEST&quot;
-
-# 🔴 順序固定:先物件、後資料庫。
-# DB 的 storage_key 指向 MinIO 物件:若 DB 快照比物件新,還原後會出現
-# 「有 metadata 沒檔案」的下載 500;反向頂多多出孤兒物件,佔空間不壞功能。
-# 寧可孤兒,不可懸空。
-docker compose exec -T minio sh -c 'tar cf - /data' &gt; &quot;$DEST/minio-data.tar&quot;
-docker compose exec -T db pg_dump -U upload_program_user -d upload_program_db -Fc \
-  &gt; &quot;$DEST/pg.dump&quot;
-
-# 完整性驗證:不驗的備份 = 薛丁格的備份
-pg_restore --list &quot;$DEST/pg.dump&quot; &gt; /dev/null        # dump 可解析
-tar tf &quot;$DEST/minio-data.tar&quot; &gt; /dev/null            # tar 可列出
-sha256sum &quot;$DEST&quot;/* &gt; &quot;$DEST/SHA256SUMS&quot;
-echo &quot;OK: $DEST&quot;
-</code></pre>
+<p><strong>腳本全文不再內嵌於本文件</strong>——2026-07-29 實測後升 v2(minio 映像檔無 <code>tar</code> →
+改 <code>docker cp</code>;主機不需裝 postgresql-client → 驗證改用 db 容器內的 <code>pg_restore</code>),
+內嵌副本當天就過時了,正好證明「兩份會漂移」。<strong>唯一權威:repo 的 <code>tools/backup.sh</code></strong>,
+部署時隨 compose 一起 scp、要看內容直接開檔案。</p>
 <ul>
 <li>🔴 備份檔含正式資料與物件,<strong>絕不進 git</strong>(<code>/srv/backups</code> 不在 repo 內)</li>
 <li>頻率:<strong>每日一次</strong> + <strong>每次換版前一次</strong>(§A.2 第 1 步)</li>
@@ -234,10 +218,10 @@ echo &quot;OK: $DEST&quot;
 <li>⏳ 異地(NAS / 另一台 VM)同步待定,與 Q12(磁碟空間)一併跟平台確認</li>
 </ul>
 <h3>C.2 cron(部署當天照抄——設定值不會自己生效)</h3>
-<pre><code class="language-cron"># 每日備份(02:30)
-30 2 * * *  cd /srv/upload-program &amp;&amp; ./backup.sh &gt;&gt; /var/log/upload-backup.log 2&gt;&amp;1
+<pre><code class="language-cron"># 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
+30 2 * * *  cd /opt/upload-program &amp;&amp; BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh &gt;&gt; /var/log/upload-backup.log 2&gt;&amp;1
 # 稽核紀錄保留期清理(04:00;AUDIT_RETENTION_DAYS 只是給這支腳本讀的,不掛 cron 就是無限成長的個資表)
-0 4 * * *   cd /srv/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_audit.py --apply &gt;&gt; /var/log/upload-audit-purge.log 2&gt;&amp;1
+0 4 * * *   cd /opt/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_audit.py --apply &gt;&gt; /var/log/upload-audit-purge.log 2&gt;&amp;1
 </code></pre>
 <hr />
 <h2>D. 還原演練(T27 的驗收本體;在 staging 執行)</h2>
@@ -343,6 +327,12 @@ echo &quot;OK: $DEST&quot;
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.3</td>
+<td>2026-07-29 09:40</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>依首次上線實測回寫</strong>:部署目錄定案 <code>/opt/upload-program</code>(VM 慣例);§A0 補 GHCR login 與「secret 變數要抓 32 字元那個」的教訓;compose 已內建 extra_hosts hairpin + 內部 CA;§C.1 的 backup.sh 升 v2(minio 無 tar → docker cp;主機不需 pg_restore);cron 帶 BACKUP_ROOT</td>
 </tr>
 <tr>
 <td>v1.1</td>

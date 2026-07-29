@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 介面導覽(給 UI 設計)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/介面導覽_給UI設計.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 介面導覽(給 UI 設計)</h1>
+<p><strong>建立日期:</strong> 2026-07-29 10:10
+<strong>最後更新:</strong> 2026-07-29 10:10
+<strong>版本:</strong> v1.0
+<strong>對象:</strong> UI / 視覺設計
+<strong>目的:</strong> 讓你不用讀程式碼就知道:這個系統有哪些頁面、每頁長什麼、樣式住在哪裡、
+哪些東西可以放手改、哪些是紅線不能碰。</p>
+<hr />
+<h2>1. 這是什麼系統</h2>
+<p>公司內部的<strong>開發者程式分享平台</strong>(可以想成「簡易版 GitHub」):
+用公司帳號登入 → 建立專案 → 上傳原始碼/執行檔/文件 → 以版本發布 → 其他人瀏覽、搜尋、下載。</p>
+<ul>
+<li>正式網址:<code>https://catsapp.sporton.com.tw/upload/</code>(需公司帳號,首次登入後要請管理員開通)</li>
+<li>使用情境:內部工程師,桌面瀏覽器為主;頁面已做基本 RWD 但未特別為手機優化</li>
+</ul>
+<h2>2. 技術形態(這決定了你能怎麼做設計)</h2>
+<table>
+<thead>
+<tr>
+<th>事實</th>
+<th>對設計的意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>伺服器端算繪(Jinja2 模板),<strong>全站幾乎零 JS</strong>(只有上傳頁有一支進度條 JS)</td>
+<td>沒有前端框架、沒有元件庫;改的是 HTML 模板 + 一支 CSS</td>
+</tr>
+<tr>
+<td><strong>樣式全部集中在一個檔案</strong>:<code>app/static/app.css</code>(約 260 行)</td>
+<td>你的主戰場。目前是工程師寫的「能看」等級,全面美化空間很大</td>
+</tr>
+<tr>
+<td>模板在 <code>app/templates/</code>(9 個 <code>.html</code>,Jinja2 語法)</td>
+<td>版型骨架是 <code>base.html</code>(導航列 + 主內容區)</td>
+</tr>
+<tr>
+<td>🔴 <strong>CSP 禁止 inline style / inline script</strong></td>
+<td><code>&lt;style&gt;</code> 標籤和 <code>style=""</code> 屬性一律無效,樣式只能寫進 <code>app.css</code>;JS 只能是外部檔案</td>
+</tr>
+<tr>
+<td>🔴 <strong>禁止任何外部資源</strong>(CDN 字型、圖示庫、外部圖片都會被瀏覽器擋下)</td>
+<td>Google Fonts、Font Awesome 之類<strong>不能用</strong>;要自訂字型/圖示得把檔案放進 <code>app/static/</code> 自行託管</td>
+</tr>
+<tr>
+<td>🔴 <strong>只做淺色(light)主題</strong>(開發規範明定,禁 dark mode 與自動切換)</td>
+<td>配色以白底深字為基準</td>
+</tr>
+</tbody>
+</table>
+<p>目前的視覺基調(現況,可全面重定義):系統字體堆疊、白底、藍色連結、
+灰階邊框卡片、少量 badge 與按鈕。CSS 變數已集中在 <code>:root</code>(<code>--fg</code>、<code>--link</code>、
+<code>--line</code> 等),換色盤從那裡下手最省力。</p>
+<h2>3. 頁面清單(共 10 個畫面)</h2>
+<h3>3.1 首頁 <code>/upload/</code></h3>
+<ul>
+<li><strong>未登入</strong>:落地說明頁——系統簡介一段 + 「請先登入」提示。這是訪客的第一印象</li>
+<li><strong>已登入</strong>:專案卡片列表(名稱、短名代碼、摘要、標籤)、頂部搜尋框、標籤篩選、分頁</li>
+<li>導航列(所有頁面共用):站名、搜尋框、「建立專案」「管理」(管理員才有)、使用者名、帳號設定、登入/登出</li>
+</ul>
+<h3>3.2 專案頁 <code>/upload/projects/{slug}</code></h3>
+<p>本站最重要的一頁。<strong>最新版本置頂</strong>(產品決策:來的人十之八九是要下載最新版):
+- 最新版本區:版本號、發布說明、檔案列表(每個檔案:檔名、大小、SHA-256 校驗碼、掃毒狀態「未掃描」標示、下載按鈕、固定連結)
+- 其下才是專案資訊(擁有者、可見性、容量用量、標籤)與「版本歷史」入口</p>
+<h3>3.3 版本歷史 <code>/upload/projects/{slug}/releases</code></h3>
+<p>所有版本的摺疊列表(原生 <code>&lt;details&gt;</code> 展開/收合,最新版預設展開),每版內含檔案清單與下載;分頁。</p>
+<h3>3.4 建立專案 <code>/upload/projects/new</code>、建立版本 <code>/upload/projects/{slug}/releases/new</code></h3>
+<p>單欄直式表單(短名、名稱、摘要、可見性 / 版本號、說明)。驗證失敗會回到表單顯示錯誤訊息(紅框提示區)。</p>
+<h3>3.5 上傳頁 <code>/upload/releases/{id}/upload</code></h3>
+<p>全站唯一有互動 JS 的頁:選檔 → 上傳進度條 → 已上傳檔案列表 → 「發布」按鈕。</p>
+<h3>3.6 待開通頁 <code>/upload/pending</code></h3>
+<p>新使用者登入後的第一頁。<strong>核心元素是使用者自己的識別碼(一串 UUID),設計上要讓「複製這串給管理員」這個動作極其明顯</strong>——這是整個開通流程的樞紐,不是裝飾。</p>
+<h3>3.7 管理後台 <code>/upload/admin/users</code>、<code>/upload/admin/audit</code></h3>
+<ul>
+<li>使用者管理:待開通清單(一鍵開通按鈕)、其他帳號(停用/重新啟用);清單<strong>只有 UUID 沒有姓名</strong>(隱私規範,頁面上有說明文字解釋原因——這段文案是功能的一部分)</li>
+<li>稽核紀錄:操作流水(動作、時間、操作者、目標),動作類型篩選、分頁</li>
+</ul>
+<h3>3.8 錯誤頁(404 / 403 / 503 共用版型)</h3>
+<p>大字狀態碼、訊息、路徑與追蹤碼(給使用者回報用)。繼承導航列,讓人有路回首頁。</p>
+<h2>4. 你可以放手做的</h2>
+<ul>
+<li><code>app/static/app.css</code> <strong>全面重寫</strong>:色盤、字級階層、間距系統、卡片、按鈕、表單、badge、表格</li>
+<li>模板的 HTML 結構調整(加 class、換語意標籤、調整區塊順序)——見 §5 的但書</li>
+<li>自託管字型/SVG 圖示(檔案放 <code>app/static/</code>)</li>
+<li>Logo / 站名視覺</li>
+</ul>
+<h2>5. 紅線與但書(碰之前先說)</h2>
+<table>
+<thead>
+<tr>
+<th>紅線</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不能引入任何外部資源(CDN/外連圖片/第三方字型服務)</td>
+<td>安全政策(CSP),瀏覽器會直接擋,不是規勸</td>
+</tr>
+<tr>
+<td>不能用 inline style / <code>&lt;style&gt;</code> 標籤</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>不能做深色模式</td>
+<td>開發規範明定 light only</td>
+</tr>
+<tr>
+<td>頁面內所有連結由模板的 <code>url()</code> 函式產生,<strong>不能手寫路徑</strong></td>
+<td>部署在子路徑下,手寫必 404</td>
+</tr>
+<tr>
+<td>下載按鈕、SHA-256、「未掃描」標示<strong>不能弱化或藏起來</strong></td>
+<td>本站散布可執行檔,這三樣是安全告知義務</td>
+</tr>
+<tr>
+<td>待開通頁的識別碼、管理後台的「為什麼沒有名字」說明文案</td>
+<td>是功能不是裝飾,可以重排版但不能刪</td>
+</tr>
+</tbody>
+</table>
+<p><strong>但書</strong>:HTML 結構有 300+ 條自動化測試釘著行為(連結格式、內容出現與否、展開狀態等)。
+結構改動不用怕,但<strong>改完要跑測試</strong>——流程是:你出設計(Figma / 標註圖 / 直接改 CSS 都行)
+→ 我們套用並跑測試 → 有衝突的地方回來對。<strong>純 <code>app.css</code> 的改動幾乎不會撞測試</strong>,
+是最安全的起點。</p>
+<h2>6. 上手方式</h2>
+<ol>
+<li>要帳號:登入 <code>https://catsapp.sporton.com.tw/upload/</code> 一次,把待開通頁顯示的識別碼給 Benny 開通</li>
+<li>逛一輪 §3 的十個畫面(建議實際走完:建專案 → 建版本 → 傳檔 → 發布 → 下載)</li>
+<li>樣式檔:repo 的 <code>app/static/app.css</code>;模板:<code>app/templates/*.html</code></li>
+<li>產出交給 Benny:Figma 連結、標註圖、或直接改好的 <code>app.css</code> 都收</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-29 10:10</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:系統定位、技術形態對設計的約束(CSP 禁 inline/外部資源、light only、單一 CSS 檔)、十個畫面逐頁導覽、可放手做/紅線清單(含「安全告知元素不能弱化」)、上手流程</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

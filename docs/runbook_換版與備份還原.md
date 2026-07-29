@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 07:50
-**版本:** v1.2
+**最後更新:** 2026-07-29 09:40
+**版本:** v1.3
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -28,9 +28,9 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 `/upload/` 路由**刻
 
 | # | 步驟 | 誰做 |
 |---|---|---|
-| 1 | 從安全管道收取 `idp/.env.keycloak.upload-program`(client secret),填入部署 `.env`(chmod 600,不進 git) | 我方 |
+| 1 | 從安全管道收取 `idp/.env.keycloak.upload-program`(client secret),填入部署 `.env`(chmod 600,不進 git)。⚠️ **取 `*CLIENT_SECRET=` 那個變數**(標準長度 32 字元)——2026-07-29 實測曾抓錯成另一個 64 字元變數,症狀是登入走到最後一步「授權碼交換失敗」401 | 我方 |
 | 2 | `BOOTSTRAP_ADMIN_SUBS` 可先留空——上線後指定人選登入、從 `/upload/pending` 複製自己的 `sub` 再回填重啟(SSO 接入計畫 §4.3) | 我方 |
-| 3 | 容器上線:`docker compose up -d`(容器名 `upload-program`、監聽 8080、已在 `cats-edge`) | 我方 |
+| 3 | 容器上線:`docker login ghcr.io`(image 是 private,需 `read:packages` PAT)→ `docker compose up -d`。compose 已含 `extra_hosts` hairpin 與內部 CA 掛載(2026-07-29 實測必需,理由見 compose 註釋) | 我方 |
 | 4 | `docker compose exec svc alembic upgrade head` | 我方 |
 | 5 | 確認 gateway 解析得到:`docker exec portal-gateway getent hosts upload-program` | 雙方 |
 | 6 | portal 解除 `/upload/` 註解 → `nginx -t` → 低峰 reload | portal |
@@ -44,7 +44,7 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 `/upload/` 路由**刻
 ### A.0 前置確認(第一次部署後,每次都一樣)
 
 ```bash
-cd /srv/upload-program          # 部署目錄(實際路徑以 VM 為準)
+cd /opt/upload-program          # 部署目錄(VM 慣例:/opt/<服務名>,2026-07-29 實測定案)
 docker compose config -q        # compose 語法與 .env 齊全性
 ```
 
@@ -63,7 +63,7 @@ CI 只在 `v*` tag 推 GHCR(`ghcr.io/fttp0165/upload-program:v1.2.0`),
 ### A.2 VM 上換版
 
 ```bash
-cd /srv/upload-program
+cd /opt/upload-program
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
 ./backup.sh   # 即 §C.1 的指令組
 
@@ -150,27 +150,10 @@ docker compose exec svc alembic downgrade -1
 🔴 正式機不 git pull,所以這支腳本要隨 compose 一起 **scp 到部署目錄**;
 內容如下(權威版本在 repo 的 `tools/backup.sh`,兩處若有歧異以 repo 為準):
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-STAMP=$(date +%Y%m%d-%H%M%S)
-DEST=/srv/backups/upload-program/$STAMP    # ⏳ 最終目的地待定(Q12 一併確認);先本機
-mkdir -p "$DEST"
-
-# 🔴 順序固定:先物件、後資料庫。
-# DB 的 storage_key 指向 MinIO 物件:若 DB 快照比物件新,還原後會出現
-# 「有 metadata 沒檔案」的下載 500;反向頂多多出孤兒物件,佔空間不壞功能。
-# 寧可孤兒,不可懸空。
-docker compose exec -T minio sh -c 'tar cf - /data' > "$DEST/minio-data.tar"
-docker compose exec -T db pg_dump -U upload_program_user -d upload_program_db -Fc \
-  > "$DEST/pg.dump"
-
-# 完整性驗證:不驗的備份 = 薛丁格的備份
-pg_restore --list "$DEST/pg.dump" > /dev/null        # dump 可解析
-tar tf "$DEST/minio-data.tar" > /dev/null            # tar 可列出
-sha256sum "$DEST"/* > "$DEST/SHA256SUMS"
-echo "OK: $DEST"
-```
+**腳本全文不再內嵌於本文件**——2026-07-29 實測後升 v2(minio 映像檔無 `tar` →
+改 `docker cp`;主機不需裝 postgresql-client → 驗證改用 db 容器內的 `pg_restore`),
+內嵌副本當天就過時了,正好證明「兩份會漂移」。**唯一權威:repo 的 `tools/backup.sh`**,
+部署時隨 compose 一起 scp、要看內容直接開檔案。
 
 - 🔴 備份檔含正式資料與物件,**絕不進 git**(`/srv/backups` 不在 repo 內)
 - 頻率:**每日一次** + **每次換版前一次**(§A.2 第 1 步)
@@ -180,10 +163,10 @@ echo "OK: $DEST"
 ### C.2 cron(部署當天照抄——設定值不會自己生效)
 
 ```cron
-# 每日備份(02:30)
-30 2 * * *  cd /srv/upload-program && ./backup.sh >> /var/log/upload-backup.log 2>&1
+# 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
+30 2 * * *  cd /opt/upload-program && BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh >> /var/log/upload-backup.log 2>&1
 # 稽核紀錄保留期清理(04:00;AUDIT_RETENTION_DAYS 只是給這支腳本讀的,不掛 cron 就是無限成長的個資表)
-0 4 * * *   cd /srv/upload-program && docker compose exec -T svc python tools/purge_audit.py --apply >> /var/log/upload-audit-purge.log 2>&1
+0 4 * * *   cd /opt/upload-program && docker compose exec -T svc python tools/purge_audit.py --apply >> /var/log/upload-audit-purge.log 2>&1
 ```
 
 ---
@@ -218,5 +201,6 @@ echo "OK: $DEST"
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.3 | 2026-07-29 09:40 | Claude(Benny 授權) | **依首次上線實測回寫**:部署目錄定案 `/opt/upload-program`(VM 慣例);§A0 補 GHCR login 與「secret 變數要抓 32 字元那個」的教訓;compose 已內建 extra_hosts hairpin + 內部 CA;§C.1 的 backup.sh 升 v2(minio 無 tar → docker cp;主機不需 pg_restore);cron 帶 BACKUP_ROOT |
 | v1.1 | 2026-07-29 07:30 | Claude(Benny 授權) | 新增 **§A0 首次上線**(施工單 v1.2 §3.0:我方容器**先**上線,portal 的 `/upload/` 路由保持註解等我方——nginx 對不存在的上游是 `[emerg]` 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步 |
 | v1.0 | 2026-07-29 04:25 | Claude(Benny 授權) | 初版:A 換版(含 🔴 通知 portal reload 的明文約定與「經 gateway 冒煙才算數」)、B 回滾(含兩個不可逆 migration 的集中清單)、C 備份(先物件後資料庫的順序論證、完整性驗證、cron 含稽核清理)、D 還原演練證據表(毀掉再還原、SHA-256 驗功能、實測 RTO);演練未執行,T27 維持 🔵 |

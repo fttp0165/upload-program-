@@ -69,7 +69,19 @@ class ObjectStorage:
             except ClientError as exc:
                 if exc.response.get("Error", {}).get("Code") not in ("404", "NoSuchBucket"):
                     raise
-                await s3.create_bucket(Bucket=self._bucket)
+                try:
+                    await s3.create_bucket(Bucket=self._bucket)
+                except ClientError as exc:
+                    # 🐛 首次上線實測(2026-07-29):head 回 404 後 create 仍可能拋
+                    # BucketAlreadyOwnedByYou(併發建立/head 的區域怪癖)。
+                    # 目標狀態「bucket 存在」已達成——這是成功,不是錯誤;
+                    # 原本每次啟動留一筆 error log,只會誤導值班的人。
+                    # 其他錯誤(AccessDenied 等)仍要浮上來,不做通吃。
+                    if exc.response.get("Error", {}).get("Code") not in (
+                        "BucketAlreadyOwnedByYou",
+                        "BucketAlreadyExists",
+                    ):
+                        raise
 
     async def check_ready(self) -> None:
         """/ready 用:確認物件儲存可達。"""

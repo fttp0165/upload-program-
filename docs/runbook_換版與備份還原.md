@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 15:30
-**版本:** v1.4
+**最後更新:** 2026-07-29 16:30
+**版本:** v1.5
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -74,8 +74,11 @@ cd /opt/upload-program
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
 ./backup.sh   # 即 §C.1 的指令組
 
-# 2) 改 tag:編輯 docker-compose.yml 的 image 版號(唯一要改的東西)
+# 2) 改 tag:編輯 docker-compose.yml 的 image 版號
 #    image: ghcr.io/fttp0165/upload-program:v1.2.0
+#    ⚠ 版本若新增/變更 .env 變數(看該版 release note 的「部署」段),
+#      在 pull 之前一併補進 /opt/upload-program/.env——漏了通常是啟動即
+#      fail-fast(缺必要變數),或功能退回舊行為(可選變數)。
 
 # 3) 拉新版並重建(只重建 svc,不動 db/minio)
 docker compose pull svc
@@ -215,6 +218,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.5 | 2026-07-29 16:30 | Claude(Benny 授權) | §A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例) |
 | v1.4 | 2026-07-29 15:30 | Claude(Benny 授權) | v0.1.2 發版中斷的兩課回寫:§A.1 補「CI 秒殺無 runner=帳號層(Billing/事故),不是程式紅燈」診斷與「驗收點是 Packages 不是 Release 頁」;§A.4 冒煙加**版本哨兵檔**(只有新版才有的靜態檔,200 才證明換到新版)與「302 判讀」附註 |
 | v1.3 | 2026-07-29 09:40 | Claude(Benny 授權) | **依首次上線實測回寫**:部署目錄定案 `/opt/upload-program`(VM 慣例);§A0 補 GHCR login 與「secret 變數要抓 32 字元那個」的教訓;compose 已內建 extra_hosts hairpin + 內部 CA;§C.1 的 backup.sh 升 v2(minio 無 tar → docker cp;主機不需 pg_restore);cron 帶 BACKUP_ROOT |
 | v1.1 | 2026-07-29 07:30 | Claude(Benny 授權) | 新增 **§A0 首次上線**(施工單 v1.2 §3.0:我方容器**先**上線,portal 的 `/upload/` 路由保持註解等我方——nginx 對不存在的上游是 `[emerg]` 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步 |

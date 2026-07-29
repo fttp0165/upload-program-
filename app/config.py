@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     clock_skew_seconds: int = 30
     oidc_http_timeout_seconds: float = 5.0
 
+    # T60(施工單 v1.3 §4.4):伺服器端呼叫的**內部位址覆寫**。
+    # 容器內連對外網址不通(本專案上線當天實測),而 discovery 文件裡的端點
+    # 全是對外網址——伺服器發出的請求(抓 discovery、code 換 token、取 JWKS)
+    # 改走這三個值;留空 = 照舊從 issuer/discovery 推導(向後相容,VM 未改
+    # .env 前維持 hairpin 形態不會壞)。
+    # 🔴 OIDC_ISSUER 與瀏覽器端點(authorization/end_session)永遠維持對外:
+    #    iss 是字串比對不是連線;瀏覽器連不到內部位址。
+    oidc_discovery_url: str = ""
+    oidc_token_url: str = ""
+    oidc_jwks_url: str = ""
+
     post_login_path: str = "/"
     post_logout_path: str = "/"
 

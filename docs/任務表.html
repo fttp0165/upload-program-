@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 15:30
-<strong>版本:</strong> v1.36</p>
+<strong>最後更新:</strong> 2026-07-29 16:30
+<strong>版本:</strong> v1.37</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T60</td>
+<td>施工單 v1.3 對齊:OIDC 伺服器端呼叫改內部端點</td>
+<td>✅</td>
+<td>🟢</td>
+<td>§4.4(sporton_core 實測;我方上線當天踩過同一坑、當時以 hairpin 解):新增三個<strong>可覆寫</strong>設定 <code>OIDC_DISCOVERY_URL</code>/<code>OIDC_TOKEN_URL</code>/<code>OIDC_JWKS_URL</code>(預設空=行為不變);🔴 瀏覽器端點與 <code>iss</code> 永遠對外(字串比對非連線)、issuer 檢查不因內部抓取放寬——<strong>7 條紅→綠</strong>,全套 344;VM 換版時 .env 追加三行後 hairpin 配件降級為備援</td>
+</tr>
+<tr>
 <td>T59</td>
 <td>管理後台顯示名稱快取(<strong>待 Platform 裁示,裁示前不動工</strong>)</td>
 <td>⬜</td>
@@ -719,6 +726,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.37</td>
+<td>2026-07-29 16:30</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T60 完成</strong>:portal 施工單 v1.3 §4.4 對齊——OIDC 伺服器端呼叫改可覆寫內部端點(7 條紅→綠,全套 344);runbook v1.5</td>
 </tr>
 <tr>
 <td>v1.36</td>

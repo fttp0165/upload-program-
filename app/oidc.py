@@ -56,7 +56,32 @@ class OidcClient:
 
     @property
     def discovery_url(self) -> str:
-        return f"{self._settings.oidc_issuer}/.well-known/openid-configuration"
+        # T60:覆寫值是給「容器內連不到對外網址」的部署形態走內部位址用的
+        return (
+            self._settings.oidc_discovery_url
+            or f"{self._settings.oidc_issuer}/.well-known/openid-configuration"
+        )
+
+    def _build_discovery(self, doc: dict[str, Any]) -> Discovery:
+        """把 discovery 文件解析成端點集,並套用伺服器端的內部位址覆寫(T60)。
+
+        🔴 覆寫只及於**伺服器發出請求**的端點(token、jwks);
+        authorization / end_session 是瀏覽器要去的地方,永遠取文件裡的對外值。
+        🔴 issuer 一致性檢查不因「從內部位址抓文件」而放寬——文件內的 issuer
+        是 KC_HOSTNAME 產生的對外值,不等於設定值就是接錯 realm。
+        """
+        if doc.get("issuer", "").rstrip("/") != self._settings.oidc_issuer:
+            raise RuntimeError(
+                f"discovery 的 issuer({doc.get('issuer')})與設定的 OIDC_ISSUER 不符"
+            )
+        return Discovery(
+            issuer=doc["issuer"].rstrip("/"),
+            authorization_endpoint=doc["authorization_endpoint"],
+            token_endpoint=self._settings.oidc_token_url or doc["token_endpoint"],
+            jwks_uri=self._settings.oidc_jwks_url or doc["jwks_uri"],
+            userinfo_endpoint=doc.get("userinfo_endpoint", ""),
+            end_session_endpoint=doc.get("end_session_endpoint", ""),
+        )
 
     async def load_discovery(self, force: bool = False) -> Discovery:
         if self._discovery is not None and not force:
@@ -66,20 +91,7 @@ class OidcClient:
             resp.raise_for_status()
             doc: dict[str, Any] = resp.json()
 
-        # issuer 必須與設定一致,否則等於接到別的 realm。
-        if doc.get("issuer", "").rstrip("/") != self._settings.oidc_issuer:
-            raise RuntimeError(
-                f"discovery 的 issuer({doc.get('issuer')})與設定的 OIDC_ISSUER 不符"
-            )
-
-        discovery = Discovery(
-            issuer=doc["issuer"].rstrip("/"),
-            authorization_endpoint=doc["authorization_endpoint"],
-            token_endpoint=doc["token_endpoint"],
-            jwks_uri=doc["jwks_uri"],
-            userinfo_endpoint=doc.get("userinfo_endpoint", ""),
-            end_session_endpoint=doc.get("end_session_endpoint", ""),
-        )
+        discovery = self._build_discovery(doc)
         self._discovery = discovery
         # PyJWKClient 自帶 kid 對應與快取:金鑰輪替期間新舊並存也能選對鍵。
         self._jwks = PyJWKClient(

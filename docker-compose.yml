@@ -24,6 +24,9 @@ services:
     # 2) gateway 的 TLS 是內部 CA(catsRootCA)簽的,容器內的 httpx 需要信任它,
     #    否則 OIDC discovery 一律 CERTIFICATE_VERIFY_FAILED。
     #    CA 檔路徑以 VM 實際位置為準(目前 /home/deploy/cats-ca/)。
+    # ⬇ T60 之後:.env 設了三個 OIDC_*_URL 內部覆寫的話,伺服器端 OIDC 呼叫
+    #    走 keycloak:8080,不再經 hairpin——上面兩個配件降級為診斷/備援用途,
+    #    確認穩定後可在後續版本移除(移除時本檔與 runbook 同步升版)。
     extra_hosts:
       - "catsapp.sporton.com.tw:host-gateway"
     volumes:

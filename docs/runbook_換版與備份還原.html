@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-29 15:30
-<strong>版本:</strong> v1.4
+<strong>最後更新:</strong> 2026-07-29 16:30
+<strong>版本:</strong> v1.5
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -139,8 +139,11 @@ docker build + Trivy 很吃),再查 githubstatus.com。程式問題的紅燈
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
 ./backup.sh   # 即 §C.1 的指令組
 
-# 2) 改 tag:編輯 docker-compose.yml 的 image 版號(唯一要改的東西)
+# 2) 改 tag:編輯 docker-compose.yml 的 image 版號
 #    image: ghcr.io/fttp0165/upload-program:v1.2.0
+#    ⚠ 版本若新增/變更 .env 變數(看該版 release note 的「部署」段),
+#      在 pull 之前一併補進 /opt/upload-program/.env——漏了通常是啟動即
+#      fail-fast(缺必要變數),或功能退回舊行為(可選變數)。
 
 # 3) 拉新版並重建(只重建 svc,不動 db/minio)
 docker compose pull svc
@@ -343,6 +346,12 @@ docker compose exec svc alembic downgrade -1
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.5</td>
+<td>2026-07-29 16:30</td>
+<td>Claude(Benny 授權)</td>
+<td>§A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例)</td>
 </tr>
 <tr>
 <td>v1.4</td>

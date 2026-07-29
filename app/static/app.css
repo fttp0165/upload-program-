@@ -34,8 +34,9 @@
   --red: #a93226;
   --red-bg: #fdf1f0;
   --red-line: #f0c9c4;
-  --shadow: 0 1px 3px rgba(27, 42, 107, .08);
-  --shadow-hover: 0 6px 18px rgba(27, 42, 107, .14);
+  /* T57:陰影改雙層(貼地 + 環境光)——單層陰影在淺灰底上顯得死平 */
+  --shadow: 0 1px 2px rgba(27, 42, 107, .06), 0 2px 10px rgba(27, 42, 107, .07);
+  --shadow-hover: 0 4px 10px rgba(27, 42, 107, .10), 0 14px 30px rgba(27, 42, 107, .15);
   --grad: linear-gradient(90deg, #1b2a6b, #2f9e5b);
   --mono: ui-monospace, Menlo, "Cascadia Code", Consolas, monospace;
   /* 舊名沿用(避免漏改殘留) */
@@ -48,11 +49,18 @@
 
 body {
   margin: 0;
-  background: var(--bg-page);
+  /* T57:頁面頂部加極淡的漸層 wash,收在 --bg-page 上——導航列下方不再一片死平。
+     終點色 = 頁底色,捲動再深也不會出現色階斷差。 */
+  background: linear-gradient(180deg, #e8ebf4 0, var(--bg-page) 20rem);
+  background-color: var(--bg-page);
+  min-height: 100vh;
   color: var(--fg);
   font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
   line-height: 1.75;
 }
+
+/* 反白選取用強調綠——小地方,但整套配色的一致感就是靠這種地方 */
+::selection { background: #c9ead6; }
 
 a { color: var(--ink); }
 a:hover { color: var(--green); }
@@ -71,7 +79,11 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   gap: 1.1rem;
   flex-wrap: wrap;
   padding: .8rem 1.5rem;
-  background: var(--surface);
+  /* T57:半透明白 + 毛玻璃——sticky 疊在內容上時看得出層次;
+     不支援 backdrop-filter 的瀏覽器退回近乎不透明的白,可讀性不受影響 */
+  background: rgba(255, 255, 255, .92);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
@@ -113,6 +125,19 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   color: var(--fg);
   font: inherit;
   font-size: .92rem;
+}
+
+/* T57:文字輸入類的 focus 統一為「藏青框 + 綠柔光圈」。
+   取代全域的 outline(對文字框而言 outline + 邊框變色是雙重框,顯得粗糙);
+   光圈本身就是清楚的可視焦點,無障礙不打折。 */
+.nav-search input:focus,
+.stack-form input[type="text"]:focus,
+.stack-form select:focus,
+.stack-form textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(47, 158, 91, .18);
 }
 
 .nav-user { display: flex; align-items: center; gap: 1rem; margin-left: auto; font-size: .92rem; }
@@ -167,8 +192,10 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   padding: .8rem 2.4rem;
   border-radius: 999px;
   text-decoration: none;
+  /* T57:整站唯一的主 CTA,給明顯一點的浮起陰影 */
+  box-shadow: 0 6px 16px rgba(27, 42, 107, .24);
 }
-.hero-cta:hover { background: var(--ink-strong); color: #ffffff; }
+.hero-cta:hover { background: var(--ink-strong); color: #ffffff; box-shadow: 0 8px 20px rgba(27, 42, 107, .30); }
 .hero-note { margin-top: .9rem; font-size: .88rem; color: var(--fg-faint); }
 
 .feature-grid {
@@ -186,8 +213,15 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .err-code {
   font-size: 5.5rem;
   font-weight: 800;
+  /* T57:大字狀態碼改漸層字(藏青→綠)。color 留作 background-clip 不支援時的退路 */
   color: var(--ink);
-  margin: 1.5rem 0 0;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* 寬度收到文字本身再置中:漸層以元素為座標,滿版時置中的字只吃得到中段色 */
+  width: fit-content;
+  margin: 1.5rem auto 0;
   letter-spacing: -.02em;
   line-height: 1;
   text-align: center;
@@ -256,7 +290,7 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   overflow: hidden;
   padding: 1.3rem 1.4rem 1.2rem;
   margin: 0;
-  transition: box-shadow .15s ease;
+  /* T57:過渡收斂到檔尾的 reduced-motion 媒體區塊,關動畫的使用者就真的沒有動畫 */
 }
 .project::before {
   content: "";
@@ -321,7 +355,8 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   border-radius: 999px;
   padding: .4rem 1.1rem;
 }
-.pager a:hover { border-color: var(--ink); }
+/* T57:hover 直接填色——「這是一顆可以按的按鈕」不該用猜的 */
+.pager a:hover { border-color: var(--ink); background: var(--ink); color: #ffffff; }
 
 /* --- 專案頁(T42) --- */
 
@@ -372,8 +407,10 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   padding: .45rem 1.4rem;
   font-weight: 700;
   font-size: .9rem;
+  /* T57:主要動作鈕給一點「浮起」的實體感,hover 陰影加深(位移在動效區塊) */
+  box-shadow: 0 1px 3px rgba(27, 42, 107, .28);
 }
-.btn:hover { background: var(--ink-strong); color: #ffffff; }
+.btn:hover { background: var(--ink-strong); color: #ffffff; box-shadow: 0 3px 8px rgba(27, 42, 107, .32); }
 
 .btn-green { background: var(--green); }
 .btn-green:hover { background: #27834c; }
@@ -423,7 +460,7 @@ progress {
   display: block;
   margin-top: .4rem;
 }
-progress::-webkit-progress-bar { background: var(--bg-page); border-radius: 999px; }
+progress::-webkit-progress-bar { background: var(--bg-page); border-radius: 999px; box-shadow: inset 0 1px 2px rgba(27, 42, 107, .10); }
 progress::-webkit-progress-value { background: var(--grad); border-radius: 999px; }
 progress::-moz-progress-bar { background: var(--green); border-radius: 999px; }
 
@@ -448,7 +485,21 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 999px; }
   align-items: baseline;
   gap: .75rem;
   flex-wrap: wrap;
+  list-style: none;   /* 自畫箭頭,關掉瀏覽器預設三角 */
 }
+.release > summary::-webkit-details-marker { display: none; }
+
+/* T57:摺疊箭頭——收合狀態現況完全看不出「可以展開」,這是可供性缺口不是裝飾 */
+.release > summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--fg-ghost);
+}
+.release[open] > summary::after {
+  content: "▴";
+  color: var(--ink);
+}
+.release > summary:hover::after { color: var(--ink); }
 .release > summary .release-version { font-size: 1.1rem; }
 
 .release[open] > summary { border-bottom: 1px solid var(--line-soft); padding-bottom: .7rem; }
@@ -490,6 +541,11 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 999px; }
   background: #fafbfe;
   color: var(--fg-muted);
   font: inherit;
+}
+/* T57:選檔區 hover 給綠色暗示——呼應設計稿的拖放視覺(行為仍是選檔,見 T56 偏離表) */
+.stack-form input[type="file"]:hover {
+  border-color: var(--green);
+  background: #f3faf6;
 }
 
 .stack-form textarea {
@@ -558,6 +614,40 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
   font-weight: 700;
   border-bottom: 2px solid var(--ink);
 }
+/* T57:非當前分頁 hover 變藏青(a:hover 的全域綠寫在前面,選擇器同權重時後者蓋前者,
+   這裡被 .admin-tabs a 蓋掉了 hover——補上,不然看起來像死字) */
+.admin-tabs a:hover { color: var(--ink); }
 
 /* 管理清單沿用 .project-list 但單欄 */
 .admin-list { grid-template-columns: 1fr; }
+
+/* --- 動效(T57) ---
+ *
+ * 全部收在 reduced-motion 媒體查詢內:使用者在系統層關掉動畫,這裡就一條都不生效。
+ * 注意:被測試禁止的是「依系統偏好切深色」的那個配色媒體查詢——與這個無關,
+ * 動效偏好本來就該尊重,這是無障礙要求不是主題切換。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  a,
+  .btn,
+  .tag,
+  .pager a,
+  .nav-pill,
+  .hero-cta,
+  .admin-tabs a,
+  .nav-search input,
+  .stack-form input,
+  .stack-form select,
+  .stack-form textarea,
+  .release > summary::after {
+    transition: color .15s ease, background-color .15s ease, border-color .15s ease,
+                box-shadow .15s ease, transform .15s ease;
+  }
+
+  .project { transition: box-shadow .18s ease, transform .18s ease; }
+  .project:hover { transform: translateY(-2px); }
+
+  /* 按下去要有「按下去」的回饋:hover 微浮、active 落回 */
+  .btn:hover, .nav-pill:hover, .hero-cta:hover { transform: translateY(-1px); }
+  .btn:active, .nav-pill:active, .hero-cta:active { transform: translateY(0); }
+}

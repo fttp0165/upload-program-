@@ -378,6 +378,9 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 </ol>
 </blockquote>
 <p>填進 <code>BOOTSTRAP_ADMIN_SUBS</code> 並重啟後,他再登入一次即成為管理員。
+(⚠️ 2026-07-29 首次上線實測:這句話當時是<strong>假的</strong>——bootstrap 原本只在建號時
+生效,而本自助流程保證帳號會先以 pending 存在,清單永遠升不了級,第一個管理員
+靠手打 SQL 解鎖。<strong>T55 已修</strong>:pending 帳號在清單內時登入即升級,這句話現在才為真。)
 這也意味著<strong>「先部署、後拿 sub」是可行的順序</strong>——原計畫把它排成 S2 的前置條件,
 現在它可以在 S2 之中完成,不再是卡住整條路的外部相依。</p>
 </blockquote>

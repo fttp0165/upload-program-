@@ -36,10 +36,12 @@ TARGETS = [
     "任務表.md",
     "設計_MVP.md",
     "runbook_換版與備份還原.md",
+    "介面導覽_給UI設計.md",
     "plans/SSO接入計畫.md",
     "plans/SSO接入申請_給portal.md",
     "plans/待portal提供資訊.md",
     "plans/回覆_portal施工單.md",
+    "plans/狀況同步_給portal_20260729上線.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

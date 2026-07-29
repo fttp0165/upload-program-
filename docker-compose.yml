@@ -16,6 +16,20 @@ services:
     # `container_name` 是求字面與施工單完全一致,不留模糊空間給下一個接手的人猜。
     image: ghcr.io/fttp0165/upload-program:v0.1.0   # SemVer,禁 latest;正式機只 pull 不 build
     env_file: .env
+    # 🐛 首次上線實測(2026-07-29)發現的兩件部署形態必需品:
+    # 1) cats-edge 內 `catsapp.sporton.com.tw` 別名掛在 keycloak(只聽 8080)上,
+    #    容器對它打 443 必然 Connection refused。extra_hosts 蓋掉這筆解析,
+    #    hairpin 回宿主機(host 443 發布給 portal-gateway)。
+    #    已回饋 portal 建議把別名改掛 gateway,屆時本設定可移除。
+    # 2) gateway 的 TLS 是內部 CA(catsRootCA)簽的,容器內的 httpx 需要信任它,
+    #    否則 OIDC discovery 一律 CERTIFICATE_VERIFY_FAILED。
+    #    CA 檔路徑以 VM 實際位置為準(目前 /home/deploy/cats-ca/)。
+    extra_hosts:
+      - "catsapp.sporton.com.tw:host-gateway"
+    volumes:
+      - /home/deploy/cats-ca/catsRootCA.crt:/etc/ssl/cats-ca.crt:ro
+    environment:
+      SSL_CERT_FILE: /etc/ssl/cats-ca.crt
     networks:
       frontend: {}
       backend: {}

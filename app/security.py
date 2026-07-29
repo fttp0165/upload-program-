@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import problems
+from .audit import AuditAction, record
 from .config import Settings, get_settings
 from .db import get_session
 from .logging_setup import user_id_var
@@ -121,9 +122,33 @@ async def _session_token(request: Request) -> str | None:
 
 
 async def upsert_user(session: AsyncSession, sub: str, settings: Settings) -> User:
-    """首登自動建 user:狀態 pending、零角色。之後由本服務管理員開通。"""
+    """首登自動建 user:狀態 pending、零角色。之後由本服務管理員開通。
+
+    副作用:首登建立資料列;既有 pending 帳號在 bootstrap 清單內時升級並寫稽核。
+    """
     user = (await session.execute(select(User).where(User.sub == sub))).scalar_one_or_none()
     if user is not None:
+        # 🐛 首次上線實測(2026-07-29):bootstrap 原本只在**建號時**生效,但 T45 的
+        # 「先部署、後拿 sub」自助流程在結構上保證了管理員的帳號會先以 pending 存在
+        # ——要看到自己的 sub 就得先登入。結果清單永遠升不了級,第一個管理員只能
+        # 手打 SQL 解鎖。改為:既有帳號在清單內且**仍為 pending**時,登入當下升級。
+        # 🔴 只升 pending:disabled 是被刻意停權的(清單不是繞過停權的後門);
+        # active 成員的角色調整是管理後台的職權(清單只解「第一個管理員」的死結,
+        # 不該成為藏在環境變數裡、稽核看不見操作者的第二條派角色路)。
+        if user.status is UserStatus.pending and sub in settings.bootstrap_admins:
+            user.status = UserStatus.active
+            user.platform_role = PlatformRole.admin
+            user.activated_at = datetime.now(UTC)
+            # 開通就是開通,不因操作者是系統就不留稽核;actor 為空 = 系統動作。
+            record(
+                session,
+                action=AuditAction.user_activate,
+                actor_id=None,
+                target_type="user",
+                target_id=user.id,
+            )
+            await session.commit()
+            await session.refresh(user)
         return user
 
     is_bootstrap = sub in settings.bootstrap_admins

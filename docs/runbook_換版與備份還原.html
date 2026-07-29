@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-29 07:30
-<strong>版本:</strong> v1.1
+<strong>最後更新:</strong> 2026-07-29 07:50
+<strong>版本:</strong> v1.2
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -204,7 +204,9 @@ docker compose exec svc alembic downgrade -1
 <p>要保留就照各檔頭的 SQL 先撈一份再 downgrade。</p>
 <hr />
 <h2>C. 備份</h2>
-<h3>C.1 備份指令(<code>backup.sh</code> 的內容)</h3>
+<h3>C.1 備份指令(repo 內 <code>tools/backup.sh</code>,scp 到部署目錄即可)</h3>
+<p>🔴 正式機不 git pull,所以這支腳本要隨 compose 一起 <strong>scp 到部署目錄</strong>;
+內容如下(權威版本在 repo 的 <code>tools/backup.sh</code>,兩處若有歧異以 repo 為準):</p>
 <pre><code class="language-bash">#!/usr/bin/env bash
 set -euo pipefail
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -336,6 +338,12 @@ echo &quot;OK: $DEST&quot;
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-07-29 07:50</td>
+<td>Claude(Benny 授權)</td>
+<td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-29 07:30</td>

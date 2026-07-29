@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-29 09:40
-<strong>版本:</strong> v1.3
+<strong>最後更新:</strong> 2026-07-29 15:30
+<strong>版本:</strong> v1.4
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -125,7 +125,15 @@ docker compose config -q        # compose 語法與 .env 齊全性
 </code></pre>
 <p>CI 只在 <code>v*</code> tag 推 GHCR(<code>ghcr.io/fttp0165/upload-program:v1.2.0</code>),
 <strong>不推 latest</strong>。等 CI 全綠(含 Trivy)再進下一步——CI 紅著就部署,
-等於把 CI 白裝了。</p>
+等於把 CI 白裝了。<strong>驗收點是 repo 側欄 Packages 出現該版 tag</strong>,
+Release 頁本來就只有 source zip,不會有 image。</p>
+<blockquote>
+<p>🩺 <strong>CI job 幾秒內失敗、沒有任何步驟輸出、<code>runner_id: 0</code></strong>(2026-07-29 v0.1.2 實例):
+這不是程式紅燈,是<strong>帳號層分不到 runner</strong>——先查
+Settings → Billing 的 Actions 分鐘額度(私有 repo 免費 2000 分/月,
+docker build + Trivy 很吃),再查 githubstatus.com。程式問題的紅燈
+一定看得到是哪個步驟死的;什麼都沒有的紅燈去查帳,不要改程式。</p>
+</blockquote>
 <h3>A.2 VM 上換版</h3>
 <pre><code class="language-bash">cd /opt/upload-program
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
@@ -157,6 +165,10 @@ gateway 仍指向舊 IP——症狀最惡劣:<code>docker ps</code> healthy、�
 <pre><code class="language-bash"># 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
 curl -sk -o /dev/null -w '/upload/static/ = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/app.css
+# 🎯 版本哨兵:挑一個「只有新版才有」的靜態檔驗——200 才證明跑的真的是新版。
+#    首頁 200 不代表換版成功(舊容器照樣 200)。哨兵檔隨版本挑選,
+#    例:v0.1.2 用 /upload/static/vendor/bootstrap.min.css(該版新增的 vendor)。
+curl -sk -o /dev/null -w '哨兵檔          = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/vendor/bootstrap.min.css
 # 容器內 readiness(查 DB / MinIO / JWKS)
 docker compose exec svc python -c &quot;import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:8080/ready').status)&quot;
 # 🔴 既有系統零影響(每次動 gateway 相關的東西都要驗)
@@ -165,6 +177,10 @@ for p in / /plm/ /TMP_GEN/ /core/health; do
 done
 </code></pre>
 <p>四組都對才算換版完成。<strong>只驗容器內、不驗經 gateway 的路徑,驗到的是另一個東西。</strong></p>
+<blockquote>
+<p>附註:若冒煙裡有 <code>/upload/auth/login</code>,<strong>302 是正常</strong>(登入本來就轉址去 IdP);
+判讀標準是「非 5xx、非 404」,不是一律 200。</p>
+</blockquote>
 <hr />
 <h2>B. 回滾</h2>
 <h3>B.1 只退程式(本版沒有 migration)</h3>
@@ -327,6 +343,12 @@ docker compose exec svc alembic downgrade -1
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.4</td>
+<td>2026-07-29 15:30</td>
+<td>Claude(Benny 授權)</td>
+<td>v0.1.2 發版中斷的兩課回寫:§A.1 補「CI 秒殺無 runner=帳號層(Billing/事故),不是程式紅燈」診斷與「驗收點是 Packages 不是 Release 頁」;§A.4 冒煙加<strong>版本哨兵檔</strong>(只有新版才有的靜態檔,200 才證明換到新版)與「302 判讀」附註</td>
 </tr>
 <tr>
 <td>v1.3</td>

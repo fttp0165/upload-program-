@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 09:40
-**版本:** v1.3
+**最後更新:** 2026-07-29 15:30
+**版本:** v1.4
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -58,7 +58,14 @@ git tag v1.2.0 && git push origin v1.2.0
 
 CI 只在 `v*` tag 推 GHCR(`ghcr.io/fttp0165/upload-program:v1.2.0`),
 **不推 latest**。等 CI 全綠(含 Trivy)再進下一步——CI 紅著就部署,
-等於把 CI 白裝了。
+等於把 CI 白裝了。**驗收點是 repo 側欄 Packages 出現該版 tag**,
+Release 頁本來就只有 source zip,不會有 image。
+
+> 🩺 **CI job 幾秒內失敗、沒有任何步驟輸出、`runner_id: 0`**(2026-07-29 v0.1.2 實例):
+> 這不是程式紅燈,是**帳號層分不到 runner**——先查
+> Settings → Billing 的 Actions 分鐘額度(私有 repo 免費 2000 分/月,
+> docker build + Trivy 很吃),再查 githubstatus.com。程式問題的紅燈
+> 一定看得到是哪個步驟死的;什麼都沒有的紅燈去查帳,不要改程式。
 
 ### A.2 VM 上換版
 
@@ -100,6 +107,10 @@ gateway 仍指向舊 IP——症狀最惡劣:`docker ps` healthy、健康檢查�
 # 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
 curl -sk -o /dev/null -w '/upload/static/ = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/app.css
+# 🎯 版本哨兵:挑一個「只有新版才有」的靜態檔驗——200 才證明跑的真的是新版。
+#    首頁 200 不代表換版成功(舊容器照樣 200)。哨兵檔隨版本挑選,
+#    例:v0.1.2 用 /upload/static/vendor/bootstrap.min.css(該版新增的 vendor)。
+curl -sk -o /dev/null -w '哨兵檔          = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/vendor/bootstrap.min.css
 # 容器內 readiness(查 DB / MinIO / JWKS)
 docker compose exec svc python -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:8080/ready').status)"
 # 🔴 既有系統零影響(每次動 gateway 相關的東西都要驗)
@@ -109,6 +120,9 @@ done
 ```
 
 四組都對才算換版完成。**只驗容器內、不驗經 gateway 的路徑,驗到的是另一個東西。**
+
+> 附註:若冒煙裡有 `/upload/auth/login`,**302 是正常**(登入本來就轉址去 IdP);
+> 判讀標準是「非 5xx、非 404」,不是一律 200。
 
 ---
 
@@ -201,6 +215,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.4 | 2026-07-29 15:30 | Claude(Benny 授權) | v0.1.2 發版中斷的兩課回寫:§A.1 補「CI 秒殺無 runner=帳號層(Billing/事故),不是程式紅燈」診斷與「驗收點是 Packages 不是 Release 頁」;§A.4 冒煙加**版本哨兵檔**(只有新版才有的靜態檔,200 才證明換到新版)與「302 判讀」附註 |
 | v1.3 | 2026-07-29 09:40 | Claude(Benny 授權) | **依首次上線實測回寫**:部署目錄定案 `/opt/upload-program`(VM 慣例);§A0 補 GHCR login 與「secret 變數要抓 32 字元那個」的教訓;compose 已內建 extra_hosts hairpin + 內部 CA;§C.1 的 backup.sh 升 v2(minio 無 tar → docker cp;主機不需 pg_restore);cron 帶 BACKUP_ROOT |
 | v1.1 | 2026-07-29 07:30 | Claude(Benny 授權) | 新增 **§A0 首次上線**(施工單 v1.2 §3.0:我方容器**先**上線,portal 的 `/upload/` 路由保持註解等我方——nginx 對不存在的上游是 `[emerg]` 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步 |
 | v1.0 | 2026-07-29 04:25 | Claude(Benny 授權) | 初版:A 換版(含 🔴 通知 portal reload 的明文約定與「經 gateway 冒煙才算數」)、B 回滾(含兩個不可逆 migration 的集中清單)、C 備份(先物件後資料庫的順序論證、完整性驗證、cron 含稽核清理)、D 還原演練證據表(毀掉再還原、SHA-256 驗功能、實測 RTO);演練未執行,T27 維持 🔵 |

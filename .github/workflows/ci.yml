@@ -67,7 +67,12 @@ jobs:
       - name: 檢查 SSO 紅線(零 Authentik、零 HS256)
         run: |
           set -e
-          if grep -rniE 'authentik' --include='*.py' --include='*.yml' --include='*.yaml' app/ tests/ 2>/dev/null; then
+          # 🐛 --exclude 是**具名例外**:test_sso_contract.py 的守門測試本身必須寫出
+          # 這個被禁止的字(它就是負責掃它的測試)。T51 加入該測試時漏掉這個排除,
+          # CI 從那個 commit 起被自己的守門員絆倒——字串掃描器抓到守門員的第四例。
+          # pytest 那側早就只掃 app/(不掃 tests/,理由相同);tests/ 其餘檔案仍在掃描範圍。
+          if grep -rniE 'authentik' --include='*.py' --include='*.yml' --include='*.yaml' \
+               --exclude='test_sso_contract.py' app/ tests/ 2>/dev/null; then
             echo "::error::出現 Authentik —— 身分一律走 Keycloak"
             exit 1
           fi

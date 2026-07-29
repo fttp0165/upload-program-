@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 07:30
-**版本:** v1.1
+**最後更新:** 2026-07-29 07:50
+**版本:** v1.2
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -145,7 +145,10 @@ docker compose exec svc alembic downgrade -1
 
 ## C. 備份
 
-### C.1 備份指令(`backup.sh` 的內容)
+### C.1 備份指令(repo 內 `tools/backup.sh`,scp 到部署目錄即可)
+
+🔴 正式機不 git pull,所以這支腳本要隨 compose 一起 **scp 到部署目錄**;
+內容如下(權威版本在 repo 的 `tools/backup.sh`,兩處若有歧異以 repo 為準):
 
 ```bash
 #!/usr/bin/env bash
@@ -214,5 +217,6 @@ echo "OK: $DEST"
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
 | v1.1 | 2026-07-29 07:30 | Claude(Benny 授權) | 新增 **§A0 首次上線**(施工單 v1.2 §3.0:我方容器**先**上線,portal 的 `/upload/` 路由保持註解等我方——nginx 對不存在的上游是 `[emerg]` 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步 |
 | v1.0 | 2026-07-29 04:25 | Claude(Benny 授權) | 初版:A 換版(含 🔴 通知 portal reload 的明文約定與「經 gateway 冒煙才算數」)、B 回滾(含兩個不可逆 migration 的集中清單)、C 備份(先物件後資料庫的順序論證、完整性驗證、cron 含稽核清理)、D 還原演練證據表(毀掉再還原、SHA-256 驗功能、實測 RTO);演練未執行,T27 維持 🔵 |

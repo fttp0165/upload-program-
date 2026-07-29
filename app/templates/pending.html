@@ -17,6 +17,7 @@
 
 {% block title %}帳號待開通 — upload-program{% endblock %}
 
+
 {% block content %}
 
 <h1>帳號待開通</h1>
@@ -29,14 +30,18 @@
   名字與信箱。管理員的畫面上因此只看得到識別碼——你不給他這一串,他無法確定要開通誰。
 </p>
 
-<dl class="info-grid">
-  <dt>你的識別碼(sub)</dt>
-  <dd><code>{{ identity.sub }}</code></dd>
+<div class="sub-box">
+  <div class="muted">你的識別碼(sub)</div>
+  <code id="my-sub">{{ identity.sub }}</code>
+  <div class="sub-actions">
+    {# 複製按鈕需要 JS(剪貼簿);外部檔案、不碰任何 token 與儲存 API。 #}
+    <button type="button" class="btn" id="copy-sub" hidden>複製識別碼</button>
+    <span class="muted" id="copy-done" hidden>已複製</span>
+  </div>
   {% if identity.display_name %}
-    <dt>目前登入身分</dt>
-    <dd>{{ identity.display_name }}</dd>
+    <p class="muted">目前登入身分:{{ identity.display_name }}</p>
   {% endif %}
-</dl>
+</div>
 
 <p class="err-hint">
   想確認自己的帳號資料(名字、信箱、密碼)請到
@@ -48,4 +53,8 @@
   開通後即可<a href="{{ url('/') }}">回到首頁</a>瀏覽專案。
 </p>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url('/static/copy.js') }}" defer></script>
 {% endblock %}

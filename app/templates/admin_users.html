@@ -18,6 +18,11 @@
 
 <h1>使用者管理</h1>
 
+<nav class="admin-tabs">
+  <span class="current">使用者</span>
+  <a href="{{ url('/admin/audit') }}">稽核紀錄</a>
+</nav>
+
 {% if error == 'self-disable' %}
   <p class="notice error">不能停用自己——否則平台可能一個管理員都不剩。</p>
 {% endif %}
@@ -30,12 +35,12 @@
 
 <h2>待開通({{ pending_users | length }})</h2>
 {% if pending_users %}
-  <ul class="project-list">
+  <ul class="project-list admin-list">
     {% for user in pending_users %}
       <li class="project">
         <div class="project-head">
           <code class="project-slug">{{ user.sub }}</code>
-          <span class="badge">待開通</span>
+          <span class="badge badge-warn">待開通</span>
           <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/activate') }}">
             <button class="btn" type="submit">開通</button>
           </form>
@@ -49,7 +54,7 @@
 
 <h2>其他帳號({{ other_users | length }})</h2>
 {% if other_users %}
-  <ul class="project-list">
+  <ul class="project-list admin-list">
     {% for user in other_users %}
       <li class="project">
         <div class="project-head">

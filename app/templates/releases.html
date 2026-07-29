@@ -40,7 +40,7 @@
             <summary>
               <span class="release-version">{{ release.version }}</span>
               {% if release.status.value == 'draft' %}
-                <span class="badge">草稿</span>
+                <span class="badge badge-warn">草稿</span>
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}
@@ -61,9 +61,11 @@
                       <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
                       <dt>掃毒狀態</dt>
                       <dd>
-                        {{ artifact.scan_status.value }}
                         {% if artifact.scan_status.value == 'not_scanned' %}
+                          <span class="badge badge-warn">未掃描 not_scanned</span>
                           <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
+                        {% else %}
+                          {{ artifact.scan_status.value }}
                         {% endif %}
                       </dd>
                     </dl>

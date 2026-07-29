@@ -56,9 +56,11 @@
                 <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
                 <dt>掃毒狀態</dt>
                 <dd>
-                  {{ artifact.scan_status.value }}
                   {% if artifact.scan_status.value == 'not_scanned' %}
+                    <span class="badge badge-warn">未掃描 not_scanned</span>
                     <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
+                  {% else %}
+                    {{ artifact.scan_status.value }}
                   {% endif %}
                 </dd>
                 <dt>固定連結</dt>
@@ -83,7 +85,12 @@
   <section class="project-info">
     <h2>專案資訊</h2>
     <dl class="info-grid">
-      <dt>容量</dt><dd>{{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)</dd>
+      <dt>容量</dt>
+      <dd>
+        {{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)
+        {# 動態寬度只有原生元素做得到——CSP 禁 inline style #}
+        <progress value="{{ project.total_bytes }}" max="{{ quota_bytes }}"></progress>
+      </dd>
       <dt>建立時間</dt><dd>{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
       <dt>最後更新</dt><dd>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
     </dl>

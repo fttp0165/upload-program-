@@ -10,8 +10,17 @@
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from .models import Project, ProjectMember, ProjectTag, User, Visibility
+from .models import (
+    Project,
+    ProjectMember,
+    ProjectTag,
+    Release,
+    ReleaseStatus,
+    User,
+    Visibility,
+)
 from .schemas import normalise_tag
 
 
@@ -76,6 +85,48 @@ async def query_projects(
             select(Project)
             .where(*conditions)
             .order_by(Project.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).scalars().all()
+    return total, list(rows)
+
+
+async def query_releases(
+    session: AsyncSession,
+    project: Project,
+    *,
+    include_drafts: bool,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[int, list[Release]]:
+    """列出專案的版本(含分頁),API 與網頁共用。
+
+    🐛 **排序用 `published_at` 而非 `created_at`**(T43 修正的既有缺陷)。
+    `latest_published_release()` 從 T35 起就是用 `published_at`,但這支列表原本用
+    `created_at`——先建的版本可能後發布,於是**列表第一筆與 `/latest` 會指向不同版本**,
+    而且兩邊都不會報錯。使用者在歷史頁看到最上面是 v9,點 latest 卻拿到 v10。
+
+    draft 的 `published_at` 是 NULL,排在最前面(NULLS FIRST):
+    那是作者正在做的東西,對看得到它的人最相關。
+
+    參數:session、project、include_drafts 是否含 draft(非成員一律 False)、limit/offset。
+    回傳:`(總數, 本頁的 Release 清單)`。副作用:無(唯讀)。
+    """
+    conditions = [Release.project_id == project.id]
+    if not include_drafts:
+        # draft 是作者的工作區,不是給別人看的。
+        conditions.append(Release.status == ReleaseStatus.published)
+
+    total = (
+        await session.execute(select(func.count()).select_from(Release).where(*conditions))
+    ).scalar_one()
+    rows = (
+        await session.execute(
+            select(Release)
+            .options(selectinload(Release.artifacts))
+            .where(*conditions)
+            .order_by(Release.published_at.desc().nullsfirst(), Release.created_at.desc())
             .limit(limit)
             .offset(offset)
         )

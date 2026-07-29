@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     post_login_path: str = "/"
     post_logout_path: str = "/"
 
+    # 契約 §2.1 的 Account Console 短網址(改密碼/個資)。§4.8 禁止 App 自建這些頁面,
+    # 只需在 UI 放連結指向它。**刻意不帶本服務的前綴**——它是平台層的 302 轉址,
+    # 加上前綴會變成一條不存在的路徑。設定化的理由與「路徑前綴不自選」相同:
+    # 平台的東西由平台決定。
+    account_console_url: str = "/account"
+
     # 簽我們自己的 session cookie 用(不是 JWT 簽章金鑰)。
     session_secret: str
     session_cookie_name: str = "upload_session"
@@ -78,6 +84,14 @@ class Settings(BaseSettings):
     max_project_bytes: int = 2 * 1024 * 1024 * 1024
     max_project_extended_bytes: int = 10 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096
+
+    # --- 稽核紀錄(F54 / T38)---
+    # 🔴 保留期是 T37 承諾的一部分:當時刻意不做下載事件表,理由是「誰下載了什麼」
+    # 屬於稽核,而稽核「有自己的保存期限與存取權限」。沒有保留期的話,那就只是
+    # 把一張無限長大的個資表推給未來。
+    # ⚠️ 本服務**沒有排程器**,這個值不會自己生效——由 `tools/purge_audit.py`
+    # 搭配 VM 的 cron(或人工)執行。這一點在 dev-log 列為遺留問題,不假裝已自動化。
+    audit_retention_days: int = Field(default=365, ge=1)
 
     # --- 錯誤格式(RFC 7807)---
     problem_type_base: str = "https://catsapp.sporton.com.tw/errors"

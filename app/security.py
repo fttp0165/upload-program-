@@ -65,11 +65,59 @@ def _bearer_token(request: Request) -> str | None:
     return None
 
 
-def _session_token(request: Request) -> str | None:
+# 續期後的新 session 暫存在這個 request.state 欄位,由中介層在回應產生後寫成 cookie。
+RENEWED_SESSION_ATTR = "renewed_session"
+
+
+async def _session_token(request: Request) -> str | None:
+    """從 session cookie 取 access token,**必要時自動向 IdP 續期**(T52)。
+
+    🐛 為什麼需要自動續期:SSO 契約 §3.3 把 access token 壓到 **300 秒**,
+    但本服務的網頁是伺服器端算繪、全站零 JS,沒有人會去打 `POST /auth/refresh`;
+    session cookie 卻活 10 小時。不續期的話,登入 5 分鐘後所有頁面都會靜默
+    退回「請先登入」,而伺服器沒有任何錯誤。
+
+    🔴 **續期不得繞過收權**:契約把 access token 壓到 300 秒的目的,正是
+    「管理員收權 / IdP 停用帳號後,既發 token 最長只再活 5 分鐘」。所以這裡是
+    **真的去問 IdP**(refresh_token grant)——IdP 那邊帳號被停用時 refresh 會失敗,
+    使用者立刻被登出。自行延長任何東西都會把這個保護拆掉。
+    (本地的 `user.status is disabled` 檢查在 `get_identity` 裡,兩層都保留。)
+
+    參數:request。回傳:可用的 access token 或 None。
+    副作用:可能呼叫 IdP 換發 token,並把新 session 暫存到 `request.state`
+    (由 `SessionRenewalMiddleware` 寫回 cookie——相依注入階段還沒有 response 物件)。
+    """
     codec = request.app.state.cookies
     settings: Settings = request.app.state.settings
     data: SessionData | None = codec.read_session(request.cookies.get(settings.session_cookie_name))
-    return data.access_token if data and data.access_token else None
+    if data is None or not data.access_token:
+        return None
+
+    oidc: OidcClient = request.app.state.oidc
+    try:
+        oidc.verify_access_token(data.access_token)
+        return data.access_token  # 還有效就直接用,不要每次請求都去打 IdP
+    except problems.ProblemError:
+        pass
+
+    if not data.refresh_token:
+        return None
+
+    try:
+        tokens = await oidc.refresh(data.refresh_token)
+    except Exception:
+        # refresh 也失效(IdP 停用帳號、refresh 過期…)→ 視為未登入,由呼叫端決定怎麼呈現。
+        return None
+
+    renewed = SessionData(
+        access_token=tokens.get("access_token", ""),
+        refresh_token=tokens.get("refresh_token", data.refresh_token),
+        id_token=tokens.get("id_token", data.id_token),
+    )
+    if not renewed.access_token:
+        return None
+    setattr(request.state, RENEWED_SESSION_ATTR, renewed)
+    return renewed.access_token
 
 
 async def upsert_user(session: AsyncSession, sub: str, settings: Settings) -> User:
@@ -101,7 +149,7 @@ async def get_identity(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Identity:
     """驗 token → 取 sub → 對應本地 user。token 有問題一律 401。"""
-    token = _bearer_token(request) or _session_token(request)
+    token = _bearer_token(request) or await _session_token(request)
     if not token:
         raise problems.unauthorized("缺少憑證:請帶 Authorization: Bearer,或先登入。")
 

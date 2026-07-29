@@ -1,0 +1,78 @@
+{#
+  管理後台:使用者(T45 / F76)。
+
+  🔴 清單裡**只有 `sub`**——業務庫依契約不存信箱與名字。第一次用的管理員一定會問
+  「怎麼沒有名字」,所以頁面上直接寫明原因:那是紅線不是缺陷,不是壞掉。
+  對不上人的解法是請對方到 /pending 複製自己的 sub 過來,不是在這裡加欄位。
+
+  🔴 `sub` 來自 IdP,理論上是 UUID,但不該假設——一律走 autoescape,禁用 |safe。
+
+  🔴 開通/停用是狀態變更,一律用 POST 表單(GET 會被瀏覽器預抓、被連結誤觸)。
+  CSRF 由 SameSite=Lax 擋下(見 web.py T44 段的評估)。
+#}
+{% extends "base.html" %}
+
+{% block title %}使用者管理 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>使用者管理</h1>
+
+{% if error == 'self-disable' %}
+  <p class="notice error">不能停用自己——否則平台可能一個管理員都不剩。</p>
+{% endif %}
+
+<p class="muted">
+  本平台依帳號系統接入契約,業務資料庫<strong>只存 sub</strong>,個資一律不落地。
+  所以下面只有識別碼、沒有名字。要認出某個人,請他到「帳號待開通」頁把自己的 sub
+  複製給你——那一頁就是為了這件事存在的。
+</p>
+
+<h2>待開通({{ pending_users | length }})</h2>
+{% if pending_users %}
+  <ul class="project-list">
+    {% for user in pending_users %}
+      <li class="project">
+        <div class="project-head">
+          <code class="project-slug">{{ user.sub }}</code>
+          <span class="badge">待開通</span>
+          <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/activate') }}">
+            <button class="btn" type="submit">開通</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">目前沒有等待開通的帳號。</p>
+{% endif %}
+
+<h2>其他帳號({{ other_users | length }})</h2>
+{% if other_users %}
+  <ul class="project-list">
+    {% for user in other_users %}
+      <li class="project">
+        <div class="project-head">
+          <code class="project-slug">{{ user.sub }}</code>
+          <span class="badge">{{ user.status.value }}</span>
+          {% if user.platform_role.value == 'admin' %}<span class="badge">管理員</span>{% endif %}
+          {% if user.id == me.id %}
+            <span class="muted">(你自己)</span>
+          {% elif user.status.value == 'disabled' %}
+            <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/activate') }}">
+              <button class="btn" type="submit">重新啟用</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/disable') }}">
+              <button class="btn" type="submit">停用</button>
+            </form>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">沒有其他帳號。</p>
+{% endif %}
+
+{% endblock %}

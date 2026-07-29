@@ -253,5 +253,19 @@ async def test_統計在結構上不可能記到個資(client, active_user, app)
     assert resp.status_code == 200
     after = await _row_counts()
 
-    # 2) 一次下載不新增任何列 —— 沒有事件表,自然沒有可外洩的下載紀錄
-    assert before == after, f"下載新增了資料列:{ {k: (before[k], after[k]) for k in before if before[k] != after[k]} }"
+    # 2) 一次下載只在 `audit_events` 新增一列,其餘各表一列都不增。
+    #
+    # ⚠️ 本條在 T38 之前是「**任何**表都不增」。T38(F54 稽核紀錄)之後那句話不再成立
+    # ——但這**不是回歸,是需求本來就要的**:F54 的字面就寫著「上傳與下載了什麼」。
+    #
+    # 這裡採**具名例外**而不是把斷言放寬(同 `/account` 那條前綴紅線的處理方式)。
+    # T37 的保證因此縮小到它真正保護的範圍:**統計這條路**不記個資 ——
+    # `artifacts` 沒有下載者欄位(上面第 1 點),統計數字永遠只是個總數。
+    # 「誰下載了什麼」只存在 `audit_events`,而那張表:
+    #   - 只有平台管理員查得到(routers/admin.py::list_audit_events)
+    #   - 有保留期(app/audit.py::purge_expired)
+    # 這兩件事正是 T37 當初把它推給稽核時講好的條件,不是事後才補的說法。
+    AUDIT_TABLE = "audit_events"
+    grew = {k for k in before if before[k] != after[k]}
+    assert grew == {AUDIT_TABLE}, f"下載新增了非預期的資料列:{ {k: (before[k], after[k]) for k in grew} }"
+    assert after[AUDIT_TABLE] == before[AUDIT_TABLE] + 1

@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from .. import problems
+from ..audit import AuditAction, record
 from ..models import ProjectRole, Release, ReleaseStatus, UploadStatus
+from ..queries import query_releases
 from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
 from ..security import (
     CurrentUser,
@@ -83,25 +85,22 @@ async def list_releases(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReleasePage:
+    """列出版本。
+
+    🐛 排序依 `published_at` 而非 `created_at`(T43 修正):
+    先建的版本可能後發布,用建立時間排會讓列表第一筆與 `/latest` 指向不同版本。
+    查詢與 draft 可見性抽在 `queries.query_releases()`,**與歷史頁網頁共用**。
+    """
     project = await get_project(session, slug)
     role = await require_project_read(session, project, identity)
 
-    stmt = select(Release).where(Release.project_id == project.id)
-    count_stmt = select(func.count()).select_from(Release).where(Release.project_id == project.id)
-    # 非成員只看得到已發布的版本;draft 是作者的工作區。
-    if role is None and not identity.user.is_admin:
-        stmt = stmt.where(Release.status == ReleaseStatus.published)
-        count_stmt = count_stmt.where(Release.status == ReleaseStatus.published)
-
-    total = (await session.execute(count_stmt)).scalar_one()
-    rows = (
-        await session.execute(
-            stmt.options(selectinload(Release.artifacts))
-            .order_by(Release.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-    ).scalars().all()
+    total, rows = await query_releases(
+        session,
+        project,
+        include_drafts=role is not None or identity.user.is_admin,
+        limit=limit,
+        offset=offset,
+    )
     return ReleasePage(
         total=total,
         limit=limit,
@@ -129,14 +128,24 @@ async def create_release(
         created_by_id=identity.user.id,
     )
     session.add(release)
+    # 先 flush 再記稽核(同 projects.create_project):版本號重複時不留假紀錄,
+    # 而且 `release.id` 要 flush 之後才存在。
     try:
-        await session.commit()
+        await session.flush()
     except IntegrityError:
         await session.rollback()
         raise problems.conflict(f"版本 {payload.version} 已存在") from None
 
+    record(
+        session,
+        action=AuditAction.release_create,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{project.slug}:{release.version}",
+    )
+    await session.commit()
     await session.refresh(release)
-    log.info("建立版本", extra={"release_id": str(release.id), "version": release.version})
     return ReleaseOut.model_validate(release)
 
 
@@ -179,6 +188,14 @@ async def publish_release(
 
     release.status = ReleaseStatus.published
     release.published_at = datetime.now(UTC)
+    record(
+        session,
+        action=AuditAction.release_publish,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
     await session.commit()
     await session.refresh(release)
     log.info("發布版本", extra={"release_id": str(release.id), "artifacts": len(ready)})
@@ -195,9 +212,19 @@ async def delete_release(
     await require_project_role(session, release.project, identity, ProjectRole.owner)
 
     project = release.project
+    # 刪除前先取:delete 之後這些屬性就過期了,而它們正是稽核唯一有價值的部分。
+    release_id_value, label = release.id, f"{project.slug}:{release.version}"
     freed = sum(a.size_bytes for a in release.artifacts if a.upload_status is UploadStatus.ready)
     await request.app.state.storage.delete_prefix(f"projects/{project.id}/releases/{release.id}/")
     await session.delete(release)
     project.total_bytes = max(0, project.total_bytes - freed)
+    record(
+        session,
+        action=AuditAction.release_delete,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release_id_value,
+        target_label=label,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

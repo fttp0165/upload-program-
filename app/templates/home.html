@@ -19,6 +19,8 @@
 {% elif not identity.user.is_active %}
   <h1>帳號待開通</h1>
   <p class="notice">{{ pending_detail }}</p>
+  {# 完整指引(含使用者自己的 sub)在專屬頁面,其他頁面只要指路,不重複維護文案。 #}
+  <p><a href="{{ url('/pending') }}">查看開通指引與你的識別碼 →</a></p>
 
 {% else %}
   <h1>專案</h1>
@@ -36,7 +38,7 @@
       {% for project in projects %}
         <li class="project">
           <div class="project-head">
-            <span class="project-name">{{ project.name }}</span>
+            <a class="project-name" href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>
             <code class="project-slug">{{ project.slug }}</code>
             {% if project.visibility.value == 'private' %}
               <span class="badge">私有</span>

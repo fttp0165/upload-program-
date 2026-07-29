@@ -19,6 +19,12 @@ PREFIX = "/upload"  # conftest 的 settings 夾具設的 api_prefix
 # 抓出 href="…" / src="…" / action="…" 的值
 _LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
 
+# 契約 §2.1 的平台層短網址:由 gateway 302 轉址,**刻意不帶各 App 的前綴**
+# (加上前綴會變成一條不存在的路徑)。這是下面「所有連結帶前綴」那條紅線的
+# **具名例外**——不是把斷言放寬,例外本身在 test_sso_contract.py 有測試保護。
+PLATFORM_URLS = {"/account", "/login"}
+
+
 
 def _links(html: str) -> list[str]:
     return _LINK_RE.findall(html)
@@ -88,7 +94,7 @@ async def test_顯示名稱來自IdP而非業務庫(client, app, oidc):
 async def test_首頁所有連結都帶路徑前綴(client):
     """🔴 一個都不能漏——漏掉一個就是一次 404 事故。"""
     resp = await client.get("/", headers=BROWSER)
-    found = _links(resp.text)
+    found = [link for link in _links(resp.text) if link not in PLATFORM_URLS]
     assert found, "頁面應該要有連結可檢查"
     for link in found:
         assert link.startswith(f"{PREFIX}/"), f"連結未帶前綴 {PREFIX}:{link!r}"
@@ -97,7 +103,7 @@ async def test_首頁所有連結都帶路徑前綴(client):
 async def test_錯誤頁所有連結都帶路徑前綴(client):
     resp = await client.get("/no-such-page", headers=BROWSER)
     assert resp.status_code == 404
-    found = _links(resp.text)
+    found = [link for link in _links(resp.text) if link not in PLATFORM_URLS]
     assert found, "錯誤頁繼承版型後應該要有導航列的連結"
     for link in found:
         assert link.startswith(f"{PREFIX}/"), f"連結未帶前綴 {PREFIX}:{link!r}"

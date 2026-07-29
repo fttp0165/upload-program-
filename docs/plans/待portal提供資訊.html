@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待 portal 提供的資訊(upload-program 接入用)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/待portal提供資訊.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>待 portal 提供的資訊(upload-program 接入用)</h1>
+<p><strong>建立日期:</strong> 2026-07-28 04:05
+<strong>最後更新:</strong> 2026-07-28 06:40
+<strong>版本:</strong> v1.1
+<strong>用途:</strong> 交付清單 —— portal 把值填進「回填」欄交還即可,我方據以完成部署
+<strong>相關:</strong> <a href="SSO接入申請_給portal.md">SSO接入申請_給portal.md</a>(申請內容與合規聲明)、
+<a href="SSO接入計畫.md">SSO接入計畫.md</a>(我方內部施工計畫)</p>
+<blockquote>
+<p>這份是<strong>表單</strong>,不是說明書。每一列都是一個我方無法自己決定、
+必須由平台方指定的值。<strong>全部到齊前無法部署</strong>;缺哪一項會卡住什麼,寫在「卡住什麼」欄。</p>
+<p>標 🔴 的項目缺了會<strong>直接鎖死或連不上</strong>,不是體驗差而已。</p>
+</blockquote>
+<hr />
+<h2>A. SSO(契約 §5)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>我方建議值</th>
+<th><strong>回填</strong></th>
+<th>卡住什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td><code>client_id</code></td>
+<td><code>upload-program</code></td>
+<td>⬜</td>
+<td>無法登入</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>🔴 <code>client_secret</code></td>
+<td>—(由貴方產生)</td>
+<td>⬜ <strong>另行傳遞,勿放聊天/git</strong></td>
+<td>無法換 token</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>client 型別</td>
+<td><strong>confidential</strong></td>
+<td>⬜</td>
+<td>—</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>🔴 redirect URI(需<strong>含子路徑前綴</strong>)</td>
+<td><code>https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/</code></td>
+<td>⬜</td>
+<td>登入後回跳失敗</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>是否核發 refresh token</td>
+<td><strong>需要</strong></td>
+<td>⬜</td>
+<td>網頁 session 5 分鐘就要重登(見附註 1)</td>
+</tr>
+<tr>
+<td>A6</td>
+<td>claims / mapper</td>
+<td><code>email</code>、<code>email_verified</code>、<code>preferred_username</code> / <code>name</code></td>
+<td>⬜</td>
+<td>導航列顯示不出姓名</td>
+</tr>
+<tr>
+<td>A7</td>
+<td>Account Console 短網址</td>
+<td><code>/account</code>(契約 §2.1)</td>
+<td>⬜ 確認即可</td>
+<td>「帳號設定」連結失效</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>A6 補充:</strong> 這些 claims <strong>不落地</strong>,只在記憶體中傳遞供顯示。
+我方業務庫結構上沒有 email/姓名欄位,不援引 §6.1 的 PLM 快取例外。</p>
+</blockquote>
+<hr />
+<h2>B. 路由與部署(接入指南)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>我方建議值</th>
+<th><strong>回填</strong></th>
+<th>卡住什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td>🔴 路徑前綴 <code>«PREFIX»</code></td>
+<td><code>/upload/</code></td>
+<td>⬜</td>
+<td><strong>幾乎所有項目都相依於它</strong>(見下方相依說明)</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>cats-edge 別名</td>
+<td><code>upload-program</code></td>
+<td>⬜</td>
+<td>gateway 找不到後端</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>🔴 <code>client_max_body_size</code></td>
+<td><strong>≥ 128 MB</strong></td>
+<td>⬜</td>
+<td>上傳大檔被 gateway 擋掉(單檔上限 100 MB)</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>靜態檔 location 寫法</td>
+<td>剝前綴:<code>proxy_pass http://upload-program:8080/static/;</code></td>
+<td>⬜ 確認即可</td>
+<td>全站樣式 404</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>GHCR image 路徑</td>
+<td><code>ghcr.io/fttp0165/upload-program</code></td>
+<td>⬜</td>
+<td>部署拉不到映像</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>repo 是否改名</td>
+<td>現為 <code>upload-program-</code>(<strong>尾端多一個連字號</strong>,不符 <code>service-&lt;name&gt;</code>)</td>
+<td>⬜ 請裁示</td>
+<td>影響 B5 與既有連結</td>
+</tr>
+</tbody>
+</table>
+<h3>B1 的相依範圍(為什麼它最該先給)</h3>
+<p>前綴一到手,以下<strong>全部</strong>同時定案,不需要再回頭問:</p>
+<pre><code>«PREFIX»  ──┬─▶ A4 redirect URI(含前綴)
+            ├─▶ session cookie 的 Path=/«PREFIX»/   （契約 §4.10 同源義務）
+            ├─▶ 頁面內所有連結與靜態檔路徑
+            └─▶ gateway 的 location 區塊
+</code></pre>
+<p>我方程式<strong>全部由設定值導出</strong>,拿到前綴只需改一個環境變數,不改程式碼。</p>
+<hr />
+<h2>C. 資料庫與物件儲存</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>我方建議值</th>
+<th><strong>回填</strong></th>
+<th>卡住什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>PostgreSQL 資料庫名 / 使用者</td>
+<td><code>upload_db</code> / <code>upload_user</code></td>
+<td>⬜</td>
+<td>服務啟動失敗(fail-fast)</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>🔴 DB 密碼</td>
+<td>—</td>
+<td>⬜ <strong>另行傳遞</strong></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>MinIO bucket 名</td>
+<td><code>upload-program</code></td>
+<td>⬜</td>
+<td>上傳失敗</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>🔴 MinIO access key / secret</td>
+<td>—</td>
+<td>⬜ <strong>另行傳遞</strong></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>可用磁碟空間(Q12)</td>
+<td>—</td>
+<td>⬜</td>
+<td>影響擴充級距(10 GB/專案)能開給幾個專案</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>D. 🔴 第一個管理員的 <code>sub</code>(最容易漏掉,漏了系統會鎖死)</h2>
+<p><strong>這一項不是設定值,是一個必須在部署前完成的動作。</strong></p>
+<p>契約 §4.3 要求首登一律建<strong>零角色</strong>帳號,業務功能全部 403 待開通。
+但<strong>開通別人的人自己也要先登入</strong> —— 於是第一個使用者登入後,
+沒有任何人有權開通他,系統實質鎖死。</p>
+<p>我方以 <code>BOOTSTRAP_ADMIN_SUBS</code> 解決(清單中的 <code>sub</code> 首登即為 active + admin)。
+所以部署前需要:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>步驟</th>
+<th>由誰</th>
+<th><strong>完成</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>指定第一個管理員人選(預設 Benny)</td>
+<td>我方</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>該人到 <code>https://catsapp.sporton.com.tw/account</code> 登入一次</td>
+<td>該人</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>取得其 <code>sub</code>(UUID)</td>
+<td><strong>該人自助</strong>:登入 upload-program 後停在 <code>/«PREFIX»/pending</code>,頁面上直接顯示自己的 <code>sub</code>(2026-07-28 起);取不到時才請 portal 從 Keycloak 後台查</td>
+<td>⬜ <strong>回填:</strong></td>
+</tr>
+<tr>
+<td>D4</td>
+<td>填入部署環境的 <code>BOOTSTRAP_ADMIN_SUBS</code></td>
+<td>我方</td>
+<td>⬜</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>sub</code> <strong>不是 secret</strong>(只是一個 UUID),可直接寫在回填欄;但仍走環境變數,不寫死在程式裡。</p>
+<p><strong>D3 已改為自助,portal 通常不需要為此做任何事。</strong> 我方的待開通頁會把使用者自己的
+<code>sub</code> 顯示出來——這是「業務庫只存 sub」的必然配套:不顯示的話,使用者與管理員之間
+沒有任何可以對照的識別。順序上因此可以「先部署、後拿 sub」,D2–D4 不再卡住 B 段的部署。</p>
+</blockquote>
+<hr />
+<h2>E. 需要 portal 裁決的一項</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>事項</th>
+<th>我方做法</th>
+<th><strong>裁決</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E1</td>
+<td>契約 §7 冒煙第 1 項「未登入 → 302」</td>
+<td><strong>深層頁 302、首頁留落地頁</strong>(理由見申請書 §4)</td>
+<td>⬜ 接受 / ⬜ 要求改為全部 302</td>
+</tr>
+</tbody>
+</table>
+<p>若要求全部 302,我方改動成本很低(一個分支 + 四條測試),請直接回覆。</p>
+<hr />
+<h2>F. 交付後我方的動作</h2>
+<p>拿到 A–D 之後,我方會:</p>
+<ol>
+<li>填入部署環境的 <code>.env</code>(<strong>secret 不進 git</strong>,<code>.env.example</code> 只列變數名)</li>
+<li>部署並執行契約 §7 六項冒煙,留存證據</li>
+<li>回報結果,請 portal 在契約 §9 登記表加上一列</li>
+</ol>
+<p>預估:<strong>A–D 到齊後約 1 個工作天</strong>。</p>
+<hr />
+<h2>附註</h2>
+<h3>1. 為什麼需要 refresh token(A5)</h3>
+<p>契約 §3.3 將 access token 定為 300 秒。我方網頁是<strong>伺服器端算繪、無前端 JS</strong>,
+沒有任何角色會主動呼叫 refresh —— 不核發 refresh token 的話,
+使用者登入 5 分鐘後所有頁面都會退回「未登入」。</p>
+<p>我方已實作伺服器端續期(向 IdP 走 refresh_token grant,<strong>不自行延長</strong>,
+IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。
+此議題可能同樣影響 compliance 與 sporton_core 的網頁部分,詳見申請書 §7.2。</p>
+<h3>2. 我方不需要的東西(免得貴方多做)</h3>
+<ul>
+<li>❌ S2S / client_credentials(目前無服務對服務需求)</li>
+<li>❌ <code>groups</code> mapper(業務授權以本地角色為準,契約 §3.1 明載)</li>
+<li>❌ 任何個資回寫機制(我方不落地 email/姓名)</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-28 06:40</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>D3 改為自助</strong>:我方的待開通頁(T45)會顯示使用者自己的 <code>sub</code>,portal 通常不需為此查 Keycloak 後台;連帶讓 D2–D4 不再卡住 B 段部署(可先部署、後拿 sub)</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>2026-07-28 04:05</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:A SSO 七項、B 路由與部署六項(含前綴的相依範圍說明)、C 資料庫與物件儲存五項、<strong>D 第一個管理員的 sub 四步驟</strong>(漏了系統會鎖死)、E 一項待裁決、F 交付後動作與時程;附註說明為何需要 refresh token、以及我方<strong>不</strong>需要的三項</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

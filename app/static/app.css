@@ -152,3 +152,115 @@ a { color: var(--link); }
 }
 
 .pager { display: flex; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+
+/* --- 專案頁(T42) --- */
+
+.project-header { border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
+.project-header h1 { margin-bottom: .35rem; }
+.project-header .project-head { margin: 0 0 .5rem; }
+
+.latest { margin-top: 1.5rem; }
+.latest h2 { font-size: 1.15rem; }
+
+.release-head { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; margin: 0; }
+.release-version { font-weight: 700; font-size: 1.3rem; }
+.release-notes { white-space: pre-wrap; margin: .5rem 0 1rem; }
+
+.artifact-list { list-style: none; margin: 0; padding: 0; }
+
+.artifact {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .9rem 1.1rem;
+  margin-bottom: .75rem;
+}
+
+.artifact-head { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+
+.btn {
+  display: inline-block;
+  text-decoration: none;
+  background: var(--link);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: .35rem .9rem;
+  font-weight: 600;
+}
+
+.artifact-meta,
+.info-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .3rem 1rem;
+  margin: .7rem 0 0;
+  font-size: .9rem;
+}
+
+.artifact-meta dt,
+.info-grid dt { color: var(--fg-muted); }
+
+.artifact-meta dd,
+.info-grid dd {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  word-break: break-all;
+}
+
+.project-info { margin-top: 2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.project-info h2 { font-size: 1.05rem; }
+
+/* --- 版本歷史(T43) --- */
+
+.history-link { margin-top: 1.25rem; }
+
+.release-list { list-style: none; margin: 1.25rem 0 0; padding: 0; }
+
+.release {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .75rem 1.1rem;
+  margin-bottom: .6rem;
+}
+
+.release > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.release[open] > summary { border-bottom: 1px solid var(--line); padding-bottom: .6rem; }
+.release .artifact-list { margin-top: .75rem; }
+.release .release-notes { margin: .75rem 0 0; white-space: pre-wrap; }
+
+/* --- 表單與上傳(T44) --- */
+
+.stack-form { display: grid; gap: 1rem; max-width: 34rem; margin-top: 1.25rem; }
+.stack-form label { display: grid; gap: .3rem; }
+.stack-form label > span { font-weight: 600; }
+
+.stack-form input[type="text"],
+.stack-form input[type="file"],
+.stack-form textarea,
+.stack-form select {
+  width: 100%;
+  padding: .45rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.stack-form textarea { resize: vertical; }
+.form-actions { display: flex; align-items: center; gap: 1rem; }
+button.btn { border: none; cursor: pointer; font: inherit; }
+button.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.notice.error { border-color: #cf222e; background: #fff5f5; }
+
+#upload-progress { width: 100%; max-width: 34rem; margin-top: 1rem; }
+.artifact-section { margin-top: 2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.artifact-section h2, #uploader h2 { font-size: 1.05rem; }
+.publish-form { margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; }

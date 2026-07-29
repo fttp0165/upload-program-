@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
+from ..audit import AuditAction, record
 from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User
 from ..queries import query_projects
 from ..quota import limit_for
@@ -69,20 +70,31 @@ async def create_project(
         owner_id=identity.user.id,
     )
     session.add(project)
+    # 🔴 先 flush 再記稽核,最後才 commit:稽核與業務**同一個 transaction**,
+    # 所以 flush 失敗(短名重複)時根本不會有稽核列——不留假紀錄。
+    # 另一個必要理由是 `project.id` 要 flush 之後才存在。
     try:
-        await session.commit()
+        await session.flush()
     except IntegrityError:
         await session.rollback()
         raise problems.conflict(f"專案短名 {payload.slug} 已被使用") from None
+
+    record(
+        session,
+        action=AuditAction.project_create,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=project.slug,
+    )
+    await session.commit()
     await session.refresh(project)
 
     # 建立者必然是 owner,不必再查一次成員表
-    out = await project_out(
+    return await project_out(
         session, project, identity, request.app.state.settings,
         role=ProjectRole.owner, role_known=True,
     )
-    log.info("建立專案", extra={"project_id": str(project.id), "slug": project.slug})
-    return out
 
 
 @router.get("/{slug}", response_model=ProjectOut, summary="專案詳情")
@@ -118,11 +130,22 @@ async def delete_project(
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.owner)
 
+    # 🔴 稽核的欄位要在 delete 之前取:物件刪掉之後這些屬性就過期了,
+    # 而「刪掉的是哪一個」正是這筆紀錄唯一的價值。
+    project_id, project_slug = project.id, project.slug
+
     # 先刪物件再刪 metadata:反過來的話 metadata 沒了就找不到物件,會留下孤兒佔空間。
     await request.app.state.storage.delete_prefix(f"projects/{project.id}/")
     await session.delete(project)
+    record(
+        session,
+        action=AuditAction.project_delete,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project_id,
+        target_label=project_slug,
+    )
     await session.commit()
-    log.info("刪除專案", extra={"project_id": str(project.id), "slug": slug})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -174,6 +197,14 @@ async def set_quota(
     settings = request.app.state.settings
 
     project.quota_tier = payload.tier
+    record(
+        session,
+        action=AuditAction.project_set_quota,
+        actor_id=admin.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=f"{project.slug}:{payload.tier.value}",
+    )
     await session.commit()
     await session.refresh(project)
 
@@ -266,6 +297,14 @@ async def transfer_ownership(
     else:
         previous_member.role = ProjectRole.maintainer
 
+    record(
+        session,
+        action=AuditAction.project_transfer_owner,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=project.slug,
+    )
     await session.commit()
     await session.refresh(project)
 
@@ -337,6 +376,15 @@ async def put_member(
         session.add(member)
     else:
         member.role = payload.role
+    record(
+        session,
+        action=AuditAction.member_set,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        # 🔴 label 存的是**被異動的成員 id 與角色**,不是姓名——業務庫本來就沒有姓名。
+        target_label=f"{project.slug}:{user.id}:{payload.role.value}",
+    )
     await session.commit()
     await session.refresh(member)
     return MemberOut(
@@ -365,6 +413,15 @@ async def delete_member(
     ).scalar_one_or_none()
     if member is None:
         raise problems.not_found("該使用者不是本專案成員")
+    member_user_id = member.user_id
     await session.delete(member)
+    record(
+        session,
+        action=AuditAction.member_remove,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=f"{project.slug}:{member_user_id}",
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

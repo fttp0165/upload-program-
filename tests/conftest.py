@@ -20,16 +20,32 @@ TEST_CLIENT_ID = "upload-program-test"
 
 
 class FakeOidc:
-    """假 IdP:測試不打真實 Keycloak,但保留「token 無效就 401」的行為。"""
+    """假 IdP:測試不打真實 Keycloak,但保留「token 無效就 401」的行為。
+
+    🐛 T52 補上**過期**與 **refresh**:原本這個替身的 token 永不過期,
+    於是「access token 只有 300 秒、網頁零 JS 不會續期」這個缺陷藏了很久
+    ——240 條測試一條都抓不到。**替身與真實行為的落差本身就是風險。**
+    """
 
     def __init__(self) -> None:
         self.tokens: dict[str, dict] = {}
+        self.expired: set[str] = set()
+        self.refresh_tokens: dict[str, str] = {}  # refresh_token -> sub
+        self.dead_refresh: set[str] = set()  # IdP 端已失效(例:帳號被停用)
+        self.refresh_calls = 0
         self.ready = True
 
-    def issue(self, sub: str, **extra) -> str:
+    def issue(self, sub: str, *, expired: bool = False, **extra) -> str:
         token = f"tok-{uuid.uuid4()}"
         self.tokens[token] = {"sub": sub, "aud": TEST_CLIENT_ID, "iss": TEST_ISSUER, **extra}
+        if expired:
+            self.expired.add(token)
         return token
+
+    def issue_refresh(self, sub: str) -> str:
+        rt = f"rt-{uuid.uuid4()}"
+        self.refresh_tokens[rt] = sub
+        return rt
 
     async def load_discovery(self, force: bool = False):
         return None
@@ -40,10 +56,26 @@ class FakeOidc:
     def verify_access_token(self, token: str) -> dict:
         from app.problems import unauthorized
 
+        if token in self.expired:
+            raise unauthorized("token 已過期(測試用假 IdP)")
         claims = self.tokens.get(token)
         if claims is None:
             raise unauthorized("token 無效(測試用假 IdP)")
         return claims
+
+    async def refresh(self, refresh_token: str) -> dict:
+        """換一組**新的、未過期的** token;refresh 本身失效時拋 401(與真實一致)。"""
+        from app.problems import unauthorized
+
+        self.refresh_calls += 1
+        sub = self.refresh_tokens.get(refresh_token)
+        if sub is None or refresh_token in self.dead_refresh:
+            raise unauthorized("refresh token 已失效(測試用假 IdP)")
+        return {
+            "access_token": self.issue(sub),
+            "refresh_token": self.issue_refresh(sub),
+            "id_token": "fake-id-token",
+        }
 
 
 class FakeStorage:

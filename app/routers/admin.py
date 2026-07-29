@@ -12,8 +12,9 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from .. import problems
-from ..models import User, UserStatus
-from ..schemas import UserOut, UserPage, UserPatch
+from ..audit import AuditAction, record
+from ..models import AuditEvent, User, UserStatus
+from ..schemas import AuditEventOut, AuditPage, UserOut, UserPage, UserPatch
 from ..security import AdminUser, DbSession, parse_uuid
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
@@ -60,8 +61,32 @@ async def patch_user(
         if payload.status is UserStatus.active and user.activated_at is None:
             user.activated_at = datetime.now(UTC)
         user.status = payload.status
+        # 🔴 稽核的 action 由**新狀態**決定,不是由「呼叫了哪個端點」決定。
+        # 網頁那條路(web.py 的 activate/disable)因此會產生完全相同的 action,
+        # 查詢時不必知道管理員當時用的是哪個介面——test_audit.py 釘住這一點。
+        record(
+            session,
+            action=(
+                AuditAction.user_activate
+                if payload.status is UserStatus.active
+                else AuditAction.user_disable
+            ),
+            actor_id=admin.user.id,
+            target_type="user",
+            target_id=user.id,
+            # 🔴 label 一律留空:唯一能寫的「人可讀名稱」是 sub,而 target_id 已經夠回查。
+            # 寫 email/姓名進來就是把稽核表變成個資的第二個落地處。
+        )
     if payload.platform_role is not None:
         user.platform_role = payload.platform_role
+        record(
+            session,
+            action=AuditAction.user_set_role,
+            actor_id=admin.user.id,
+            target_type="user",
+            target_id=user.id,
+            target_label=payload.platform_role.value,
+        )
 
     await session.commit()
     await session.refresh(user)
@@ -74,3 +99,64 @@ async def patch_user(
         },
     )
     return UserOut.model_validate(user)
+
+
+# --- 稽核查詢(F54 / T38)---------------------------------------------------
+
+
+@router.get("/audit", response_model=AuditPage, summary="查詢稽核紀錄(平台管理員)")
+async def list_audit_events(
+    session: DbSession,
+    admin: AdminUser,
+    action: Annotated[str | None, Query(description="精確比對,例:project.delete")] = None,
+    actor_id: Annotated[str | None, Query()] = None,
+    target_type: Annotated[str | None, Query()] = None,
+    target_id: Annotated[str | None, Query()] = None,
+    since: Annotated[datetime | None, Query(description="含,ISO 8601")] = None,
+    until: Annotated[datetime | None, Query(description="不含,ISO 8601")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AuditPage:
+    """查詢稽核紀錄(F54:誰在何時做了什麼)。
+
+    🔴 **只開給平台管理員**(`AdminUser`),專案 owner 也不行。
+
+    這不是新增的限制,是 T37 那個決定的延續:T37 讓下載統計停在「次數」這個粒度
+    是刻意的個資決定。若專案 owner 能從這裡看到個別下載者,那個決定就被從另一扇門
+    繞過了——表面上沒有 `download_events` 表,實際上同樣的資訊照樣流出去。
+
+    參數:各篩選條件(皆選填)、limit/offset。
+    回傳:依 `occurred_at` 倒序的 `AuditPage`。副作用:無(唯讀)。
+    """
+    conditions = []
+    if action:
+        conditions.append(AuditEvent.action == action)
+    if actor_id:
+        conditions.append(AuditEvent.actor_id == parse_uuid(actor_id, "操作者"))
+    if target_type:
+        conditions.append(AuditEvent.target_type == target_type)
+    if target_id:
+        conditions.append(AuditEvent.target_id == parse_uuid(target_id, "目標"))
+    if since:
+        conditions.append(AuditEvent.occurred_at >= since)
+    if until:
+        conditions.append(AuditEvent.occurred_at < until)
+
+    total = (
+        await session.execute(select(func.count()).select_from(AuditEvent).where(*conditions))
+    ).scalar_one()
+    rows = (
+        await session.execute(
+            select(AuditEvent)
+            .where(*conditions)
+            .order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).scalars().all()
+    return AuditPage(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[AuditEventOut.model_validate(row) for row in rows],
+    )

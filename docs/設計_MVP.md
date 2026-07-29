@@ -1,8 +1,8 @@
 # upload-program MVP 設計
 
 **建立日期:** 2026-07-25 15:35
-**最後更新:** 2026-07-27 15:08
-**版本:** v2.7
+**最後更新:** 2026-07-28 07:20
+**版本:** v2.11
 
 > 技術設計文件。產品範圍與里程碑見 [開發計畫書.md](開發計畫書.md);任務追蹤見 [任務表.md](任務表.md)。
 > **上位文件:** 平台通用規約(`platform-charter`)、Cats 新服務接入指南 v2.0、
@@ -148,6 +148,12 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
 
 - **刻意不做下載事件表**:F43 只要求「次數」,「誰下載了什麼」是稽核(F54)的職責。
   用計數欄位的話,「統計不記個資」是**結構上做不到**而不是靠自律——表裡根本沒有可以放人的欄位。
+  > **範圍更正(T38 之後,依憲法第二條 5 回寫):** 上面這句仍然成立,但它保護的是
+  > **統計這條路**。T38 實作 F54 之後,「誰下載了什麼」確實存在於 `audit_events`
+  > ——那是 F54 字面上的要求,不是本設計的破口。當初把它推給稽核時講好的兩個條件
+  > (**只有平台管理員查得到**、**有保留期**)已在 §3.6 落實並有測試釘住。
+  > `test_download_count.py::test_統計在結構上不可能記到個資` 也已改為具名例外
+  > (只允許 `audit_events` 增加一列),而不是把斷言放寬。
 - 計數點就是 `_download_response()`,與安全標頭同一個地方——換一條路徑就不算數的統計等於沒有統計。
 - 🔴 累計一律用 `UPDATE ... SET download_count = download_count + 1`。
   Python 端的 `+= 1` 是讀-改-寫,併發會默默掉數且不會有任何錯誤訊息。
@@ -155,14 +161,40 @@ zip、gzip、bzip2、xz、7z、rar、tar(offset 257)、OLE、deb、rpm、PDF、P
   這個數字的用途是熱門度而非計費,不值得為此把串流路徑複雜化。
 - `upload_status is ready` 的檢查在計數之前,所以失敗的下載(404)不會灌水。
 
-### 3.6 尚未做的
+### 3.6 稽核紀錄(F54 / T38)
+
+`audit_events` 一張只增不改的事件表。設計上有四個刻意的選擇:
+
+- 🔴 **`target_label` 存快照,不是外鍵。** 稽核最重要的用途之一是「誰刪掉了什麼」,
+  而東西一旦刪掉,`target_id` 就 join 不回任何東西——結果是「某人在某時刪了 `9f2c…`」,
+  **最需要它的時候最沒用**。所以寫入的當下就把人可讀的定位(slug / version / filename)
+  快照下來。稽核記的是「當時的事實」,不是「現在的狀態」。
+  ⚠️ label 只放識別用字串,**不放使用者輸入的自由文字**(摘要、版本說明)。
+- 🔴 **與業務操作同一個 transaction**(`audit.record()` 不自己 commit)。
+  保證「**有紀錄 ⇔ 事情真的發生了**」。反例是用獨立 session——那會留下「記了但沒發生」
+  的假紀錄,而一張混進假紀錄的稽核表就不能用了。
+  代價:失敗的嘗試不進稽核表(仍在 stdout log)。F54 要的是「誰做了什麼」,不是入侵偵測。
+- 🔴 **`action` 是 `String(64)` 而非帶 CHECK 的 enum。** 稽核動作的字彙會隨功能成長,
+  釘進 schema 等於「每加一個被稽核的動作就要一次 migration」——而**阻力會讓人選擇不記**,
+  那是稽核最糟的失效方式(表存在、看起來正常,漏掉的動作不留任何跡象)。
+  字彙的唯一來源是 `audit.AuditAction`,守門靠測試。
+- 🔴 **只有平台管理員查得到**,專案 owner 也不行。這不是新增的限制,是 §3.5 那個決定的
+  延續:若 owner 能從稽核看到個別下載者,「統計只到次數」就被從另一扇門繞過了。
+
+保留期 `AUDIT_RETENTION_DAYS`(預設 365)+ `tools/purge_audit.py`(預設 dry-run)。
+⚠️ **本服務沒有排程器**,清除需由 VM 的 cron 或人工執行——設定值本身不會自己生效。
+
+寫入一律經 `app/audit.py::record()` 單一入口,且該函式**同時寫 stdout log**,
+避免出現「log 記了但 audit 沒記」的分岔。
+
+### 3.7 尚未做的
 
 **病毒掃描未接**(T25 待決)。`scan_status` 預設 `not_scanned` 並隨下載回傳——
 「內部平台」不是把未掃描執行檔說成安全的理由。
 
 ---
 
-## 3.7 網頁介面(T40 起)
+## 3.8 網頁介面(T40 起)
 
 Jinja2 伺服器端模板,與 `/v1/*` 的 API 路由分離(決策文件 §6.1):
 
@@ -193,6 +225,21 @@ gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資�
   改用一般路由 `GET /static/{path:path}`,內部仍委派 `StaticFiles.get_response()`
   以保留其路徑逃逸防護。詳見 T40 開發日誌。
 
+### 🔴 網頁 session 自動續期(契約 §3.3:access token 300 秒)
+
+SSO 契約把 access token 壓到 **300 秒**(收權即時性),但本服務的網頁是伺服器端算繪、
+全站零 JS,沒有人會去打 `POST /auth/refresh`;session cookie 卻活 10 小時。
+不續期的話,**登入 5 分鐘後所有頁面靜默退回「請先登入」**。
+
+做法(T52):`_session_token()` 驗不過且手上有 refresh token 時,**向 IdP 換發**,
+新 session 由 `SessionRenewalMiddleware` 寫回 cookie
+(續期發生在相依注入階段,那時還沒有 response 物件)。
+
+- 🔴 **一定是真的去問 IdP**(refresh_token grant),不自行延長任何東西——
+  300 秒的目的就是「管理員收權 / IdP 停用帳號後,既發 token 最長只再活 5 分鐘」。
+  IdP 停用帳號 → refresh 失敗 → 立刻登出。本地的 `status=disabled` 檢查也仍在。
+- token 仍有效時**不打 IdP**;Bearer 呼叫端**不自動續期**(他們自己管 token)。
+
 ### 身分:網頁不因未登入而 401
 
 網頁用 `optional_identity`(取不到身分回 `None` 而非拋錯):匿名訪客該看到登入按鈕,
@@ -208,6 +255,29 @@ gateway 以尾斜線 `proxy_pass` **剝掉前綴**後轉發,所以同一個資�
 
 網頁對未登入/待開通**不回錯誤**而是顯示提示,但只有已開通者才會走到查詢
 ——「不回錯誤」不等於「可以少過濾」。
+
+### 🔴 專案頁:匿名訪客的回應不得洩漏專案是否存在
+
+`/projects/{slug}` 對匿名(與待開通)訪客**一律不查詢**,直接顯示提示。
+
+若先查專案、查不到就 404、查得到才顯示登入提示,**那兩種回應本身就是答案**。
+不查詢的話兩種情況必然回一樣的東西——這是結構保證,不是靠記得。
+
+已開通者才走 `require_project_read()`,它對 private 非成員回 **404 而非 403**
+(403 等於承認專案存在)。網頁與 API 共用同一個函式。
+
+### 🐛 版本列表的排序:`published_at`,不是 `created_at`
+
+`GET /v1/projects/{slug}/releases` 與歷史頁共用 `queries.query_releases()`,
+排序為 **`published_at DESC NULLS FIRST`,再 `created_at DESC`**。
+
+原本 API 用的是 `created_at`,與 `latest_published_release()` 的 `published_at`
+判定**互相矛盾**:先建的版本可能後發布,於是列表第一筆與 `/latest` 會指向不同版本,
+而且兩邊都不會報錯——使用者在歷史頁看到最上面是 v9,點 latest 卻拿到 v10。
+T43 一併修正,並以 T35 那組「建立順序與發布順序相反」的資料釘住。
+
+draft 的 `published_at` 是 NULL,排最前面:那是作者正在做的東西。
+draft 的可見性沿用既有規則——非成員只看得到已發布的版本。
 
 ### 連結:HTML 逸出與 URL 編碼是兩件事
 
@@ -286,6 +356,7 @@ default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
 | GET | `/v1/search?q=` | 跨專案搜尋(只回可見的) |
 | GET | `/v1/projects?tag=` | 依標籤篩選專案(查詢字串同樣正規化)|
 | GET/PATCH | `/v1/admin/users` | 開通 / 停用 / 指派平台角色 |
+| GET | `/v1/admin/audit` | 查詢稽核紀錄(F54);可篩 action / actor / target / 時間區間。🔴 **僅平台管理員** |
 
 **發布鎖定:** 已 published 的版本不可再增刪檔案,避免「同一版內容被偷換」;要改就發新版本。
 
@@ -328,6 +399,10 @@ default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
 | v1.0 | 2026-07-25 15:35 | Claude(Benny 授權) | 初版:產品目標與 MVP 界線、領域模型、presigned 直傳的儲存設計、API 草案、對齊平台規約 |
 | v2.1 | 2026-07-26 08:20 | Claude(Benny 授權) | API 表補上 T34 轉移擁有權與 T35 最新版捷徑(含以檔名下載的固定網址) |
 | v2.2 | 2026-07-27 05:50 | Claude(Benny 授權) | 領域模型新增 `project_tag`(含單表設計的理由);API 表補上標籤三個端點(T36) |
+| v2.11 | 2026-07-28 07:20 | Claude(Benny 授權) | 新增 **§3.6 稽核紀錄**(快照而非外鍵、同交易不留假紀錄、action 不下 DB CHECK 的理由、只開給平台管理員);依第二條 5 回寫 §3.5 的範圍更正——「統計不記個資」在 T38 之後仍成立,但保護範圍限於統計那條路,「誰下載了什麼」確實存在於稽核表,而當初講好的兩個條件(管理員限定、保留期)已落實原 §3.6「尚未做的」順延為 §3.7、§3.7 網頁介面順延為 §3.8(T38) |
+| v2.10 | 2026-07-28 02:20 | Claude(Benny 授權) | §3.7 補上「網頁 session 自動續期」一節(契約 §3.3 access token 300 秒;續期必須真的問 IdP,不得繞過收權)(T52) |
+| v2.9 | 2026-07-28 01:45 | Claude(Benny 授權) | §3.7 補上「版本列表的排序」一節,記錄 `created_at` → `published_at` 的缺陷修正(T43) |
+| v2.8 | 2026-07-27 15:22 | Claude(Benny 授權) | §3.7 補上「專案頁:匿名訪客的回應不得洩漏專案是否存在」一節(T42) |
 | v2.7 | 2026-07-27 15:08 | Claude(Benny 授權) | §3.7 補上「API 與網頁共用同一份可見性查詢」與「HTML 逸出 vs URL 編碼是兩件事」兩節(T41) |
 | v2.6 | 2026-07-27 14:52 | Claude(Benny 授權) | 新增 §3.7 網頁介面(檔案配置、子路徑的兩個方向、`Mount` 二次剝前綴的根因、optional_identity、CSP)(T40) |
 | v2.5 | 2026-07-27 14:35 | Claude(Benny 授權) | 新增 §4.1 錯誤回應的內容協商(路徑 AND Accept 兩條件、`*/*` 不算的理由、autoescape 與 `Vary`/`nosniff`)(T47) |

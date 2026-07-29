@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>決策紀錄:前端技術選型</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:41
-<strong>最後更新:</strong> 2026-07-27 14:35
-<strong>版本:</strong> v1.1
+<strong>最後更新:</strong> 2026-07-28 05:35
+<strong>版本:</strong> v1.2
 <strong>狀態:</strong> ✅ 已定案(2026-07-26,Benny 裁示)
 <strong>對應:</strong> 功能需求大綱 Q9、模組 H(F70–F76)、任務 T39</p>
 <hr />
@@ -236,6 +236,15 @@ API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回
 <p>session cookie 已是 <code>HttpOnly</code> + <code>Secure</code> + <strong><code>SameSite=Lax</code></strong>,
 跨站送出的 PUT / PATCH / DELETE 不會帶上 cookie,CSRF 風險已大幅降低。
 若日後新增以 <code>POST</code> 表單送出的狀態變更,需另評估是否加 CSRF token。</p>
+<blockquote>
+<p><strong>2026-07-28 評估結果(T44 新增了四個 POST 表單):不加 CSRF token。</strong></p>
+<p><code>SameSite=Lax</code> 的語意是「只在<strong>頂層 GET 導覽</strong>時送出 cookie」——跨站的
+<code>&lt;form method="post"&gt;</code> 送出時不會帶 cookie,請求會被當成未登入而擋下。</p>
+<p>🔴 但這個結論<strong>完全建立在該 cookie 屬性上</strong>,所以已寫一條測試釘住它
+(<code>test_web_upload.py::test_session_cookie為SameSite_Lax</code>)。
+哪天有人把它改成 <code>None</code>,防護就沒了而且沒有人會發現。
+<strong>有條件的決定,條件要寫成測試。</strong></p>
+</blockquote>
 <hr />
 <h2>7. 什麼情況下這個決定該被推翻</h2>
 <p>任一條成立就應重新評估,改採 SPA:</p>
@@ -290,6 +299,12 @@ API 呼叫維持 <code>problem+json</code>。RFC 7807 的義務只及於 API 回
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-07-28 05:35</td>
+<td>Claude(Benny 授權)</td>
+<td>§6.5 補上 <strong>CSRF 評估結果</strong>(T44 新增四個 POST 表單,依本節要求評估):不加 token,理由是 <code>SameSite=Lax</code>,且該前提已寫成測試</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-27 14:35</td>

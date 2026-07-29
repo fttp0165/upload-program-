@@ -1,0 +1,51 @@
+{#
+  待開通指引頁(T45 / F75)。
+
+  🔴 **這一頁最重要的內容是使用者自己的 `sub`。**
+
+  契約 §4.2 規定業務庫只存 `sub`——沒有信箱、沒有名字。所以管理後台的清單
+  只會是一排 UUID。使用者要怎麼告訴管理員「我是誰」?管理員又要怎麼在那排
+  UUID 裡認出他?唯一的答案是把 `sub` 顯示給使用者,讓他複製給管理員。
+  少了這一步,兩邊永遠對不上——這不是排版問題,是流程斷掉。
+
+  🔴 `sub` 是使用者可控範圍外的 IdP 值,但仍走 autoescape,不用 |safe。
+
+  「帳號設定」用 `account_url` 而非 `url()`:契約 §2.1 的平台層短網址,
+  加上本服務前綴會變成一條不存在的路徑(具名例外,見 base.html)。
+#}
+{% extends "base.html" %}
+
+{% block title %}帳號待開通 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>帳號待開通</h1>
+
+<p class="notice">{{ pending_detail }}</p>
+
+<h2>請把下面這串識別碼給管理員</h2>
+<p class="muted">
+  本平台依帳號系統接入契約,資料庫<strong>只存這串識別碼(sub)</strong>,不落地你的
+  名字與信箱。管理員的畫面上因此只看得到識別碼——你不給他這一串,他無法確定要開通誰。
+</p>
+
+<dl class="info-grid">
+  <dt>你的識別碼(sub)</dt>
+  <dd><code>{{ identity.sub }}</code></dd>
+  {% if identity.display_name %}
+    <dt>目前登入身分</dt>
+    <dd>{{ identity.display_name }}</dd>
+  {% endif %}
+</dl>
+
+<p class="err-hint">
+  想確認自己的帳號資料(名字、信箱、密碼)請到
+  <a href="{{ account_url }}">帳號設定</a>——那是平台統一的帳號中心,
+  本服務不自建註冊或改密碼頁(契約 §4.8)。
+</p>
+
+<p class="history-link">
+  開通後即可<a href="{{ url('/') }}">回到首頁</a>瀏覽專案。
+</p>
+
+{% endblock %}

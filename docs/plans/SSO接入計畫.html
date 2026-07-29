@@ -42,11 +42,11 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program SSO 接入計畫</h1>
 <p><strong>建立日期:</strong> 2026-07-28 02:19
-<strong>最後更新:</strong> 2026-07-29 03:20
-<strong>版本:</strong> v1.3
+<strong>最後更新:</strong> 2026-07-29 07:30
+<strong>版本:</strong> v1.4
 <strong>對應契約:</strong> <code>cats-portal/DOCS/帳號系統接入契約_SSO.md</code> <strong>v1.7</strong>(2026-07-28)
 <strong>相關任務:</strong> T26、T28、T29、T45 ✅、T51、T52 ✅、T53
-<strong>狀態:</strong> ✅ <strong>S1 申請已受理並裁決</strong>(2026-07-29);portal 側程式碼就緒,唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)</p>
+<strong>狀態:</strong> ✅ <strong>client 已建立、secret 已產出</strong>(2026-07-29,portal 已執行建置腳本);等待 secret 安全管道交付與我方容器上線——<strong>沒有外部阻擋</strong></p>
 <blockquote>
 <p>依開發憲法第二條 3:接 SSO 是跨多任務的大工程,先立獨立計畫文件,經確認後才動工。
 契約權威在 cats-portal,本檔<strong>只引用、不複製維護</strong>;本檔負責的是
@@ -309,8 +309,8 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 登記表裡 compliance 的值是 <code>https://catsapp.sporton.com.tw/compliance/oidc/callback/</code>,
 證實子路徑形式才是正確的。</p>
 <p><strong>✅ 已定案(2026-07-29,portal 裁決函 + 施工單)</strong>:<code>https://catsapp.sporton.com.tw/upload/oidc/callback/</code>。
-client 建置腳本已備、gateway 路由已併入權威設定,<strong>唯一阻擋項是 Keycloak
-正式環境尚未部署</strong>(Platform P0-A),就緒後約 30 分鐘內交付 secret。</p>
+<strong>client 已於同日建立</strong>(冪等腳本 + 回讀驗證),secret 交付檔已產出、待安全管道交付。
+~~「唯一阻擋項是 Keycloak 部署(P0-A)」~~——施工單 v1.1 更正:IdP 早於 2026-07-27 上線。</p>
 </blockquote>
 <h3>4.2 路徑前綴與 gateway 路由(T28)</h3>
 <table>
@@ -345,8 +345,9 @@ client 建置腳本已備、gateway 路由已併入權威設定,<strong>唯一�
 </tbody>
 </table>
 <blockquote>
-<p><strong>✅ 2026-07-29 更新:portal 側程式碼已就緒</strong>(client 腳本 + gateway 路由 +
-契約 v1.9 已 commit),唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)。
+<p><strong>✅ 2026-07-29 更新:portal 側 client 已建立、gateway 設定已備妥(註解中,
+等我方容器上線,見 §5 的 S2)</strong>。~~「阻擋項:Keycloak 部署(P0-A)」~~已由
+施工單 v1.1 更正——IdP 早已上線,本案沒有外部阻擋。
 我方對施工單的完整回覆見 <a href="回覆_portal施工單.md">回覆_portal施工單.md</a>。
 施工單也點出一項我方原本沒發現的錯配:<code>SecurityHeadersMiddleware</code> 自行送
 <code>X-Frame-Options</code>,與 gateway 的 server 層重複——已拿掉(T54)。</p>
@@ -410,13 +411,13 @@ client 建置腳本已備、gateway 路由已併入權威設定,<strong>唯一�
 <td><strong>S1</strong></td>
 <td>T26</td>
 <td><strong>平台方</strong></td>
-<td>✅ <strong>申請已受理並裁決</strong>(2026-07-29):路徑前綴、redirect URI、gateway 路由、<code>client_max_body_size</code> 全數定案;⏳ 唯一未到齊的是 Keycloak 正式環境部署後的 client secret(Platform P0-A)</td>
+<td>✅ <strong>client 已建立</strong>(2026-07-29,冪等腳本執行完畢,回讀驗證過:confidential + PKCE S256、禁 implicit/password、redirect URI 完整比對無萬用字元);secret 交付檔已產出,⏳ 待安全管道交付。~~原記「卡 Keycloak 部署(P0-A)」~~——施工單 v1.1 更正:<strong>IdP 自 2026-07-27 起即已上線</strong>,本案從頭到尾沒有外部阻擋</td>
 </tr>
 <tr>
 <td><strong>S2</strong></td>
 <td>T28</td>
 <td>兩邊</td>
-<td>gateway 側已完成(portal);我方側 T54 已對齊 compose 三項硬性約束、拿掉重複的 <code>X-Frame-Options</code>;bootstrap sub 已填(<strong>可由 <code>/pending</code> 自助取得</strong>,見 §4.3)</td>
+<td>🔴 <strong>施工順序反轉</strong>(施工單 v1.2 §3.0):gateway 的 <code>/upload/</code> 設定已備妥但<strong>刻意保持註解</strong>——nginx 對不存在的上游是 <code>[emerg]</code> 整份載入失敗(portal-gateway 掛掉 = 全平台中斷),所以<strong>我方容器先上線 → 確認解析 → portal 才解除註解 reload</strong>。我方側 T54 已對齊;首次上線步驟見 <a href="../runbook_換版與備份還原.md">runbook §A0</a>;bootstrap sub 可後填(§4.3)</td>
 </tr>
 <tr>
 <td><strong>S3</strong></td>
@@ -593,6 +594,12 @@ client 建置腳本已備、gateway 路由已併入權威設定,<strong>唯一�
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.4</td>
+<td>2026-07-29 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td>依第二條 5 回寫兩項更正:(1)施工單 v1.1 更正 <strong>Keycloak 早已上線</strong>(2026-07-27 起),v1.3 記的「唯一阻擋項 P0-A」不成立,本案沒有外部阻擋;(2)施工單 v1.2 新增 §3.0 <strong>施工順序反轉</strong>——我方容器先上線,portal 路由保持註解等我方。並記錄 <strong>client 已建立、secret 已產出</strong>(portal 執行腳本輸出:冪等 update、回讀驗證通過);漏抓補正:全平台統一 <strong>PG15</strong>,compose 由 16.4 改 15.8</td>
+</tr>
 <tr>
 <td>v1.3</td>
 <td>2026-07-29 03:20</td>

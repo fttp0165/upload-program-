@@ -42,11 +42,11 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>回覆:portal SSO 接入施工單(upload-program)</h1>
 <p><strong>建立日期:</strong> 2026-07-29 03:20
-<strong>最後更新:</strong> 2026-07-29 03:20
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-29 07:30
+<strong>版本:</strong> v1.1
 <strong>回覆對象:</strong> portal 統一入口平台(cats-portal)
 <strong>對應文件:</strong> <code>upload-program SSO 接入施工單(技術規格)</code> v1.0(2026-07-29)§9
-<strong>狀態:</strong> 📤 回覆完畢,等待 Keycloak 正式環境部署</p>
+<strong>狀態:</strong> 📤 回覆完畢;client 已建立,等 secret 安全管道交付後我方部署容器</p>
 <blockquote>
 <p>這份文件回答施工單 §9「需要貴方回覆的事項」五項。逐項核對現有實作後,
 兩項要修的地方已修完(T54,見 <a href="../dev-logs/2026-07-29_T54_portal施工單技術對齊.md">開發日誌</a>),
@@ -145,8 +145,14 @@ summary { cursor:pointer; color:#12228f; }
 的部署形態才驗得到——這點與貴方原文一致:「在本機開發(無 gateway 剝前綴)
 一定是綠的,只有經過 gateway 才會現形」。我方會在 T29(接入冒煙清單)
 執行時逐項留存證據。</p>
-<p><strong>目前唯一的阻擋項與貴方施工單 §8 一致:Keycloak 正式環境部署(Platform P0-A)。</strong>
-就緒後請直接執行交付腳本,我方隨時可以配合冒煙。</p>
+<p>~~<strong>目前唯一的阻擋項與貴方施工單 §8 一致:Keycloak 正式環境部署(Platform P0-A)。</strong>~~</p>
+<blockquote>
+<p><strong>更正(2026-07-29,依施工單 v1.1/v1.2)</strong>:上句所依據的施工單 v1.0 有事實錯誤,
+貴方已自行更正——<strong>IdP 自 2026-07-27 起即已上線</strong>,本案沒有外部阻擋。
+且施工單 v1.2 §3.0 明確了施工順序:<strong>我方容器先上線,貴方才解除 <code>/upload/</code> 註解並
+reload</strong>。我方已據此把首次上線流程寫進 <a href="../runbook_換版與備份還原.md">runbook §A0</a>,
+並確認貴方已執行 client 建置腳本(回讀驗證通過)——等 secret 以安全管道交付即可部署。</p>
+</blockquote>
 <hr />
 <h2>版本歷史</h2>
 <table>
@@ -159,6 +165,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-29 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td>依施工單 v1.1/v1.2 補記更正:IdP 早已上線(P0-A 阻擋不成立)、施工順序反轉(我方容器先上線);記錄 client 建置腳本已執行、回讀驗證通過</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-29 03:20</td>

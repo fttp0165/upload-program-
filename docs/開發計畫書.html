@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 開發計畫書</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 03:20
-<strong>版本:</strong> v1.3</p>
+<strong>最後更新:</strong> 2026-07-29 07:30
+<strong>版本:</strong> v1.4</p>
 <blockquote>
 <p>本文是 upload-program 的開發藍圖:目標、範圍、里程碑、資料影響分級與回滾原則。
 任務層級的追蹤見 <a href="任務表.md">任務表.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>。
@@ -376,7 +376,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>SSO client_id / secret</td>
 <td><code>upload-program</code></td>
-<td>⏳ client 已受理,<strong>待 Keycloak 正式環境部署</strong>(portal 施工單 §8)</td>
+<td>🔵 <strong>client 已建立</strong>(2026-07-29,回讀驗證過);secret 已產出,⏳ 待安全管道交付(IdP 早已上線,無外部阻擋)</td>
 </tr>
 <tr>
 <td>gateway <code>client_max_body_size</code></td>
@@ -419,7 +419,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>3</td>
 <td>要不要自己的 DB?資料量級?</td>
-<td>要:PostgreSQL 16。metadata 量小(千筆級);檔案在 MinIO,初估數十 GB</td>
+<td>要:PostgreSQL <strong>15</strong>(全平台統一 PG15,施工單 §3;原規劃 16,2026-07-29 對齊)。metadata 量小(千筆級);檔案在 MinIO,初估數十 GB</td>
 </tr>
 <tr>
 <td>4</td>
@@ -513,6 +513,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.4</td>
+<td>2026-07-29 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td>§6 SSO client 狀態更新為「已建立、secret 待交付」;依施工單 v1.1 移除「待 Keycloak 部署」的錯誤前提</td>
+</tr>
 <tr>
 <td>v1.3</td>
 <td>2026-07-29 03:20</td>

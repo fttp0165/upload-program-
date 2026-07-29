@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-29 04:25
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-29 07:30
+<strong>版本:</strong> v1.1
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -55,6 +55,65 @@ summary { cursor:pointer; color:#12228f; }
 3. <strong>絕不啟動舊的 <code>nginx-gateway</code></strong>——它會搶 80/443,全平台一起掛。</p>
 </blockquote>
 <hr />
+<h2>A0. 首次上線(只做一次;順序與直覺相反)</h2>
+<p><strong>🔴 是我方容器先上線,portal 的路由後啟用——不是反過來</strong>(施工單 v1.2 §3.0)。</p>
+<p>nginx 對寫死主機名的上游(<code>proxy_pass http://upload-program:8080/</code>)是在
+<strong>載入設定當下</strong>解析的。容器不存在時不是回 502,而是 <code>[emerg]</code> 讓<strong>整份設定
+載入失敗、gateway 起不來</strong>——而 portal-gateway 綁 80/443,它起不來等於
+PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 路由<strong>刻意保持註解</strong>,
+等我方容器上線後才解除。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>步驟</th>
+<th>誰做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>從安全管道收取 <code>idp/.env.keycloak.upload-program</code>(client secret),填入部署 <code>.env</code>(chmod 600,不進 git)</td>
+<td>我方</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>BOOTSTRAP_ADMIN_SUBS</code> 可先留空——上線後指定人選登入、從 <code>/upload/pending</code> 複製自己的 <code>sub</code> 再回填重啟(SSO 接入計畫 §4.3)</td>
+<td>我方</td>
+</tr>
+<tr>
+<td>3</td>
+<td>容器上線:<code>docker compose up -d</code>(容器名 <code>upload-program</code>、監聽 8080、已在 <code>cats-edge</code>)</td>
+<td>我方</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>docker compose exec svc alembic upgrade head</code></td>
+<td>我方</td>
+</tr>
+<tr>
+<td>5</td>
+<td>確認 gateway 解析得到:<code>docker exec portal-gateway getent hosts upload-program</code></td>
+<td>雙方</td>
+</tr>
+<tr>
+<td>6</td>
+<td>portal 解除 <code>/upload/</code> 註解 → <code>nginx -t</code> → 低峰 reload</td>
+<td>portal</td>
+</tr>
+<tr>
+<td>7</td>
+<td>冒煙:§A.4 全套 + 既有系統零差異(<code>/</code>、<code>/plm/</code>、<code>/TMP_GEN/</code>、<code>/core/health</code>)</td>
+<td>雙方</td>
+</tr>
+<tr>
+<td>8</td>
+<td>掛 cron(§C.2)——備份與稽核清理<strong>不掛就不存在</strong></td>
+<td>我方</td>
+</tr>
+</tbody>
+</table>
+<p>之後的每次換版走下面的 §A;首次上線的特殊之處只有第 5、6 步。</p>
 <h2>A. 換版(部署新版本)</h2>
 <h3>A.0 前置確認(第一次部署後,每次都一樣)</h3>
 <pre><code class="language-bash">cd /srv/upload-program          # 部署目錄(實際路徑以 VM 為準)
@@ -277,6 +336,12 @@ echo &quot;OK: $DEST&quot;
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-29 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td>新增 <strong>§A0 首次上線</strong>(施工單 v1.2 §3.0:我方容器<strong>先</strong>上線,portal 的 <code>/upload/</code> 路由保持註解等我方——nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-29 04:25</td>

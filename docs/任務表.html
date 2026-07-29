@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 10:20
-<strong>版本:</strong> v1.31</p>
+<strong>最後更新:</strong> 2026-07-29 11:40
+<strong>版本:</strong> v1.32</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T56</td>
+<td>UI 改版:套用設計稿</td>
+<td>✅</td>
+<td>🟢</td>
+<td>設計師依<a href="介面導覽_給UI設計.md">介面導覽</a>交付 11 畫面 mockup;<code>app.css</code> 全面重寫(設計 token 進 <code>:root</code>:藏青/綠/膠囊/卡片漸層條),模板只加 class 不動文字與連結;卡片漸層條與雙圓 logo 用<strong>偽元素零標記</strong>;容量條用原生 <code>&lt;progress&gt;</code>(CSP 禁 inline style);待開通頁複製鈕以<strong>漸進增強</strong>外部 JS 實作(推翻 T45「不值得」的判斷——設計師把它列為開通流程第一步);<strong>337 條既有測試零放寬全綠</strong></td>
+</tr>
+<tr>
 <td>T55</td>
 <td>首次上線實測修正(bootstrap 升級 + 部署缺陷)</td>
 <td>✅</td>
@@ -691,6 +698,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.32</td>
+<td>2026-07-29 11:40</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T56 UI 改版完成</strong>:套用設計稿(藏青+綠、膠囊按鈕、卡片漸層條、amber 警示徽章、未登入 hero、管理分頁列、複製識別碼鈕)。落地紀律:337 條既有測試<strong>一條都不放寬</strong>全綠——裝飾一律偽元素、動態寬度用原生 <code>&lt;progress&gt;</code>、測試釘住的文字與連結全數保留。測試數不變(純前端)</td>
 </tr>
 <tr>
 <td>v1.31</td>

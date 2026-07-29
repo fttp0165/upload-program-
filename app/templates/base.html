@@ -31,7 +31,7 @@
 </head>
 <body>
 <nav class="nav">
-  <a class="nav-brand" href="{{ url('/') }}">upload-program</a>
+  <a class="nav-brand" href="{{ url('/') }}">程式分享平台</a>
 
   <form class="nav-search" method="get" action="{{ url('/') }}" role="search">
     <input type="search" name="q" placeholder="搜尋專案" value="{{ q or '' }}" aria-label="搜尋專案">
@@ -48,10 +48,10 @@
       {% endif %}
       <span class="nav-name">{{ identity.display_name or identity.sub }}</span>
       <a class="nav-link" href="{{ account_url }}">帳號設定</a>
-      <a class="nav-link" href="{{ url('/auth/logout') }}">登出</a>
+      <a class="nav-link nav-pill" href="{{ url('/auth/logout') }}">登出</a>
     {% else %}
       <a class="nav-link" href="{{ account_url }}">帳號設定</a>
-      <a class="nav-link" href="{{ url('/auth/login') }}">登入</a>
+      <a class="nav-link nav-pill" href="{{ url('/auth/login') }}">登入</a>
     {% endif %}
   </div>
 </nav>

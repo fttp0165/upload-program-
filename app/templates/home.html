@@ -10,11 +10,18 @@
 {% block content %}
 
 {% if identity is none %}
-  <h1>公司內部程式分享平台</h1>
-  <p class="lead">建立專案,上傳原始碼、執行檔與程式文件,以版本為單位發布、瀏覽與下載。</p>
-  <p class="notice">
-    請先<a href="{{ url('/auth/login') }}">登入</a>以瀏覽專案。
-  </p>
+  {# T56 hero:設計稿的未登入落地頁。刻意不放「建立專案」連結(有測試釘住)。 #}
+  <div class="hero">
+    <h1>公司內部程式分享平台</h1>
+    <p class="lead">建立專案,上傳原始碼、執行檔與程式文件,以版本為單位發布、瀏覽與下載。所有內容僅限公司內部使用。</p>
+    <p class="notice">請先<a class="hero-cta" href="{{ url('/auth/login') }}">登入</a></p>
+    <p class="hero-note">使用公司帳號登入;首次登入後需請管理員開通</p>
+    <div class="feature-grid">
+      <div class="feature card"><h3>一個程式一個專案</h3><p>含短名、摘要與標籤,方便搜尋與瀏覽</p></div>
+      <div class="feature card"><h3>以版本發布</h3><p>上傳檔案、填寫發布說明,一次發布一個版本</p></div>
+      <div class="feature card"><h3>安全下載</h3><p>每個檔案附 SHA-256 校驗碼與掃毒狀態</p></div>
+    </div>
+  </div>
 
 {% elif not identity.user.is_active %}
   <h1>帳號待開通</h1>

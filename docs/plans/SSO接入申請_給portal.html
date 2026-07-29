@@ -42,11 +42,11 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program SSO 接入申請書(致 cats-portal / Platform)</h1>
 <p><strong>建立日期:</strong> 2026-07-28 03:28
-<strong>最後更新:</strong> 2026-07-28 03:28
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-28 08:00
+<strong>版本:</strong> v1.1
 <strong>申請方:</strong> upload-program(公司內部開發者程式分享平台)
 <strong>依據:</strong> <code>帳號系統接入契約_SSO.md</code> <strong>v1.7</strong> §5 申請流程
-<strong>狀態:</strong> 📤 待 portal 受理</p>
+<strong>狀態:</strong> 📤 待 portal 受理(程式面已無自主可做的事,MVP 僅剩本申請這一關)</p>
 <blockquote>
 <p><strong>這份文件的定位:</strong> 契約的權威在 cats-portal,本文件<strong>不是契約、不改契約</strong>,
 而是契約 §5 要求的<strong>申請內容 + 合規聲明</strong>。我方的內部施工計畫另見
@@ -98,14 +98,16 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>預計接入時程</td>
-<td>拿到 client 與前綴後,設定與冒煙約需 1 個工作天</td>
+<td>拿到 client 與前綴後,設定與冒煙約需 1 個工作天(程式面已就緒,無待完成項)</td>
 </tr>
 </tbody>
 </table>
 <hr />
 <h2>2. 合規聲明(逐條對照契約義務)</h2>
 <p><strong>程式已完成並有自動化測試背書</strong>,可隨時提供 repo 供稽核。
-測試總數 249,CI 全綠(lint / 測試 / 文件同步 / git 紅線 / SSO 紅線 / Trivy)。</p>
+測試總數 <strong>328</strong>,CI 全綠(lint / 測試 / 文件同步 / git 紅線 / SSO 紅線 / Trivy)。
+MVP 範圍內我方能自主推進的部分已全數完成(前端 F70–F76、稽核紀錄 F54);
+<strong>剩下的都卡在本申請這一關</strong>,拿到 client 與前綴即可進入冒煙驗收。</p>
 <h3>2.1 §3 Token 契約</h3>
 <table>
 <thead>
@@ -245,7 +247,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><strong>不得</strong>把 token 存進 <code>localStorage</code></td>
 <td>✅</td>
-<td>token <strong>只在 HttpOnly cookie</strong>;目前全站零 JS</td>
+<td>token <strong>只在 HttpOnly cookie</strong>;上傳頁已導入外部 JS(XHR PUT + 進度條),原始碼層級掃描守門(禁止 <code>localStorage</code>/<code>sessionStorage</code> 字樣出現在任何 JS/HTML/CSS)</td>
 </tr>
 </tbody>
 </table>
@@ -255,6 +257,11 @@ summary { cursor:pointer; color:#12228f; }
 下載一律 <code>Content-Disposition: attachment</code> + <code>nosniff</code>
 ——本服務散布可執行檔,絕不讓上傳內容在本網域被瀏覽器執行。</p>
 </blockquote>
+<h3>2.4 稽核紀錄(自我加嚴,呼應契約 §4.2 的個資邊界)</h3>
+<p>我方已實作操作稽核(誰在何時開通/建立/刪除/上傳/下載了什麼),邊界與 §4.2 一致:
+稽核表<strong>只存本地 <code>user_id</code></strong>,無 email/姓名欄位;查詢僅平台管理員可用;保留期
+365 天並有清理工具。列在此處是為了說明:即使有稽核需求,我方也<strong>沒有</strong>另外
+落地個資來滿足它——這件事不會成為將來偏離 §4.2 的理由。</p>
 <hr />
 <h2>3. 需要 portal 提供的項目</h2>
 <table>
@@ -416,8 +423,11 @@ compliance(<code>mozilla-django-oidc</code> session 模式)與 sporton_core 的�
 第一個使用者登入後,沒有任何人有權開通他,系統實質鎖死。</p>
 <p>我方以設定檔中的 bootstrap admin <code>sub</code> 清單解決(該人首登即為管理員)。
 這需要<strong>在部署前先取得該人的 <code>sub</code></strong>,是一個容易到上線當天才發現的前置條件。</p>
-<p><strong>建議:</strong> 契約 §4.3 或 §5 流程補一句提醒各 App 準備此機制,
-或由 portal 在交付 <code>.env.keycloak</code> 時一併提供指定人員的 <code>sub</code>。</p>
+<p><strong>我方的解法(已實作,供參考):</strong> 待開通頁(未開通者登入後看到的畫面)直接顯示
+使用者自己的 <code>sub</code>,讓指定人選<strong>自助</strong>取得,不需 portal 或該人另外查 Keycloak 後台。
+連帶效果是「先部署、後拿 sub」變成可行順序——不必等 sub 到手才能上線。</p>
+<p><strong>建議:</strong> 契約 §4.3 或 §5 流程補一句提醒各 App 準備此機制(或直接建議「待開通頁
+顯示使用者自己的 sub」這個做法),而不必依賴 portal 逐一提供指定人員的 <code>sub</code>。</p>
 <hr />
 <h2>8. 附註:repo 命名</h2>
 <p>我方 repo 名為 <code>upload-program-</code>(<strong>尾端多一個連字號</strong>),不符命名規約的
@@ -436,6 +446,12 @@ compliance(<code>mozilla-django-oidc</code> session 模式)與 sporton_core 的�
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-28 08:00</td>
+<td>Claude(Benny 授權)</td>
+<td>依 T44/T45/T38 完工後更新:測試數 249→328;§4.10 的 localStorage 一項改為反映<strong>已導入外部 JS</strong>(上傳頁)後的原始碼守門,不再寫「全站零 JS」;新增 <strong>§2.4 稽核紀錄</strong>的個資邊界聲明(呼應 §4.2,說明稽核需求未成為落地個資的理由);§7.3 補上<strong>待開通頁自助顯示 sub</strong> 的已實作解法,取代原本「請 portal 提供 sub」的被動建議;§1 摘要註明程式面已無待完成項</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-28 03:28</td>

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 介面導覽(給 UI 設計)</h1>
 <p><strong>建立日期:</strong> 2026-07-29 10:10
-<strong>最後更新:</strong> 2026-07-29 11:40
-<strong>版本:</strong> v1.1
+<strong>最後更新:</strong> 2026-07-29 14:30
+<strong>版本:</strong> v1.2
 <strong>對象:</strong> UI / 視覺設計
 <strong>目的:</strong> 讓你不用讀程式碼就知道:這個系統有哪些頁面、每頁長什麼、樣式住在哪裡、
 哪些東西可以放手改、哪些是紅線不能碰。</p>
@@ -65,12 +65,12 @@ summary { cursor:pointer; color:#12228f; }
 </thead>
 <tbody>
 <tr>
-<td>伺服器端算繪(Jinja2 模板),<strong>全站幾乎零 JS</strong>(只有上傳頁有一支進度條 JS)</td>
-<td>沒有前端框架、沒有元件庫;改的是 HTML 模板 + 一支 CSS</td>
+<td>伺服器端算繪(Jinja2 模板),JS 極少(上傳進度條、複製鈕,以及導航列的漢堡/下拉由 <strong>自託管 Bootstrap 5</strong> 承擔)</td>
+<td>沒有 SPA 框架;改的是 HTML 模板 + 一支 CSS</td>
 </tr>
 <tr>
-<td><strong>樣式全部集中在一個檔案</strong>:<code>app/static/app.css</code>(約 260 行)</td>
-<td>你的主戰場。目前是工程師寫的「能看」等級,全面美化空間很大</td>
+<td><strong>佈景權威是單一檔案</strong>:<code>app/static/app.css</code>(Bootstrap 先載、它後載,同名樣式以它為準)</td>
+<td>你的主戰場。Bootstrap 只當結構機制(navbar/collapse/dropdown),視覺仍由 <code>app.css</code> 說了算</td>
 </tr>
 <tr>
 <td>模板在 <code>app/templates/</code>(9 個 <code>.html</code>,Jinja2 語法)</td>
@@ -82,7 +82,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>🔴 <strong>禁止任何外部資源</strong>(CDN 字型、圖示庫、外部圖片都會被瀏覽器擋下)</td>
-<td>Google Fonts、Font Awesome 之類<strong>不能用</strong>;要自訂字型/圖示得把檔案放進 <code>app/static/</code> 自行託管</td>
+<td>Google Fonts、Font Awesome 之類<strong>不能用</strong>;要自訂字型/圖示得把檔案放進 <code>app/static/</code> 自行託管(Bootstrap 就是這樣進來的:<code>app/static/vendor/</code>,非 CDN);<code>data:</code> URI 圖片同樣被擋</td>
 </tr>
 <tr>
 <td>🔴 <strong>只做淺色(light)主題</strong>(開發規範明定,禁 dark mode 與自動切換)</td>
@@ -184,6 +184,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-07-29 14:30</td>
+<td>Claude(Benny 授權)</td>
+<td>T58:導航列改 Bootstrap 5 navbar(自託管)解擁擠——使用者名/帳號設定/登出收進下拉,窄螢幕收漢堡;技術形態表同步(佈景權威仍是 <code>app.css</code>,Bootstrap 只當結構機制)</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-29 11:40</td>

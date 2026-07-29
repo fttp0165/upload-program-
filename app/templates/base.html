@@ -27,38 +27,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}upload-program{% endblock %}</title>
+{# T58:Bootstrap 5 自託管(CSP 禁外部資源,CDN 不可能)。
+   🔴 載入順序是佈景機制:vendor 先、app.css 後——同名類(.btn/.badge/.card/.nav-link)
+   以我方樣式覆蓋,設計語言(T56)不因引入框架而改變。 #}
+<link rel="stylesheet" href="{{ url('/static/vendor/bootstrap.min.css') }}">
 <link rel="stylesheet" href="{{ url('/static/app.css') }}">
 </head>
 <body>
-<nav class="nav">
-  <a class="nav-brand" href="{{ url('/') }}">程式分享平台</a>
+{#
+  T58 導航列改用 Bootstrap navbar:登入後原本七項擠一排,現收為四群——
+  品牌 / 搜尋 / 動作連結 / 使用者下拉(使用者名 → 帳號設定、登出);
+  窄螢幕(<lg)收漢堡選單。
 
-  <form class="nav-search" method="get" action="{{ url('/') }}" role="search">
-    <input type="search" name="q" placeholder="搜尋專案" value="{{ q or '' }}" aria-label="搜尋專案">
-  </form>
+  🔴 漢堡鈕用文字字元「☰」,**不用** Bootstrap 的 .navbar-toggler-icon:
+  那個圖示是 data: URI,會被我們的 CSP(default-src 'self')擋下,
+  而放寬 CSP 是 §4.10 紅線(有測試釘著)。
+  🔴 下拉觸發用 <button> 不用 <a href="#">:紅線規定連結一律經過 url(),
+  「#」不是路徑,不該以連結偽裝按鈕。
+#}
+<nav class="nav navbar navbar-expand-lg">
+  <a class="nav-brand navbar-brand" href="{{ url('/') }}">程式分享平台</a>
 
-  <div class="nav-user">
-    {% if identity %}
-      {% if identity.user.is_active %}
-        <a class="nav-link" href="{{ url('/projects/new') }}">建立專案</a>
-        {# T45:管理後台若沒有入口就等於不存在,管理員只能手打網址。 #}
-        {% if identity.user.is_admin %}
-          <a class="nav-link" href="{{ url('/admin/users') }}">管理</a>
+  <button class="navbar-toggler nav-toggler" type="button" data-bs-toggle="collapse"
+          data-bs-target="#topnav" aria-controls="topnav" aria-expanded="false"
+          aria-label="展開選單">☰</button>
+
+  <div class="collapse navbar-collapse" id="topnav">
+    <form class="nav-search" method="get" action="{{ url('/') }}" role="search">
+      <input type="search" name="q" placeholder="搜尋專案" value="{{ q or '' }}" aria-label="搜尋專案">
+    </form>
+
+    <ul class="navbar-nav nav-user ms-lg-auto align-items-lg-center">
+      {% if identity %}
+        {% if identity.user.is_active %}
+          <li class="nav-item"><a class="nav-link" href="{{ url('/projects/new') }}">建立專案</a></li>
+          {# T45:管理後台若沒有入口就等於不存在,管理員只能手打網址。 #}
+          {% if identity.user.is_admin %}
+            <li class="nav-item"><a class="nav-link" href="{{ url('/admin/users') }}">管理</a></li>
+          {% endif %}
         {% endif %}
+        <li class="nav-item dropdown">
+          <button class="nav-link nav-name dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            {{ identity.display_name or identity.sub }}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-lg-end">
+            <li><a class="dropdown-item" href="{{ account_url }}">帳號設定</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url('/auth/logout') }}">登出</a></li>
+          </ul>
+        </li>
+      {% else %}
+        <li class="nav-item"><a class="nav-link" href="{{ account_url }}">帳號設定</a></li>
+        <li class="nav-item"><a class="nav-link nav-pill" href="{{ url('/auth/login') }}">登入</a></li>
       {% endif %}
-      <span class="nav-name">{{ identity.display_name or identity.sub }}</span>
-      <a class="nav-link" href="{{ account_url }}">帳號設定</a>
-      <a class="nav-link nav-pill" href="{{ url('/auth/logout') }}">登出</a>
-    {% else %}
-      <a class="nav-link" href="{{ account_url }}">帳號設定</a>
-      <a class="nav-link nav-pill" href="{{ url('/auth/login') }}">登入</a>
-    {% endif %}
+    </ul>
   </div>
 </nav>
 
 <main class="page">
 {% block content %}{% endblock %}
 </main>
+{# T58:navbar 的 collapse 與 dropdown 需要 Bootstrap JS。
+   🔴 外部檔案(CSP 禁 inline script);collapse 動畫由 JS 設 element.style,
+   那是 CSSOM 操作,CSP 不擋——與被禁的 inline style 屬性是兩回事。 #}
+<script src="{{ url('/static/vendor/bootstrap.bundle.min.js') }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

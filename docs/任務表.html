@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 13:35
-<strong>版本:</strong> v1.33</p>
+<strong>最後更新:</strong> 2026-07-29 14:30
+<strong>版本:</strong> v1.34</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T58</td>
+<td>導航列 Bootstrap 5 化(解擁擠)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示採用 Bootstrap 5;<strong>自託管 vendor</strong>(CSP 禁外部資源,CDN 不可能):5.3.8 官包原檔 + LICENSE 進 <code>static/vendor/</code>;登入後導航七項收為四群(使用者名/帳號設定/登出進<strong>下拉</strong>),窄螢幕收<strong>漢堡</strong>;🔴 CSP 逐字不動——漢堡用字元「☰」自繪(Bootstrap 圖示是 <code>data:</code> URI 會被擋)、下拉觸發用 <code>&lt;button&gt;</code> 不用 <code>href="#"</code>(連結一律 <code>url()</code> 紅線);vendor 先載 <code>app.css</code> 後載,同名類我方覆蓋(框架進場、設計語言不變);<strong>337 測試零放寬全綠</strong></td>
+</tr>
+<tr>
 <td>T57</td>
 <td>UI 打磨:動效與質感第二輪</td>
 <td>✅</td>
@@ -705,6 +712,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.34</td>
+<td>2026-07-29 14:30</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T58 導航列 Bootstrap 5 化完成</strong>(Benny:「導航太擁擠,採用 bootstrap 5」):自託管 vendor、七項收四群(使用者下拉+漢堡);CSP 與 337 條測試逐字不動——<code>data:</code> 圖示與 <code>href="#"</code> 兩個框架慣例都因紅線改走替代做法</td>
 </tr>
 <tr>
 <td>v1.33</td>

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 14:30
-<strong>版本:</strong> v1.34</p>
+<strong>最後更新:</strong> 2026-07-29 15:00
+<strong>版本:</strong> v1.35</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T59</td>
+<td>管理後台顯示名稱快取(<strong>待 Platform 裁示,裁示前不動工</strong>)</td>
+<td>⬜</td>
+<td>🟡</td>
+<td>營運實測:管理後台只有 sub,開通後的日常管理無法認人,且會催生管理員私記的影子對照表;已依 §4.2 紅線流程提出<strong>具名特例申請</strong>(比照 PLM §6.1):<a href="plans/申請_姓名快取特例_給portal.md">申請_姓名快取特例_給portal</a>——僅 <code>name</code> claim、登入時覆寫、僅管理後台顯示、不進 log、可整批清除、不呼叫 Admin API;獲准後才開工(migration 加 nullable 欄位,backward 為 drop column)</td>
+</tr>
+<tr>
 <td>T58</td>
 <td>導航列 Bootstrap 5 化(解擁擠)</td>
 <td>✅</td>
@@ -712,6 +719,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.35</td>
+<td>2026-07-29 15:00</td>
+<td>Claude(Benny 授權)</td>
+<td>新開 <strong>T59 顯示名稱快取</strong>(⬜ 待 Platform 裁示):Benny 裁示需要認人;依 §4.2 紅線走<strong>具名特例申請</strong>而非直接實作,申請書見 plans/;裁示前不動任何欄位</td>
 </tr>
 <tr>
 <td>v1.34</td>

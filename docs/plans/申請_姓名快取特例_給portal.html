@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申請:顯示名稱快取之契約具名特例(upload-program)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/申請_姓名快取特例_給portal.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>申請:顯示名稱快取之契約具名特例(upload-program)</h1>
+<p><strong>建立日期:</strong> 2026-07-29 15:00
+<strong>最後更新:</strong> 2026-07-29 15:00
+<strong>版本:</strong> v1.0
+<strong>發文方:</strong> upload-program(申請人:Benny)
+<strong>收文方:</strong> cats-portal / Platform
+<strong>申請標的:</strong> 帳號系統接入契約 §4.2「業務庫只存 <code>sub</code>」之<strong>具名特例</strong>(比照 PLM §6.1 模式)
+<strong>裁示前狀態:</strong> 本專案<strong>不動任何資料庫欄位</strong>——本文件是申請,不是通知。</p>
+<hr />
+<h2>1. 問題(營運實測,2026-07-29 上線首日)</h2>
+<p>契約 §4.2 之下,本服務管理後台的使用者清單<strong>只有 <code>sub</code>(UUID)</strong>:</p>
+<pre><code>be9a536c-db97-470a-802e-14de7a7dd279   active   [停用]
+745497ee-b02c-4063-a71f-6a775c40c0bf   active   管理員(你自己)
+</code></pre>
+<p><strong>開通</strong>流程沒有問題:申請人到「待開通」頁複製自己的 sub 傳給管理員,一對一開通,
+這是契約設計內的做法,我們照做且運作正常。</p>
+<p>問題出在<strong>開通之後的日常管理</strong>:</p>
+<ul>
+<li>清單累積後,管理員面對一排 UUID <strong>無法辨識誰是誰</strong>;
+  要停用某人、查某人的稽核紀錄,都得先翻出當初的 sub 對照(訊息紀錄、便條)</li>
+<li>稽核頁的「操作者」同樣只有識別碼,追查操作要人工二次對照</li>
+<li>使用者數成長後,這個對照成本線性增加,而且對照表本身
+  (管理員私下記的「誰=哪串 UUID」)反而成了<strong>契約管不到的影子個資</strong>——
+  比受控的快取更糟</li>
+</ul>
+<h2>2. 請求</h2>
+<p>比照 PLM 的契約 §6.1 具名特例,准許 upload-program <strong>快取使用者顯示名稱</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>快取內容</td>
+<td><strong>僅顯示名稱</strong>(OIDC token 的 <code>name</code> claim);<strong>不含 email、不含其他個資</strong></td>
+</tr>
+<tr>
+<td>來源</td>
+<td>使用者<strong>本人登入時</strong>服務已合法取得的 ID token——<strong>不另呼叫 Keycloak Admin API</strong>,不新增對 IdP 的權限需求</td>
+</tr>
+<tr>
+<td>更新</td>
+<td>每次登入覆寫(改名、離職停用後重登入自動反映;無背景同步)</td>
+</tr>
+<tr>
+<td>用途</td>
+<td><strong>僅管理後台顯示</strong>(使用者管理、稽核紀錄的操作者辨識);不出現在一般使用者可見頁面、不進 API 回應、不作任何授權判斷依據</td>
+</tr>
+<tr>
+<td>儲存</td>
+<td>業務庫 <code>users</code> 表加一個 nullable 欄位(如 <code>display_name_cache</code>);未再登入者維持空值(畫面照舊顯示 sub)</td>
+</tr>
+<tr>
+<td>清除</td>
+<td>提供整批清除工具(比照 <code>tools/purge_audit.py</code> 模式);個別使用者資料刪除請求可即時清除</td>
+</tr>
+<tr>
+<td>日誌</td>
+<td>顯示名稱<strong>不進 log</strong>(維持現行「log 不記個資」鐵則)</td>
+</tr>
+<tr>
+<td>備份</td>
+<td>隨 DB 備份(既有備份保存 14 天輪替,無另外複本)</td>
+</tr>
+</tbody>
+</table>
+<h3>建議契約增修文字(供 portal 起草參考)</h3>
+<blockquote>
+<p>§6.1 增列:<strong>upload-program</strong> 得於業務庫快取使用者顯示名稱,限自該使用者
+本人登入時之 ID token <code>name</code> claim 取得,每次登入覆寫;僅供管理後台辨識,
+不得含 email、不得用於授權判斷、不得進入日誌;應提供整批清除機制。</p>
+</blockquote>
+<h2>3. 已評估的替代方案(以及為何不採)</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>評估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>維持現狀(sub 人工對照)</td>
+<td>開通可行;日常管理隨人數線性惡化,且催生管理員私記的影子對照表——個資落在契約管轄外,風險更高</td>
+</tr>
+<tr>
+<td>即時呼叫 Keycloak Admin API 查名字</td>
+<td>需要 Admin API 權限——對 Platform 是<strong>更大</strong>的授權面(可查全 realm 使用者),且引入執行期耦合(IdP 抖動→管理後台跟著掛);為了「顯示名字」拿管理權限,不成比例</td>
+</tr>
+<tr>
+<td>名字放前端 session 不落庫</td>
+<td>只能顯示「自己」,無法解決「管理員認別人」的核心問題</td>
+</tr>
+<tr>
+<td><strong>顯示名稱快取(本申請)</strong></td>
+<td>最小揭露(單欄位、無 email)、最小權限(不加 IdP 權限)、可清除、有契約條文可稽</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 若獲准,我方的實作承諾</h2>
+<ul>
+<li>依憲法流程執行(先計畫、TDD 先紅後綠、開發日誌);任務編號 T59,裁示前不動工</li>
+<li>migration 提供 backward(drop column 即回滾),上線前依規範於 staging 雙向演練</li>
+<li>快取欄位上線後,管理後台顯示格式:<code>名字(sub 前 8 碼…)</code>——名字是輔助,sub 仍是主鍵事實</li>
+<li>契約對齊紀錄照 T51 模式留檔,標明對齊版本</li>
+</ul>
+<h2>5. 請 portal 裁示的點</h2>
+<ol>
+<li><strong>准/駁</strong>本特例</li>
+<li>若准:契約 §6.1 增修文字由貴方定稿(§2 附建議稿),我方以定稿為準對齊</li>
+<li>若駁:請指示可接受的替代方向,我方調整營運流程</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-29 15:00</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:上線首日營運實測痛點、比照 PLM §6.1 之顯示名稱快取申請(最小揭露/最小權限/可清除)、三個替代方案評估、契約增修建議稿</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

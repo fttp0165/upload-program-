@@ -121,13 +121,22 @@ async def _session_token(request: Request) -> str | None:
     return renewed.access_token
 
 
-async def upsert_user(session: AsyncSession, sub: str, settings: Settings) -> User:
+async def upsert_user(
+    session: AsyncSession, sub: str, settings: Settings, display_name: str | None = None
+) -> User:
     """首登自動建 user:狀態 pending、零角色。之後由本服務管理員開通。
 
-    副作用:首登建立資料列;既有 pending 帳號在 bootstrap 清單內時升級並寫稽核。
+    副作用:首登建立資料列;既有 pending 帳號在 bootstrap 清單內時升級並寫稽核;
+    T59(契約 §4.2a):每次登入以本人 token 的 `name` claim 覆寫顯示名稱快取
+    (claim 不存在 → 寫 NULL,畫面 fallback 到 sub)。
     """
     user = (await session.execute(select(User).where(User.sub == sub))).scalar_one_or_none()
     if user is not None:
+        # §4.2a:每次登入覆寫(含覆寫成 NULL——IdP 拿掉名字,快取不得留舊值)。
+        if user.display_name_cache != display_name:
+            user.display_name_cache = display_name
+            await session.commit()
+            await session.refresh(user)
         # 🐛 首次上線實測(2026-07-29):bootstrap 原本只在**建號時**生效,但 T45 的
         # 「先部署、後拿 sub」自助流程在結構上保證了管理員的帳號會先以 pending 存在
         # ——要看到自己的 sub 就得先登入。結果清單永遠升不了級,第一個管理員只能
@@ -154,6 +163,7 @@ async def upsert_user(session: AsyncSession, sub: str, settings: Settings) -> Us
     is_bootstrap = sub in settings.bootstrap_admins
     user = User(
         sub=sub,
+        display_name_cache=display_name,
         status=UserStatus.active if is_bootstrap else UserStatus.pending,
         platform_role=PlatformRole.admin if is_bootstrap else PlatformRole.member,
         activated_at=datetime.now(UTC) if is_bootstrap else None,
@@ -185,7 +195,8 @@ async def get_identity(
         raise problems.unauthorized("token 缺少 sub")
 
     settings: Settings = request.app.state.settings
-    user = await upsert_user(session, sub, settings)
+    # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
+    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
     if user.status is UserStatus.disabled:
         raise problems.forbidden("此帳號已被停用,請聯絡平台管理員。")
 

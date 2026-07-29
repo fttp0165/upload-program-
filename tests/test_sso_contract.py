@@ -104,6 +104,24 @@ async def test_同源義務_CSP禁inline(client):
     assert "unsafe-eval" not in csp
 
 
+async def test_不得自行送XFrameOptions(client):
+    """🔴 portal 施工單(2026-07-29)§5.2:`/upload/` 這個 location 沒有自己的
+    `add_header`,**完整繼承 server 層**的 `X-Frame-Options: DENY`。
+
+    若 App 這邊也送(即使值同樣是 `DENY`),回應會出現**兩個**
+    `X-Frame-Options` 標頭。這個標頭是舊式標頭,語意上不支援多值合併,
+    多個瀏覽器對「同一回應出現兩個 X-Frame-Options」的處理沒有統一規範——
+    施工單原文寫的「行為未定義」是真實風險,不是保守用詞。
+
+    這個標頭的責任只該有一邊,交給 gateway(它才是最終決定使用者瀏覽器
+    實際收到什麼的那一層)。`nosniff` 是可合併語意的標準標頭,不受影響,
+    施工單也沒有點名要拿掉,維持現狀。
+    """
+    resp = await client.get("/", headers=BROWSER)
+    assert "x-frame-options" not in {k.lower() for k in resp.headers.keys()}
+    assert resp.headers.get("x-content-type-options") == "nosniff"
+
+
 async def test_同源義務_前端base_path為子路徑(client, active_user):
     """§4.10:前端 base path 必須是自己的子路徑,否則靜態資源會打到別人的路徑上。
 

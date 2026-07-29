@@ -3,11 +3,17 @@
 # 🔴 只有「對外容器」(svc)上 cats-edge;db 與 minio 只在 backend,不對主機發布 port。
 # 🔴 external: true 一定要配 name: cats-edge —— 少了 name,compose 會推導出
 #    <專案名>_cats-edge 這張不存在的網,gateway 反代不到。
-# 🔴 «NAME» / «PREFIX» / GHCR namespace / DB 名皆由平台方分配,不得自選;
-#    下方 upload-program / upload_db 為暫定值,拿到分配後全檔一起改。
+# ✅ 路徑前綴由 portal 裁決函(2026-07-29)定案為 `/upload/`,container 名對應
+#    `upload-program`(portal 施工單 §3 的硬性約束)。DB 名依平台規約命名表
+#    (`<service>_db`/`<service>_user`)為 `upload_program_db`/`upload_program_user`。
 
 services:
   svc:
+    container_name: upload-program   # 🔴 portal 施工單(2026-07-29)§3 的三項硬性約束之一:
+    # gateway 以此名解析上游(`proxy_pass http://upload-program:8080/`);
+    # 不符合就是 502,而且 `docker ps` 會顯示 healthy——只有真使用者才會撞到。
+    # 下面 cats-edge 的 `aliases` 已達到同等的 DNS 解析效果,這裡補上
+    # `container_name` 是求字面與施工單完全一致,不留模糊空間給下一個接手的人猜。
     image: ghcr.io/fttp0165/upload-program:v0.1.0   # SemVer,禁 latest;正式機只 pull 不 build
     env_file: .env
     networks:

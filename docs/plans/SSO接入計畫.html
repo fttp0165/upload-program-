@@ -42,11 +42,11 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program SSO 接入計畫</h1>
 <p><strong>建立日期:</strong> 2026-07-28 02:19
-<strong>最後更新:</strong> 2026-07-28 06:40
-<strong>版本:</strong> v1.2
+<strong>最後更新:</strong> 2026-07-29 03:20
+<strong>版本:</strong> v1.3
 <strong>對應契約:</strong> <code>cats-portal/DOCS/帳號系統接入契約_SSO.md</code> <strong>v1.7</strong>(2026-07-28)
 <strong>相關任務:</strong> T26、T28、T29、T45 ✅、T51、T52 ✅、T53
-<strong>狀態:</strong> ✅ <strong>S0(可自主部分)已全數完成</strong>;等待平台方配發 client 與路徑前綴</p>
+<strong>狀態:</strong> ✅ <strong>S1 申請已受理並裁決</strong>(2026-07-29);portal 側程式碼就緒,唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)</p>
 <blockquote>
 <p>依開發憲法第二條 3:接 SSO 是跨多任務的大工程,先立獨立計畫文件,經確認後才動工。
 契約權威在 cats-portal,本檔<strong>只引用、不複製維護</strong>;本檔負責的是
@@ -307,7 +307,10 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <p>⚠️ <strong>redirect URI 含子路徑前綴</strong>:契約 §4.1 寫的是
 <code>https://&lt;你的 hostname&gt;/oidc/callback/</code>,但 D2″ 之後所有 App 都掛在子路徑下。
 登記表裡 compliance 的值是 <code>https://catsapp.sporton.com.tw/compliance/oidc/callback/</code>,
-證實子路徑形式才是正確的。本專案的前綴待分配,取得後才能定案此值。</p>
+證實子路徑形式才是正確的。</p>
+<p><strong>✅ 已定案(2026-07-29,portal 裁決函 + 施工單)</strong>:<code>https://catsapp.sporton.com.tw/upload/oidc/callback/</code>。
+client 建置腳本已備、gateway 路由已併入權威設定,<strong>唯一阻擋項是 Keycloak
+正式環境尚未部署</strong>(Platform P0-A),就緒後約 30 分鐘內交付 secret。</p>
 </blockquote>
 <h3>4.2 路徑前綴與 gateway 路由(T28)</h3>
 <table>
@@ -315,23 +318,39 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <tr>
 <th>項目</th>
 <th>需求</th>
+<th>狀態</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>路徑前綴 <code>«PREFIX»</code></td>
-<td>暫定 <code>/upload/</code>,<strong>待分配</strong></td>
+<td><code>/upload/</code></td>
+<td>✅ <strong>定案</strong>(裁決函 §1)</td>
 </tr>
 <tr>
 <td><code>client_max_body_size</code></td>
 <td><strong>≥ 128 MB</strong>(單檔上限 100 MB + 餘裕)</td>
+<td>✅ 已設 128MB(施工單 §0、§2.1)</td>
 </tr>
 <tr>
 <td>靜態檔 location</td>
 <td>採<strong>剝前綴</strong>寫法:<code>proxy_pass http://upload-program:8080/static/;</code></td>
+<td>✅ 已依此寫法併入設定(施工單 §2.1)</td>
+</tr>
+<tr>
+<td>容器名 / port / network</td>
+<td><code>container_name: upload-program</code>、8080、加入 <code>cats-edge</code></td>
+<td>✅ T54 已對齊(施工單 §3 的三項硬性約束)</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>✅ 2026-07-29 更新:portal 側程式碼已就緒</strong>(client 腳本 + gateway 路由 +
+契約 v1.9 已 commit),唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)。
+我方對施工單的完整回覆見 <a href="回覆_portal施工單.md">回覆_portal施工單.md</a>。
+施工單也點出一項我方原本沒發現的錯配:<code>SecurityHeadersMiddleware</code> 自行送
+<code>X-Frame-Options</code>,與 gateway 的 server 層重複——已拿掉(T54)。</p>
+</blockquote>
 <h3>4.3 🔴 第一個管理員的 <code>sub</code>(最容易漏掉的一項)</h3>
 <p><strong>這是接入時最容易卡住的地方,必須在計畫裡先講明白。</strong></p>
 <p>契約 §4.3 要求首登一律建<strong>零角色</strong>帳號 → 業務功能全部 403 待開通。
@@ -391,19 +410,19 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 <td><strong>S1</strong></td>
 <td>T26</td>
 <td><strong>平台方</strong></td>
-<td>拿到 client_id/secret、路徑前綴</td>
+<td>✅ <strong>申請已受理並裁決</strong>(2026-07-29):路徑前綴、redirect URI、gateway 路由、<code>client_max_body_size</code> 全數定案;⏳ 唯一未到齊的是 Keycloak 正式環境部署後的 client secret(Platform P0-A)</td>
 </tr>
 <tr>
 <td><strong>S2</strong></td>
 <td>T28</td>
 <td>兩邊</td>
-<td><code>/«PREFIX»/</code> 通;<code>client_max_body_size</code> 生效;bootstrap sub 已填(<strong>可由 <code>/pending</code> 自助取得</strong>,見 §4.3)</td>
+<td>gateway 側已完成(portal);我方側 T54 已對齊 compose 三項硬性約束、拿掉重複的 <code>X-Frame-Options</code>;bootstrap sub 已填(<strong>可由 <code>/pending</code> 自助取得</strong>,見 §4.3)</td>
 </tr>
 <tr>
 <td><strong>S3</strong></td>
 <td>T29</td>
 <td>我們</td>
-<td>§7 六項全綠(見 §6)</td>
+<td>§7 六項全綠(見 §6);施工單另增三項「只有經過真實 gateway 才驗得到」的項目,一併於冒煙時執行</td>
 </tr>
 <tr>
 <td><strong>S4</strong></td>
@@ -574,6 +593,12 @@ T51 會把這五項逐條寫成測試,讓 T44 不可能無意間違反。</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.3</td>
+<td>2026-07-29 03:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>portal 裁決函 + 施工單已收到並回覆</strong>:路徑前綴 <code>/upload/</code>、redirect URI、<code>client_max_body_size</code>、gateway 路由全數定案;§4.3 的 D2 落點沿用 T45;T54 對齊 compose 三項硬性約束(<code>container_name</code>)並拿掉重複的 <code>X-Frame-Options</code>;S1 狀態改為「申請已受理,待 Keycloak 部署」;我方完整回覆見 <a href="回覆_portal施工單.md">回覆_portal施工單.md</a></td>
+</tr>
 <tr>
 <td>v1.2</td>
 <td>2026-07-28 06:40</td>

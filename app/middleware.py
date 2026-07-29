@@ -57,7 +57,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
+        # 🔴 刻意不送 X-Frame-Options(portal 施工單 2026-07-29 §5.2):
+        # `/upload/` 這個 gateway location 沒有自己的 add_header,完整繼承
+        # server 層的 `X-Frame-Options: DENY`。這個標頭語意上不支援多值合併,
+        # 若這裡也送,回應會有兩個 X-Frame-Options——多個瀏覽器對此沒有統一
+        # 規範。責任只能有一邊,交給 gateway(它才是使用者瀏覽器實際收到
+        # 什麼的最終決定者)。`frame-ancestors 'none'`(CSP)已涵蓋同樣的保護,
+        # 不依賴這個舊式標頭。
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         # 🔴 CSP:全站零 inline script / inline style。
         # T40 導入的時機是刻意的——當時全站零 JS、CSS 也正要搬進 static/,

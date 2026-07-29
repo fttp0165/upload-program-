@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>待 portal 提供的資訊(upload-program 接入用)</h1>
 <p><strong>建立日期:</strong> 2026-07-28 04:05
-<strong>最後更新:</strong> 2026-07-28 06:40
-<strong>版本:</strong> v1.1
+<strong>最後更新:</strong> 2026-07-29 03:20
+<strong>版本:</strong> v1.2
 <strong>用途:</strong> 交付清單 —— portal 把值填進「回填」欄交還即可,我方據以完成部署
 <strong>相關:</strong> <a href="SSO接入申請_給portal.md">SSO接入申請_給portal.md</a>(申請內容與合規聲明)、
 <a href="SSO接入計畫.md">SSO接入計畫.md</a>(我方內部施工計畫)</p>
@@ -69,49 +69,49 @@ summary { cursor:pointer; color:#12228f; }
 <td>A1</td>
 <td><code>client_id</code></td>
 <td><code>upload-program</code></td>
-<td>⬜</td>
-<td>無法登入</td>
+<td>✅ <code>upload-program</code>(施工單 §0)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>A2</td>
 <td>🔴 <code>client_secret</code></td>
 <td>—(由貴方產生)</td>
-<td>⬜ <strong>另行傳遞,勿放聊天/git</strong></td>
+<td>⬜ <strong>待 Keycloak 正式環境部署後另行傳遞</strong>(施工單 §8)</td>
 <td>無法換 token</td>
 </tr>
 <tr>
 <td>A3</td>
 <td>client 型別</td>
 <td><strong>confidential</strong></td>
-<td>⬜</td>
+<td>✅ confidential + PKCE S256(施工單 §0)</td>
 <td>—</td>
 </tr>
 <tr>
 <td>A4</td>
 <td>🔴 redirect URI(需<strong>含子路徑前綴</strong>)</td>
 <td><code>https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/</code></td>
-<td>⬜</td>
-<td>登入後回跳失敗</td>
+<td>✅ <code>https://catsapp.sporton.com.tw/upload/oidc/callback/</code>(施工單 §0、§9 登記表)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>A5</td>
 <td>是否核發 refresh token</td>
 <td><strong>需要</strong></td>
-<td>⬜</td>
-<td>網頁 session 5 分鐘就要重登(見附註 1)</td>
+<td>✅ 已認可我方伺服器端 refresh 實作為「契約建議的正解」(施工單 §4.3)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>A6</td>
 <td>claims / mapper</td>
 <td><code>email</code>、<code>email_verified</code>、<code>preferred_username</code> / <code>name</code></td>
-<td>⬜</td>
+<td>⬜ client 腳本已備,細項未逐一列出——留待冒煙時核對</td>
 <td>導航列顯示不出姓名</td>
 </tr>
 <tr>
 <td>A7</td>
 <td>Account Console 短網址</td>
 <td><code>/account</code>(契約 §2.1)</td>
-<td>⬜ 確認即可</td>
+<td>⬜ 未於本輪回覆中提及,沿用既有值</td>
 <td>「帳號設定」連結失效</td>
 </tr>
 </tbody>
@@ -137,42 +137,42 @@ summary { cursor:pointer; color:#12228f; }
 <td>B1</td>
 <td>🔴 路徑前綴 <code>«PREFIX»</code></td>
 <td><code>/upload/</code></td>
-<td>⬜</td>
-<td><strong>幾乎所有項目都相依於它</strong>(見下方相依說明)</td>
+<td>✅ <strong>定案 <code>/upload/</code></strong>(裁決函 §1;施工單 §1 誠實回報過與規約命名表的字面不一致,但建議並定案維持 <code>/upload/</code>)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>B2</td>
 <td>cats-edge 別名</td>
 <td><code>upload-program</code></td>
-<td>⬜</td>
-<td>gateway 找不到後端</td>
+<td>✅ gateway 以此名解析上游(施工單 §3);我方已補上 <code>container_name: upload-program</code> 求字面一致(T54)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>B3</td>
 <td>🔴 <code>client_max_body_size</code></td>
 <td><strong>≥ 128 MB</strong></td>
-<td>⬜</td>
-<td>上傳大檔被 gateway 擋掉(單檔上限 100 MB)</td>
+<td>✅ 128MB 已併入權威 gateway 設定(施工單 §0、§2.1)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>B4</td>
 <td>靜態檔 location 寫法</td>
 <td>剝前綴:<code>proxy_pass http://upload-program:8080/static/;</code></td>
-<td>⬜ 確認即可</td>
-<td>全站樣式 404</td>
+<td>✅ 已依此寫法併入設定(施工單 §2.1)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>B5</td>
 <td>GHCR image 路徑</td>
 <td><code>ghcr.io/fttp0165/upload-program</code></td>
-<td>⬜</td>
+<td>⬜ 未於本輪回覆中提及,沿用既有值</td>
 <td>部署拉不到映像</td>
 </tr>
 <tr>
 <td>B6</td>
 <td>repo 是否改名</td>
 <td>現為 <code>upload-program-</code>(<strong>尾端多一個連字號</strong>,不符 <code>service-&lt;name&gt;</code>)</td>
-<td>⬜ 請裁示</td>
+<td>⚪ <strong>明確答覆:非 portal 權責,轉交 Platform</strong>(裁決函 §4、施工單 §6.1;施工單並給出規約推導的目標值 <code>service-upload-program</code>,決定權仍在 Platform)</td>
 <td>影響 B5 與既有連結</td>
 </tr>
 </tbody>
@@ -201,22 +201,22 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>C1</td>
 <td>PostgreSQL 資料庫名 / 使用者</td>
-<td><code>upload_db</code> / <code>upload_user</code></td>
-<td>⬜</td>
-<td>服務啟動失敗(fail-fast)</td>
+<td>~~<code>upload_db</code> / <code>upload_user</code>~~ → <code>upload_program_db</code> / <code>upload_program_user</code></td>
+<td>✅ <strong>不需 portal 回填,我方自行對齊平台規約命名表</strong>(施工單 §6 給出目標命名,T54 已改;尚未上線,現在改不動任何資料)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>C2</td>
 <td>🔴 DB 密碼</td>
 <td>—</td>
 <td>⬜ <strong>另行傳遞</strong></td>
-<td>同上</td>
+<td>服務啟動失敗(fail-fast)</td>
 </tr>
 <tr>
 <td>C3</td>
 <td>MinIO bucket 名</td>
 <td><code>upload-program</code></td>
-<td>⬜</td>
+<td>⬜ 未於本輪回覆中提及,沿用既有值</td>
 <td>上傳失敗</td>
 </tr>
 <tr>
@@ -301,11 +301,50 @@ summary { cursor:pointer; color:#12228f; }
 <td>E1</td>
 <td>契約 §7 冒煙第 1 項「未登入 → 302」</td>
 <td><strong>深層頁 302、首頁留落地頁</strong>(理由見申請書 §4)</td>
-<td>⬜ 接受 / ⬜ 要求改為全部 302</td>
+<td>✅ <strong>核准</strong>(裁決函 §2),但<strong>明確劃線</strong>:核准範圍僅限首頁本身,任何深於此的路徑一律照契約字面 302,不因本次核准產生「App 可自行決定哪些頁面免登入」的模糊空間。我方原本的分層設計本就如此,不需調整</td>
 </tr>
 </tbody>
 </table>
-<p>若要求全部 302,我方改動成本很低(一個分支 + 四條測試),請直接回覆。</p>
+<hr />
+<h2>G. 施工單新增事項(portal 主動補充,非我方原始表單項目)</h2>
+<p>portal 的施工單額外交付了以下我方原本沒有問、但接入時會踩到的資訊,一併記錄:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td>Discovery / JWKS / Issuer 端點</td>
+<td><code>https://catsapp.sporton.com.tw/auth/realms/sporton/...</code>(已與我方 <code>.env.example</code> 的 <code>OIDC_ISSUER</code> 一致)</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><code>aud</code> 即 <code>client_id</code></td>
+<td>portal 未設自訂 audience mapper,我方原有驗證邏輯不需調整</td>
+</tr>
+<tr>
+<td>G3</td>
+<td>Token 壽命</td>
+<td>access 300s / SSO 閒置 1800s / SSO 最長 36000s / auth code 60s / 時鐘容忍 ±30s(由我方函式庫設定,IdP 無此開關)—— 皆與我方現況一致</td>
+</tr>
+<tr>
+<td>G4</td>
+<td>容器重建後須通知 portal reload gateway</td>
+<td>⚠️ <strong>新的維運義務</strong>——nginx 只在啟動/reload 當下解析一次上游 IP,換版後 IP 變、gateway 仍指向舊 IP,症狀是「健康檢查全綠但真實使用者拿到 502」。已記入部署 runbook(T27)待辦</td>
+</tr>
+<tr>
+<td>G5</td>
+<td>安全標頭分工</td>
+<td><code>X-Content-Type-Options</code>/<code>X-Frame-Options</code> 由 gateway 送;<strong>我方不得自行送 <code>X-Frame-Options</code></strong>(語意不支援多值合併,行為未定義)——T54 已拿掉</td>
+</tr>
+</tbody>
+</table>
+<p>我方回覆施工單 §9 五項的完整內容見 <a href="回覆_portal施工單.md">回覆_portal施工單.md</a>。</p>
 <hr />
 <h2>F. 交付後我方的動作</h2>
 <p>拿到 A–D 之後,我方會:</p>
@@ -342,6 +381,12 @@ IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-07-29 03:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>portal 裁決函與施工單回覆,A/B/E 段大部分項目已回填</strong>:路徑前綴 <code>/upload/</code> 定案、<code>client_max_body_size</code> 128MB 與剝前綴靜態檔寫法已併入 gateway 設定、redirect URI 確認、refresh token 實作獲認可、E1 核准但明確劃線(僅限首頁);C1 DB 命名改為我方自行對齊規約(不需 portal 回填);新增 <strong>G 段</strong>記錄施工單主動補充的維運義務(容器重建須通知 reload、禁止自送 X-Frame-Options)</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-28 06:40</td>

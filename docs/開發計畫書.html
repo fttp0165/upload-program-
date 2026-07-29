@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 開發計畫書</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 02:25
-<strong>版本:</strong> v1.1</p>
+<strong>最後更新:</strong> 2026-07-29 03:20
+<strong>版本:</strong> v1.3</p>
 <blockquote>
 <p>本文是 upload-program 的開發藍圖:目標、範圍、里程碑、資料影響分級與回滾原則。
 任務層級的追蹤見 <a href="任務表.md">任務表.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>。
@@ -343,7 +343,7 @@ summary { cursor:pointer; color:#12228f; }
 <thead>
 <tr>
 <th>項目</th>
-<th>暫定值</th>
+<th>值</th>
 <th>狀態</th>
 </tr>
 </thead>
@@ -356,12 +356,12 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>路徑前綴 <code>«PREFIX»</code></td>
 <td><code>/upload/</code></td>
-<td>⏳ 待分配</td>
+<td>✅ <strong>portal 裁決函(2026-07-29)定案</strong></td>
 </tr>
 <tr>
 <td>cats-edge 別名</td>
 <td><code>upload-program</code></td>
-<td>⏳ 待分配</td>
+<td>✅ 已與路徑前綴一併定案</td>
 </tr>
 <tr>
 <td>GHCR image</td>
@@ -370,29 +370,30 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>資料庫 / 使用者</td>
-<td><code>upload_db</code> / <code>upload_user</code></td>
-<td>⏳ 待分配</td>
+<td><code>upload_program_db</code> / <code>upload_program_user</code></td>
+<td>✅ 依平台規約命名表自行對齊(尚未上線,已改)</td>
 </tr>
 <tr>
 <td>SSO client_id / secret</td>
 <td><code>upload-program</code></td>
-<td>⏳ 走 SSO 契約 §5 申請</td>
+<td>⏳ client 已受理,<strong>待 Keycloak 正式環境部署</strong>(portal 施工單 §8)</td>
 </tr>
 <tr>
 <td>gateway <code>client_max_body_size</code></td>
 <td><strong>≥ 128 MB</strong>(單檔上限 100 MB + 餘裕)</td>
-<td>⏳ 申請路由時一併提出</td>
+<td>✅ portal 已設 128MB 併入權威設定</td>
 </tr>
 <tr>
 <td>🔴 第一個管理員的 <code>sub</code></td>
 <td>待指定(預設 Benny)</td>
-<td>⏳ <strong>沒有它系統會鎖死</strong>——首登全是零角色,沒人能開通任何人。詳見 <a href="plans/SSO接入計畫.md">plans/SSO接入計畫.md</a> §4.3</td>
+<td>⏳ <strong>沒有它系統會鎖死</strong>——首登全是零角色,沒人能開通任何人。T45 起可由該人登入後於 <code>/pending</code> 自助取得。詳見 <a href="plans/SSO接入計畫.md">plans/SSO接入計畫.md</a> §4.3</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
 <p>repo 名 <code>upload-program-</code>(尾端多一個連字號)不符命名規約的 <code>service-&lt;name&gt;</code>,
-是否改名由 Platform 決定,本專案不自行更名。</p>
+是否改名由 Platform 決定,本專案不自行更名(portal 裁決函與施工單皆確認此為
+<strong>非 portal 權責</strong>,已轉交 Platform)。</p>
 </blockquote>
 <hr />
 <h2>7. 接入前的八個問題(接入指南 §10)</h2>
@@ -512,6 +513,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.3</td>
+<td>2026-07-29 03:20</td>
+<td>Claude(Benny 授權)</td>
+<td>§6 依 portal 裁決函與施工單(2026-07-29)回寫:路徑前綴 <code>/upload/</code> <strong>定案</strong>、<code>client_max_body_size</code> 128MB <strong>已設定</strong>、資料庫/使用者名改為符合平台規約命名表的 <code>upload_program_db</code>/<code>upload_program_user</code>(尚未上線,現在改);SSO client 狀態改為「已受理,待 Keycloak 部署」</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-07-28 02:25</td>

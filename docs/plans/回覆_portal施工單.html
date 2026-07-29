@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回覆:portal SSO 接入施工單(upload-program)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/回覆_portal施工單.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>回覆:portal SSO 接入施工單(upload-program)</h1>
+<p><strong>建立日期:</strong> 2026-07-29 03:20
+<strong>最後更新:</strong> 2026-07-29 03:20
+<strong>版本:</strong> v1.0
+<strong>回覆對象:</strong> portal 統一入口平台(cats-portal)
+<strong>對應文件:</strong> <code>upload-program SSO 接入施工單(技術規格)</code> v1.0(2026-07-29)§9
+<strong>狀態:</strong> 📤 回覆完畢,等待 Keycloak 正式環境部署</p>
+<blockquote>
+<p>這份文件回答施工單 §9「需要貴方回覆的事項」五項。逐項核對現有實作後,
+兩項要修的地方已修完(T54,見 <a href="../dev-logs/2026-07-29_T54_portal施工單技術對齊.md">開發日誌</a>),
+一項確認即可,一項待與 Platform 確認,一項無異議。</p>
+</blockquote>
+<hr />
+<h2>逐項回覆</h2>
+<h3>1. 🔴 路徑前綴:接受 <code>/upload/</code></h3>
+<p><strong>接受貴方的建議,維持 <code>/upload/</code>,不要求改為 <code>/upload-program/</code>。</strong></p>
+<p>理由與貴方施工單 §1 相同:我方尚未部署,<code>/upload/</code> 較短可讀,且與貴方既有
+路由慣例(<code>/plm/</code>、<code>/core/</code>)一致。感謝在核准之後仍誠實回報與規約命名表的
+字面差異——這種「已經核准但發現問題還是講」的態度,比默默放過更有價值。</p>
+<p>我方所有網址、cookie path、CSP、<code>root_path</code> 皆由 <code>API_PREFIX=/upload</code> 這一個
+設定值<strong>直接導出</strong>,無任何硬寫死的路徑,已有測試釘住
+(<code>tests/test_web_layout.py::test_web_url在無前綴時不產生雙斜線</code>、
+<code>tests/test_sso_contract.py</code> 的 cookie Path 測試)。此項無待辦。</p>
+<h3>2. 🔴 compose 是否符合 §3(容器名 / port / cats-edge)</h3>
+<p><strong>確認符合,並已補上一項求字面精確一致。</strong></p>
+<table>
+<thead>
+<tr>
+<th>約束</th>
+<th>現況</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>容器內監聽 8080、不對主機 publish</td>
+<td>✅ <code>Dockerfile</code> <code>EXPOSE 8080</code>;compose 的 <code>svc</code> 無 <code>ports:</code></td>
+</tr>
+<tr>
+<td>加入 external <code>cats-edge</code></td>
+<td>✅ <code>networks.cats-edge.external: true</code> + <code>name: cats-edge</code></td>
+</tr>
+<tr>
+<td>gateway 以 <code>upload-program</code> 解析上游</td>
+<td>✅ 原先以 <code>cats-edge</code> 網路上的 <code>aliases: [upload-program]</code> 達成;<strong>T54 已補上 <code>container_name: upload-program</code></strong>,求字面與施工單完全一致,不留模糊空間</td>
+</tr>
+<tr>
+<td>DB / MinIO 不上 <code>cats-edge</code>、不曝 port</td>
+<td>✅ 只在 <code>backend</code> 網路,無 <code>ports:</code></td>
+</tr>
+</tbody>
+</table>
+<h3>3. 🔴 cookie Path 在剝前綴形態下是否仍為 <code>/upload/</code></h3>
+<p><strong>確認是,而且這件事在我方的設計上不受「剝前綴」影響。</strong></p>
+<p><code>cookie_path</code> 是從設定值 <code>api_prefix</code> <strong>直接推導</strong>(<code>app/config.py</code>
+<code>Settings.cookie_path</code>),不是從當下請求的路徑推導。剝前綴之後 App 認知的
+路徑固然是 <code>/</code>,但我方從一開始就沒有依賴這個路徑去算 cookie Path——
+這正是為了避開貴方施工單點出的那個坑。已有自動化測試釘住實際送出的
+<code>Set-Cookie</code> 標頭確實含 <code>Path=/upload/</code>(<code>tests/test_sso_contract.py</code>),
+非本次施工單來函後才補。</p>
+<h3>4. 上傳頁的外部 JS 是否為自行託管</h3>
+<p><strong>確認是。</strong> <code>app/static/upload.js</code> 是純內部靜態檔,經 gateway 的
+<code>/upload/static/</code> location 提供,原始碼中沒有任何外部網址或 CDN 引用
+(已檢索確認)。這是 T44 開發上傳頁時就定下的原則——同源之下引入第三方腳本
+等於讓第三方腳本能觸及 IdP,契約 §4.10 的精神不允許這件事。</p>
+<h3>5. repo 改名</h3>
+<p><strong>與貴方裁決函 §4、施工單 §6.1 的立場一致:我方不擅自處理,待與 Platform 確認。</strong></p>
+<p>已把貴方給出的目標命名(<code>service-upload-program</code>)記入我方的
+<a href="../開發計畫書.md">開發計畫書.md</a> §6 待處理清單,作為與 Platform 討論時的
+明確參照值,而不是停在「不知道規約要求叫什麼」。<strong>改名前不會動 repo</strong>,
+因為那會連動 GHCR image 路徑與現有的 PR/連結,方向錯了是白做。</p>
+<hr />
+<h2>順帶處理的兩項(施工單 §5.2、§6 的直接後果)</h2>
+<p>雖然施工單 §9 沒有把這兩項列進「需要回覆」,但它們是 §5.2、§6 的字面
+要求,核對後發現與現況不完全一致,已一併修正(T54):</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>修正前</th>
+<th>修正後</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>X-Frame-Options</code></td>
+<td>App 自行送 <code>DENY</code></td>
+<td><strong>App 不送</strong>,交給 gateway</td>
+<td>施工單 §5.2:語意上不支援多值合併,兩邊都送在今天恰好無害,但一旦任一邊日後改值就會製造「行為未定義」的衝突,責任本來就只該有一邊</td>
+</tr>
+<tr>
+<td>DB 名 / 使用者</td>
+<td><code>upload_db</code> / <code>upload_user</code></td>
+<td><code>upload_program_db</code> / <code>upload_program_user</code></td>
+<td>施工單 §6 的平台規約命名表;尚未上線、無正式資料,現在改不動任何既有資料列,比上線後改便宜</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>尚未能驗證的項目(待 Keycloak 部署後)</h2>
+<p>施工單 §7.2 新增的三項冒煙(cookie Path 實測、重導網址帶前綴實測、
+~90MB 大檔上傳),與契約 §7 原有六項,皆需要真實 gateway + 真實 Keycloak
+的部署形態才驗得到——這點與貴方原文一致:「在本機開發(無 gateway 剝前綴)
+一定是綠的,只有經過 gateway 才會現形」。我方會在 T29(接入冒煙清單)
+執行時逐項留存證據。</p>
+<p><strong>目前唯一的阻擋項與貴方施工單 §8 一致:Keycloak 正式環境部署(Platform P0-A)。</strong>
+就緒後請直接執行交付腳本,我方隨時可以配合冒煙。</p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-29 03:20</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:回覆施工單 §9 五項(前綴接受、compose 確認並補 <code>container_name</code>、cookie Path 確認由設定值直接導出不受剝前綴影響、JS 自行託管確認、repo 改名待 Platform);另記錄兩項順帶修正(不自送 X-Frame-Options、DB 命名對齊規約)與尚待 Keycloak 部署後驗證的冒煙項目</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

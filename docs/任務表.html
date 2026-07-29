@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-28 08:00
-<strong>版本:</strong> v1.27</p>
+<strong>最後更新:</strong> 2026-07-29 03:20
+<strong>版本:</strong> v1.28</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -394,9 +394,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T26</td>
 <td>申請 SSO client(§5)並登記契約 §9</td>
-<td>⬜</td>
+<td>🔵</td>
 <td>🟢</td>
-<td>拿到 client_id/secret;redirect URI 含子路徑前綴;<strong>申請書已寫妥待送出:<a href="plans/SSO接入申請_給portal.md">plans/SSO接入申請_給portal.md</a></strong>(v1.1,含逐條合規聲明、需 portal 提供的四項、一項請求裁決的偏離、三項回饋建議);申請內容摘要另見 <a href="plans/SSO接入計畫.md">plans/SSO接入計畫.md</a> §4</td>
+<td><strong>申請已受理並裁決</strong>(2026-07-29 portal 裁決函):路徑前綴 <code>/upload/</code>、redirect URI、client 型別皆定案;client 建置腳本已備;⏳ <strong>唯一阻擋:Keycloak 正式環境部署</strong>(Platform P0-A),就緒後約 30 分鐘交付 secret。申請書 <a href="plans/SSO接入申請_給portal.md">plans/SSO接入申請_給portal.md</a>;回覆與對齊見 T54</td>
 </tr>
 <tr>
 <td>T27</td>
@@ -408,9 +408,16 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T28</td>
 <td>cats-portal 路由 PR + 驗收</td>
-<td>⬜</td>
+<td>🔵</td>
 <td>🟢</td>
-<td><code>/«PREFIX»/</code> 通;<strong>靜態檔 location 採剝前綴寫法</strong>(見決策文件 §6.2);<code>client_max_body_size</code> ≥128 MB;不影響既有 <code>/</code>、<code>/TMP_GEN/</code>、<code>/plm/</code></td>
+<td><strong>portal 側已完成</strong>(施工單 2026-07-29):<code>/upload/</code> 通、剝前綴靜態檔寫法、<code>client_max_body_size</code> 128MB 皆已併入權威 gateway 設定;⏳ 待 Keycloak 部署後才能實測(冒煙屬 T29)</td>
+</tr>
+<tr>
+<td>T54</td>
+<td>portal 裁決與施工單技術對齊</td>
+<td>✅</td>
+<td>🟢</td>
+<td>逐項核對施工單九項技術規格,<strong>拿掉重複的 <code>X-Frame-Options</code></strong>(gateway 已送,語意不支援多值合併,行為未定義)、compose 補 <code>container_name: upload-program</code>(施工單 §3 三項硬性約束之一)、DB 命名改為 <code>upload_program_db</code>/<code>upload_program_user</code>(平台規約命名表,尚未上線現在改);回覆施工單 §9 五項見 <a href="plans/回覆_portal施工單.md">plans/回覆_portal施工單.md</a></td>
 </tr>
 <tr>
 <td>T51</td>
@@ -677,6 +684,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.28</td>
+<td>2026-07-29 03:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>收到 portal 裁決函與施工單,T26/T28 由 ⬜ 轉 🔵、新開 T54 並完成</strong>。路徑前綴 <code>/upload/</code>、redirect URI、<code>client_max_body_size</code>、gateway 路由<strong>全數定案</strong>,portal 側程式碼已就緒,<strong>唯一阻擋項是 Keycloak 正式環境部署</strong>(Platform P0-A)。T54 逐項核對施工單技術規格,抓到一項真的要修的地方:<code>SecurityHeadersMiddleware</code> 自行送 <code>X-Frame-Options</code> 與 gateway 重複(語意不支援多值合併,行為未定義),已拿掉並補測試釘住;compose 補 <code>container_name</code> 求字面精確;DB 命名對齊平台規約(尚未上線,現在改)。回覆文件見 <a href="plans/回覆_portal施工單.md">plans/回覆_portal施工單.md</a>;測試 328→329</td>
 </tr>
 <tr>
 <td>v1.27</td>

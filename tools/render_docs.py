@@ -38,6 +38,7 @@ TARGETS = [
     "plans/SSO接入計畫.md",
     "plans/SSO接入申請_給portal.md",
     "plans/待portal提供資訊.md",
+    "plans/回覆_portal施工單.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

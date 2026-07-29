@@ -1,8 +1,8 @@
 # 待 portal 提供的資訊(upload-program 接入用)
 
 **建立日期:** 2026-07-28 04:05
-**最後更新:** 2026-07-28 06:40
-**版本:** v1.1
+**最後更新:** 2026-07-29 03:20
+**版本:** v1.2
 **用途:** 交付清單 —— portal 把值填進「回填」欄交還即可,我方據以完成部署
 **相關:** [SSO接入申請_給portal.md](SSO接入申請_給portal.md)(申請內容與合規聲明)、
 [SSO接入計畫.md](SSO接入計畫.md)(我方內部施工計畫)
@@ -18,13 +18,13 @@
 
 | # | 項目 | 我方建議值 | **回填** | 卡住什麼 |
 |---|---|---|---|---|
-| A1 | `client_id` | `upload-program` | ⬜ | 無法登入 |
-| A2 | 🔴 `client_secret` | —(由貴方產生) | ⬜ **另行傳遞,勿放聊天/git** | 無法換 token |
-| A3 | client 型別 | **confidential** | ⬜ | — |
-| A4 | 🔴 redirect URI(需**含子路徑前綴**) | `https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/` | ⬜ | 登入後回跳失敗 |
-| A5 | 是否核發 refresh token | **需要** | ⬜ | 網頁 session 5 分鐘就要重登(見附註 1) |
-| A6 | claims / mapper | `email`、`email_verified`、`preferred_username` / `name` | ⬜ | 導航列顯示不出姓名 |
-| A7 | Account Console 短網址 | `/account`(契約 §2.1) | ⬜ 確認即可 | 「帳號設定」連結失效 |
+| A1 | `client_id` | `upload-program` | ✅ `upload-program`(施工單 §0) | — |
+| A2 | 🔴 `client_secret` | —(由貴方產生) | ⬜ **待 Keycloak 正式環境部署後另行傳遞**(施工單 §8) | 無法換 token |
+| A3 | client 型別 | **confidential** | ✅ confidential + PKCE S256(施工單 §0) | — |
+| A4 | 🔴 redirect URI(需**含子路徑前綴**) | `https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/` | ✅ `https://catsapp.sporton.com.tw/upload/oidc/callback/`(施工單 §0、§9 登記表) | — |
+| A5 | 是否核發 refresh token | **需要** | ✅ 已認可我方伺服器端 refresh 實作為「契約建議的正解」(施工單 §4.3) | — |
+| A6 | claims / mapper | `email`、`email_verified`、`preferred_username` / `name` | ⬜ client 腳本已備,細項未逐一列出——留待冒煙時核對 | 導航列顯示不出姓名 |
+| A7 | Account Console 短網址 | `/account`(契約 §2.1) | ⬜ 未於本輪回覆中提及,沿用既有值 | 「帳號設定」連結失效 |
 
 > **A6 補充:** 這些 claims **不落地**,只在記憶體中傳遞供顯示。
 > 我方業務庫結構上沒有 email/姓名欄位,不援引 §6.1 的 PLM 快取例外。
@@ -35,12 +35,12 @@
 
 | # | 項目 | 我方建議值 | **回填** | 卡住什麼 |
 |---|---|---|---|---|
-| B1 | 🔴 路徑前綴 `«PREFIX»` | `/upload/` | ⬜ | **幾乎所有項目都相依於它**(見下方相依說明) |
-| B2 | cats-edge 別名 | `upload-program` | ⬜ | gateway 找不到後端 |
-| B3 | 🔴 `client_max_body_size` | **≥ 128 MB** | ⬜ | 上傳大檔被 gateway 擋掉(單檔上限 100 MB) |
-| B4 | 靜態檔 location 寫法 | 剝前綴:`proxy_pass http://upload-program:8080/static/;` | ⬜ 確認即可 | 全站樣式 404 |
-| B5 | GHCR image 路徑 | `ghcr.io/fttp0165/upload-program` | ⬜ | 部署拉不到映像 |
-| B6 | repo 是否改名 | 現為 `upload-program-`(**尾端多一個連字號**,不符 `service-<name>`) | ⬜ 請裁示 | 影響 B5 與既有連結 |
+| B1 | 🔴 路徑前綴 `«PREFIX»` | `/upload/` | ✅ **定案 `/upload/`**(裁決函 §1;施工單 §1 誠實回報過與規約命名表的字面不一致,但建議並定案維持 `/upload/`) | — |
+| B2 | cats-edge 別名 | `upload-program` | ✅ gateway 以此名解析上游(施工單 §3);我方已補上 `container_name: upload-program` 求字面一致(T54) | — |
+| B3 | 🔴 `client_max_body_size` | **≥ 128 MB** | ✅ 128MB 已併入權威 gateway 設定(施工單 §0、§2.1) | — |
+| B4 | 靜態檔 location 寫法 | 剝前綴:`proxy_pass http://upload-program:8080/static/;` | ✅ 已依此寫法併入設定(施工單 §2.1) | — |
+| B5 | GHCR image 路徑 | `ghcr.io/fttp0165/upload-program` | ⬜ 未於本輪回覆中提及,沿用既有值 | 部署拉不到映像 |
+| B6 | repo 是否改名 | 現為 `upload-program-`(**尾端多一個連字號**,不符 `service-<name>`) | ⚪ **明確答覆:非 portal 權責,轉交 Platform**(裁決函 §4、施工單 §6.1;施工單並給出規約推導的目標值 `service-upload-program`,決定權仍在 Platform) | 影響 B5 與既有連結 |
 
 ### B1 的相依範圍(為什麼它最該先給)
 
@@ -61,9 +61,9 @@
 
 | # | 項目 | 我方建議值 | **回填** | 卡住什麼 |
 |---|---|---|---|---|
-| C1 | PostgreSQL 資料庫名 / 使用者 | `upload_db` / `upload_user` | ⬜ | 服務啟動失敗(fail-fast) |
-| C2 | 🔴 DB 密碼 | — | ⬜ **另行傳遞** | 同上 |
-| C3 | MinIO bucket 名 | `upload-program` | ⬜ | 上傳失敗 |
+| C1 | PostgreSQL 資料庫名 / 使用者 | ~~`upload_db` / `upload_user`~~ → `upload_program_db` / `upload_program_user` | ✅ **不需 portal 回填,我方自行對齊平台規約命名表**(施工單 §6 給出目標命名,T54 已改;尚未上線,現在改不動任何資料) | — |
+| C2 | 🔴 DB 密碼 | — | ⬜ **另行傳遞** | 服務啟動失敗(fail-fast) |
+| C3 | MinIO bucket 名 | `upload-program` | ⬜ 未於本輪回覆中提及,沿用既有值 | 上傳失敗 |
 | C4 | 🔴 MinIO access key / secret | — | ⬜ **另行傳遞** | 同上 |
 | C5 | 可用磁碟空間(Q12) | — | ⬜ | 影響擴充級距(10 GB/專案)能開給幾個專案 |
 
@@ -99,9 +99,23 @@
 
 | # | 事項 | 我方做法 | **裁決** |
 |---|---|---|---|
-| E1 | 契約 §7 冒煙第 1 項「未登入 → 302」 | **深層頁 302、首頁留落地頁**(理由見申請書 §4) | ⬜ 接受 / ⬜ 要求改為全部 302 |
+| E1 | 契約 §7 冒煙第 1 項「未登入 → 302」 | **深層頁 302、首頁留落地頁**(理由見申請書 §4) | ✅ **核准**(裁決函 §2),但**明確劃線**:核准範圍僅限首頁本身,任何深於此的路徑一律照契約字面 302,不因本次核准產生「App 可自行決定哪些頁面免登入」的模糊空間。我方原本的分層設計本就如此,不需調整 |
 
-若要求全部 302,我方改動成本很低(一個分支 + 四條測試),請直接回覆。
+---
+
+## G. 施工單新增事項(portal 主動補充,非我方原始表單項目)
+
+portal 的施工單額外交付了以下我方原本沒有問、但接入時會踩到的資訊,一併記錄:
+
+| # | 項目 | 值 |
+|---|---|---|
+| G1 | Discovery / JWKS / Issuer 端點 | `https://catsapp.sporton.com.tw/auth/realms/sporton/...`(已與我方 `.env.example` 的 `OIDC_ISSUER` 一致) |
+| G2 | `aud` 即 `client_id` | portal 未設自訂 audience mapper,我方原有驗證邏輯不需調整 |
+| G3 | Token 壽命 | access 300s / SSO 閒置 1800s / SSO 最長 36000s / auth code 60s / 時鐘容忍 ±30s(由我方函式庫設定,IdP 無此開關)—— 皆與我方現況一致 |
+| G4 | 容器重建後須通知 portal reload gateway | ⚠️ **新的維運義務**——nginx 只在啟動/reload 當下解析一次上游 IP,換版後 IP 變、gateway 仍指向舊 IP,症狀是「健康檢查全綠但真實使用者拿到 502」。已記入部署 runbook(T27)待辦 |
+| G5 | 安全標頭分工 | `X-Content-Type-Options`/`X-Frame-Options` 由 gateway 送;**我方不得自行送 `X-Frame-Options`**(語意不支援多值合併,行為未定義)——T54 已拿掉 |
+
+我方回覆施工單 §9 五項的完整內容見 [回覆_portal施工單.md](回覆_portal施工單.md)。
 
 ---
 
@@ -141,5 +155,6 @@ IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.2 | 2026-07-29 03:20 | Claude(Benny 授權) | **portal 裁決函與施工單回覆,A/B/E 段大部分項目已回填**:路徑前綴 `/upload/` 定案、`client_max_body_size` 128MB 與剝前綴靜態檔寫法已併入 gateway 設定、redirect URI 確認、refresh token 實作獲認可、E1 核准但明確劃線(僅限首頁);C1 DB 命名改為我方自行對齊規約(不需 portal 回填);新增 **G 段**記錄施工單主動補充的維運義務(容器重建須通知 reload、禁止自送 X-Frame-Options) |
 | v1.1 | 2026-07-28 06:40 | Claude(Benny 授權) | **D3 改為自助**:我方的待開通頁(T45)會顯示使用者自己的 `sub`,portal 通常不需為此查 Keycloak 後台;連帶讓 D2–D4 不再卡住 B 段部署(可先部署、後拿 sub) |
 | v1.0 | 2026-07-28 04:05 | Claude(Benny 授權) | 初版:A SSO 七項、B 路由與部署六項(含前綴的相依範圍說明)、C 資料庫與物件儲存五項、**D 第一個管理員的 sub 四步驟**(漏了系統會鎖死)、E 一項待裁決、F 交付後動作與時程;附註說明為何需要 refresh token、以及我方**不**需要的三項 |

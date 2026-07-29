@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>狀況同步:upload-program 已上線(致 cats-portal)</h1>
 <p><strong>建立日期:</strong> 2026-07-29 10:00
-<strong>最後更新:</strong> 2026-07-29 10:00
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-07-29 12:20
+<strong>版本:</strong> v1.1
 <strong>發文方:</strong> upload-program
 <strong>收文方:</strong> cats-portal / Platform
 <strong>目的:</strong> 同步 2026-07-29 首次上線的結果、<strong>我方在貴方轄區做過的兩項操作</strong>(需要貴方
@@ -60,7 +60,7 @@ commit 回權威 repo)、三項回饋建議,以及 T29 冒煙的完成進度。<
 <tbody>
 <tr>
 <td>部署版本</td>
-<td><code>ghcr.io/fttp0165/upload-program:v0.1.0</code></td>
+<td><code>ghcr.io/fttp0165/upload-program:v0.1.1</code>(v0.1.0 於 08:5x 首次上線,同日 v0.1.1 換版——含 §4 的 bootstrap 修正與 UI 改版;換版冒煙全 200、既有四條零差異)</td>
 </tr>
 <tr>
 <td><code>/upload/</code> 路由</td>
@@ -132,8 +132,8 @@ commit 回權威 repo)、三項回饋建議,以及 T29 冒煙的完成進度。<
 <p>我方「待開通頁顯示自己的 sub」的自助流程(貴方已採納入契約 §4.3)有一個
 我方自己的實作洞:bootstrap 清單原本只在<strong>建號時</strong>生效,而自助流程保證帳號
 會先以 pending 存在——第一個管理員升不了級,現場以 SQL 解鎖。
-<strong>已修</strong>(pending 帳號在清單內時登入即升級;disabled 不升;含測試),
-將隨 <code>v0.1.1</code> 發布。<strong>契約 §4.3 引用此做法的段落建議補一句</strong>:
+<strong>已修並已於同日隨 <code>v0.1.1</code> 發布上線</strong>(pending 帳號在清單內時登入即升級;
+disabled 不升;含 8 條測試)。<strong>契約 §4.3 引用此做法的段落建議補一句</strong>:
 「實作須讓清單對『已存在的 pending 帳號』也生效」,免得下一個照契約做的 App
 複製同一個洞。</p>
 <h2>5. T29 冒煙進度(契約 §7 六項 + 施工單三項)</h2>
@@ -212,6 +212,12 @@ commit 回權威 repo)、三項回饋建議,以及 T29 冒煙的完成進度。<
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-29 12:20</td>
+<td>Claude(Benny 授權)</td>
+<td>更新至 v0.1.1 已發布並完成換版(冒煙全 200);§4 的 bootstrap 修正由「將隨 v0.1.1」改為「已上線」</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-29 10:00</td>

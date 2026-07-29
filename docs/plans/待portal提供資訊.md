@@ -1,8 +1,8 @@
 # 待 portal 提供的資訊(upload-program 接入用)
 
 **建立日期:** 2026-07-28 04:05
-**最後更新:** 2026-07-29 03:20
-**版本:** v1.2
+**最後更新:** 2026-07-29 07:30
+**版本:** v1.3
 **用途:** 交付清單 —— portal 把值填進「回填」欄交還即可,我方據以完成部署
 **相關:** [SSO接入申請_給portal.md](SSO接入申請_給portal.md)(申請內容與合規聲明)、
 [SSO接入計畫.md](SSO接入計畫.md)(我方內部施工計畫)
@@ -19,7 +19,7 @@
 | # | 項目 | 我方建議值 | **回填** | 卡住什麼 |
 |---|---|---|---|---|
 | A1 | `client_id` | `upload-program` | ✅ `upload-program`(施工單 §0) | — |
-| A2 | 🔴 `client_secret` | —(由貴方產生) | ⬜ **待 Keycloak 正式環境部署後另行傳遞**(施工單 §8) | 無法換 token |
+| A2 | 🔴 `client_secret` | —(由貴方產生) | 🔵 **已產出**(2026-07-29 腳本執行完畢,`idp/.env.keycloak.upload-program`,600 權限);⏳ 待安全管道交付到我方手上 | 無法換 token |
 | A3 | client 型別 | **confidential** | ✅ confidential + PKCE S256(施工單 §0) | — |
 | A4 | 🔴 redirect URI(需**含子路徑前綴**) | `https://catsapp.sporton.com.tw/«PREFIX»/oidc/callback/` | ✅ `https://catsapp.sporton.com.tw/upload/oidc/callback/`(施工單 §0、§9 登記表) | — |
 | A5 | 是否核發 refresh token | **需要** | ✅ 已認可我方伺服器端 refresh 實作為「契約建議的正解」(施工單 §4.3) | — |
@@ -114,6 +114,8 @@ portal 的施工單額外交付了以下我方原本沒有問、但接入時會�
 | G3 | Token 壽命 | access 300s / SSO 閒置 1800s / SSO 最長 36000s / auth code 60s / 時鐘容忍 ±30s(由我方函式庫設定,IdP 無此開關)—— 皆與我方現況一致 |
 | G4 | 容器重建後須通知 portal reload gateway | ⚠️ **新的維運義務**——nginx 只在啟動/reload 當下解析一次上游 IP,換版後 IP 變、gateway 仍指向舊 IP,症狀是「健康檢查全綠但真實使用者拿到 502」。已記入部署 runbook(T27)待辦 |
 | G5 | 安全標頭分工 | `X-Content-Type-Options`/`X-Frame-Options` 由 gateway 送;**我方不得自行送 `X-Frame-Options`**(語意不支援多值合併,行為未定義)——T54 已拿掉 |
+| G6 | 🔴 全平台統一 **PG15** | 施工單 §3 範例明載;我方 compose 原為 `postgres:16.4`,T54 核對時漏抓,2026-07-29 補正為 `15.8`(尚未上線,不涉資料遷移) |
+| G7 | 🔴 施工順序(v1.2 §3.0) | **我方容器先上線 → `getent` 確認解析 → portal 解除 `/upload/` 註解 + 低峰 reload**——nginx 對不存在的上游是 `[emerg]` 整份載入失敗,順序弄反 = 全平台中斷;首次上線八步見 [runbook §A0](../runbook_換版與備份還原.md) |
 
 我方回覆施工單 §9 五項的完整內容見 [回覆_portal施工單.md](回覆_portal施工單.md)。
 
@@ -155,6 +157,7 @@ IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.3 | 2026-07-29 07:30 | Claude(Benny 授權) | A2 secret **已產出待交付**(portal 腳本執行完畢);G 段補 G6(全平台統一 PG15,T54 漏抓已補正)與 G7(施工順序反轉);依施工單 v1.1 移除所有「卡 Keycloak 部署」的記載 |
 | v1.2 | 2026-07-29 03:20 | Claude(Benny 授權) | **portal 裁決函與施工單回覆,A/B/E 段大部分項目已回填**:路徑前綴 `/upload/` 定案、`client_max_body_size` 128MB 與剝前綴靜態檔寫法已併入 gateway 設定、redirect URI 確認、refresh token 實作獲認可、E1 核准但明確劃線(僅限首頁);C1 DB 命名改為我方自行對齊規約(不需 portal 回填);新增 **G 段**記錄施工單主動補充的維運義務(容器重建須通知 reload、禁止自送 X-Frame-Options) |
 | v1.1 | 2026-07-28 06:40 | Claude(Benny 授權) | **D3 改為自助**:我方的待開通頁(T45)會顯示使用者自己的 `sub`,portal 通常不需為此查 Keycloak 後台;連帶讓 D2–D4 不再卡住 B 段部署(可先部署、後拿 sub) |
 | v1.0 | 2026-07-28 04:05 | Claude(Benny 授權) | 初版:A SSO 七項、B 路由與部署六項(含前綴的相依範圍說明)、C 資料庫與物件儲存五項、**D 第一個管理員的 sub 四步驟**(漏了系統會鎖死)、E 一項待裁決、F 交付後動作與時程;附註說明為何需要 refresh token、以及我方**不**需要的三項 |

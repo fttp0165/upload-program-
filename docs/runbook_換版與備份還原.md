@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 04:25
-**版本:** v1.0
+**最後更新:** 2026-07-29 07:30
+**版本:** v1.1
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -15,6 +15,29 @@
 > 3. **絕不啟動舊的 `nginx-gateway`**——它會搶 80/443,全平台一起掛。
 
 ---
+
+## A0. 首次上線(只做一次;順序與直覺相反)
+
+**🔴 是我方容器先上線,portal 的路由後啟用——不是反過來**(施工單 v1.2 §3.0)。
+
+nginx 對寫死主機名的上游(`proxy_pass http://upload-program:8080/`)是在
+**載入設定當下**解析的。容器不存在時不是回 502,而是 `[emerg]` 讓**整份設定
+載入失敗、gateway 起不來**——而 portal-gateway 綁 80/443,它起不來等於
+PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 `/upload/` 路由**刻意保持註解**,
+等我方容器上線後才解除。
+
+| # | 步驟 | 誰做 |
+|---|---|---|
+| 1 | 從安全管道收取 `idp/.env.keycloak.upload-program`(client secret),填入部署 `.env`(chmod 600,不進 git) | 我方 |
+| 2 | `BOOTSTRAP_ADMIN_SUBS` 可先留空——上線後指定人選登入、從 `/upload/pending` 複製自己的 `sub` 再回填重啟(SSO 接入計畫 §4.3) | 我方 |
+| 3 | 容器上線:`docker compose up -d`(容器名 `upload-program`、監聽 8080、已在 `cats-edge`) | 我方 |
+| 4 | `docker compose exec svc alembic upgrade head` | 我方 |
+| 5 | 確認 gateway 解析得到:`docker exec portal-gateway getent hosts upload-program` | 雙方 |
+| 6 | portal 解除 `/upload/` 註解 → `nginx -t` → 低峰 reload | portal |
+| 7 | 冒煙:§A.4 全套 + 既有系統零差異(`/`、`/plm/`、`/TMP_GEN/`、`/core/health`) | 雙方 |
+| 8 | 掛 cron(§C.2)——備份與稽核清理**不掛就不存在** | 我方 |
+
+之後的每次換版走下面的 §A;首次上線的特殊之處只有第 5、6 步。
 
 ## A. 換版(部署新版本)
 
@@ -191,4 +214,5 @@ echo "OK: $DEST"
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.1 | 2026-07-29 07:30 | Claude(Benny 授權) | 新增 **§A0 首次上線**(施工單 v1.2 §3.0:我方容器**先**上線,portal 的 `/upload/` 路由保持註解等我方——nginx 對不存在的上游是 `[emerg]` 整份設定載入失敗,不是 502;順序弄反會讓全平台一起中斷);含 secret 收取、bootstrap sub 可後填、cron 掛載等八步 |
 | v1.0 | 2026-07-29 04:25 | Claude(Benny 授權) | 初版:A 換版(含 🔴 通知 portal reload 的明文約定與「經 gateway 冒煙才算數」)、B 回滾(含兩個不可逆 migration 的集中清單)、C 備份(先物件後資料庫的順序論證、完整性驗證、cron 含稽核清理)、D 還原演練證據表(毀掉再還原、SHA-256 驗功能、實測 RTO);演練未執行,T27 維持 🔵 |

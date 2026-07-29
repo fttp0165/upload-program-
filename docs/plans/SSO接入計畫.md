@@ -1,11 +1,11 @@
 # upload-program SSO 接入計畫
 
 **建立日期:** 2026-07-28 02:19
-**最後更新:** 2026-07-29 03:20
-**版本:** v1.3
+**最後更新:** 2026-07-29 07:30
+**版本:** v1.4
 **對應契約:** `cats-portal/DOCS/帳號系統接入契約_SSO.md` **v1.7**(2026-07-28)
 **相關任務:** T26、T28、T29、T45 ✅、T51、T52 ✅、T53
-**狀態:** ✅ **S1 申請已受理並裁決**(2026-07-29);portal 側程式碼就緒,唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)
+**狀態:** ✅ **client 已建立、secret 已產出**(2026-07-29,portal 已執行建置腳本);等待 secret 安全管道交付與我方容器上線——**沒有外部阻擋**
 
 > 依開發憲法第二條 3:接 SSO 是跨多任務的大工程,先立獨立計畫文件,經確認後才動工。
 > 契約權威在 cats-portal,本檔**只引用、不複製維護**;本檔負責的是
@@ -119,8 +119,8 @@ PLM 的 §6.1 快取例外**本專案不繼承**)。
 > 證實子路徑形式才是正確的。
 >
 > **✅ 已定案(2026-07-29,portal 裁決函 + 施工單)**:`https://catsapp.sporton.com.tw/upload/oidc/callback/`。
-> client 建置腳本已備、gateway 路由已併入權威設定,**唯一阻擋項是 Keycloak
-> 正式環境尚未部署**(Platform P0-A),就緒後約 30 分鐘內交付 secret。
+> **client 已於同日建立**(冪等腳本 + 回讀驗證),secret 交付檔已產出、待安全管道交付。
+> ~~「唯一阻擋項是 Keycloak 部署(P0-A)」~~——施工單 v1.1 更正:IdP 早於 2026-07-27 上線。
 
 ### 4.2 路徑前綴與 gateway 路由(T28)
 
@@ -131,8 +131,9 @@ PLM 的 §6.1 快取例外**本專案不繼承**)。
 | 靜態檔 location | 採**剝前綴**寫法:`proxy_pass http://upload-program:8080/static/;` | ✅ 已依此寫法併入設定(施工單 §2.1) |
 | 容器名 / port / network | `container_name: upload-program`、8080、加入 `cats-edge` | ✅ T54 已對齊(施工單 §3 的三項硬性約束) |
 
-> **✅ 2026-07-29 更新:portal 側程式碼已就緒**(client 腳本 + gateway 路由 +
-> 契約 v1.9 已 commit),唯一阻擋項是 Keycloak 正式環境部署(Platform P0-A)。
+> **✅ 2026-07-29 更新:portal 側 client 已建立、gateway 設定已備妥(註解中,
+> 等我方容器上線,見 §5 的 S2)**。~~「阻擋項:Keycloak 部署(P0-A)」~~已由
+> 施工單 v1.1 更正——IdP 早已上線,本案沒有外部阻擋。
 > 我方對施工單的完整回覆見 [回覆_portal施工單.md](回覆_portal施工單.md)。
 > 施工單也點出一項我方原本沒發現的錯配:`SecurityHeadersMiddleware` 自行送
 > `X-Frame-Options`,與 gateway 的 server 層重複——已拿掉(T54)。
@@ -186,8 +187,8 @@ S0 可先做(不需外部)          S1 申請          S2 設定部署        S3
 | 階段 | 任務 | 誰做 | 出場條件 |
 |---|---|---|---|
 | **S0** | T51 ✅、T53 ✅ | 我們 | ✅ **已達成**(2026-07-28):測試 267 passed;§4.10 五項逐條有測試 |
-| **S1** | T26 | **平台方** | ✅ **申請已受理並裁決**(2026-07-29):路徑前綴、redirect URI、gateway 路由、`client_max_body_size` 全數定案;⏳ 唯一未到齊的是 Keycloak 正式環境部署後的 client secret(Platform P0-A) |
-| **S2** | T28 | 兩邊 | gateway 側已完成(portal);我方側 T54 已對齊 compose 三項硬性約束、拿掉重複的 `X-Frame-Options`;bootstrap sub 已填(**可由 `/pending` 自助取得**,見 §4.3) |
+| **S1** | T26 | **平台方** | ✅ **client 已建立**(2026-07-29,冪等腳本執行完畢,回讀驗證過:confidential + PKCE S256、禁 implicit/password、redirect URI 完整比對無萬用字元);secret 交付檔已產出,⏳ 待安全管道交付。~~原記「卡 Keycloak 部署(P0-A)」~~——施工單 v1.1 更正:**IdP 自 2026-07-27 起即已上線**,本案從頭到尾沒有外部阻擋 |
+| **S2** | T28 | 兩邊 | 🔴 **施工順序反轉**(施工單 v1.2 §3.0):gateway 的 `/upload/` 設定已備妥但**刻意保持註解**——nginx 對不存在的上游是 `[emerg]` 整份載入失敗(portal-gateway 掛掉 = 全平台中斷),所以**我方容器先上線 → 確認解析 → portal 才解除註解 reload**。我方側 T54 已對齊;首次上線步驟見 [runbook §A0](../runbook_換版與備份還原.md);bootstrap sub 可後填(§4.3) |
 | **S3** | T29 | 我們 | §7 六項全綠(見 §6);施工單另增三項「只有經過真實 gateway 才驗得到」的項目,一併於冒煙時執行 |
 | **S4** | — | portal | 契約 §9 登記表加上一列 |
 
@@ -262,6 +263,7 @@ S0 可先做(不需外部)          S1 申請          S2 設定部署        S3
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.4 | 2026-07-29 07:30 | Claude(Benny 授權) | 依第二條 5 回寫兩項更正:(1)施工單 v1.1 更正 **Keycloak 早已上線**(2026-07-27 起),v1.3 記的「唯一阻擋項 P0-A」不成立,本案沒有外部阻擋;(2)施工單 v1.2 新增 §3.0 **施工順序反轉**——我方容器先上線,portal 路由保持註解等我方。並記錄 **client 已建立、secret 已產出**(portal 執行腳本輸出:冪等 update、回讀驗證通過);漏抓補正:全平台統一 **PG15**,compose 由 16.4 改 15.8 |
 | v1.3 | 2026-07-29 03:20 | Claude(Benny 授權) | **portal 裁決函 + 施工單已收到並回覆**:路徑前綴 `/upload/`、redirect URI、`client_max_body_size`、gateway 路由全數定案;§4.3 的 D2 落點沿用 T45;T54 對齊 compose 三項硬性約束(`container_name`)並拿掉重複的 `X-Frame-Options`;S1 狀態改為「申請已受理,待 Keycloak 部署」;我方完整回覆見 [回覆_portal施工單.md](回覆_portal施工單.md) |
 | v1.2 | 2026-07-28 06:40 | Claude(Benny 授權) | 依第二條 5 回寫:§4.3 第 2 步「從 IdP 取得 sub」原本沒有落點,**T45 的 `/pending` 頁把它變成自助**——指定人選登入後直接複製頁面上的 sub,不需平台方到 Keycloak 後台查。連帶讓「先部署、後拿 sub」成為可行順序,bootstrap sub 不再是卡住整條路的外部相依;冒煙第 3 項改用 `/admin/users` 一鍵開通 |
 | v1.1 | 2026-07-28 04:05 | Claude(Benny 授權) | S0 兩項(T51、T53)完成,四項缺口全數關閉;狀態改為「等待平台方配發 client 與路徑前綴」;掛上 [待portal提供資訊.md](待portal提供資訊.md) 交付清單 |

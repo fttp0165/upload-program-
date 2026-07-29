@@ -27,7 +27,10 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16.4
+    # 🔴 主版 15 是平台規約:「全平台統一 PG15」(portal 施工單 §3,T54 核對時漏抓,
+    # 2026-07-29 補正)。小版鎖定是本專案自己的慣例(可重現建置);
+    # 升級小版照 runbook 的換版流程走。尚未上線,從 16.4 降主版不涉及任何資料遷移。
+    image: postgres:15.8
     environment:
       POSTGRES_DB: ${DB_NAME:?DB_NAME 必填(.env)}
       POSTGRES_USER: ${DB_USER:?DB_USER 必填(.env)}

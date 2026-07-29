@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>待 portal 提供的資訊(upload-program 接入用)</h1>
 <p><strong>建立日期:</strong> 2026-07-28 04:05
-<strong>最後更新:</strong> 2026-07-29 03:20
-<strong>版本:</strong> v1.2
+<strong>最後更新:</strong> 2026-07-29 07:30
+<strong>版本:</strong> v1.3
 <strong>用途:</strong> 交付清單 —— portal 把值填進「回填」欄交還即可,我方據以完成部署
 <strong>相關:</strong> <a href="SSO接入申請_給portal.md">SSO接入申請_給portal.md</a>(申請內容與合規聲明)、
 <a href="SSO接入計畫.md">SSO接入計畫.md</a>(我方內部施工計畫)</p>
@@ -76,7 +76,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>A2</td>
 <td>🔴 <code>client_secret</code></td>
 <td>—(由貴方產生)</td>
-<td>⬜ <strong>待 Keycloak 正式環境部署後另行傳遞</strong>(施工單 §8)</td>
+<td>🔵 <strong>已產出</strong>(2026-07-29 腳本執行完畢,<code>idp/.env.keycloak.upload-program</code>,600 權限);⏳ 待安全管道交付到我方手上</td>
 <td>無法換 token</td>
 </tr>
 <tr>
@@ -342,6 +342,16 @@ summary { cursor:pointer; color:#12228f; }
 <td>安全標頭分工</td>
 <td><code>X-Content-Type-Options</code>/<code>X-Frame-Options</code> 由 gateway 送;<strong>我方不得自行送 <code>X-Frame-Options</code></strong>(語意不支援多值合併,行為未定義)——T54 已拿掉</td>
 </tr>
+<tr>
+<td>G6</td>
+<td>🔴 全平台統一 <strong>PG15</strong></td>
+<td>施工單 §3 範例明載;我方 compose 原為 <code>postgres:16.4</code>,T54 核對時漏抓,2026-07-29 補正為 <code>15.8</code>(尚未上線,不涉資料遷移)</td>
+</tr>
+<tr>
+<td>G7</td>
+<td>🔴 施工順序(v1.2 §3.0)</td>
+<td><strong>我方容器先上線 → <code>getent</code> 確認解析 → portal 解除 <code>/upload/</code> 註解 + 低峰 reload</strong>——nginx 對不存在的上游是 <code>[emerg]</code> 整份載入失敗,順序弄反 = 全平台中斷;首次上線八步見 <a href="../runbook_換版與備份還原.md">runbook §A0</a></td>
+</tr>
 </tbody>
 </table>
 <p>我方回覆施工單 §9 五項的完整內容見 <a href="回覆_portal施工單.md">回覆_portal施工單.md</a>。</p>
@@ -381,6 +391,12 @@ IdP 停用帳號時 refresh 失敗即登出,收權即時性不受影響)。
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.3</td>
+<td>2026-07-29 07:30</td>
+<td>Claude(Benny 授權)</td>
+<td>A2 secret <strong>已產出待交付</strong>(portal 腳本執行完畢);G 段補 G6(全平台統一 PG15,T54 漏抓已補正)與 G7(施工順序反轉);依施工單 v1.1 移除所有「卡 Keycloak 部署」的記載</td>
+</tr>
 <tr>
 <td>v1.2</td>
 <td>2026-07-29 03:20</td>

@@ -34,6 +34,9 @@ def render(request, template: str, **context) -> str:
     """
     settings = request.app.state.settings
     context.setdefault("identity", None)
+    # T62:側欄需要知道「現在在哪」才能標 active。gateway 已剝前綴,
+    # 這裡的 path 是服務視角(/、/admin/users…),與側欄連結的 url() 參數同座標系。
+    context.setdefault("current_path", str(request.url.path) or "/")
     return _env.get_template(template).render(
         url=lambda path: web_url(settings, path),
         # 🔴 平台層短網址(契約 §2.1),**不經過 url()**——它不帶本服務的前綴。

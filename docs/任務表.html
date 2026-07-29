@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 17:20
-<strong>版本:</strong> v1.38</p>
+<strong>最後更新:</strong> 2026-07-29 18:00
+<strong>版本:</strong> v1.39</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T62</td>
+<td>導覽改版:PLM 式「頂列 + 左側欄」</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示參考 PLM:左側欄(專案總覽/建立專案/管理二項,行內 SVG 圖示、active 藏青反白,僅已開通者、僅 lg+)、頂列瘦身(桌面連結走側欄,<code>d-lg-none</code> 留給漢堡不重覆);<code>render()</code> 注入 <code>current_path</code> 做 active;<strong>344 測試零放寬全綠</strong></td>
+</tr>
+<tr>
 <td>T61</td>
 <td>Bootstrap 版面優化:麵包屑 + 專案頁兩欄</td>
 <td>✅</td>
@@ -733,6 +740,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.39</td>
+<td>2026-07-29 18:00</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T62 完成</strong>:導覽改 PLM 式頂列+左側欄(active 反白、行內 SVG 圖示、窄幅漢堡);344 全綠</td>
 </tr>
 <tr>
 <td>v1.38</td>

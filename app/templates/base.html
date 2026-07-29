@@ -60,10 +60,11 @@
     <ul class="navbar-nav nav-user ms-lg-auto align-items-lg-center">
       {% if identity %}
         {% if identity.user.is_active %}
-          <li class="nav-item"><a class="nav-link" href="{{ url('/projects/new') }}">建立專案</a></li>
+          {# T62:桌面版這兩條走左側欄,這裡只給窄螢幕的漢堡選單(d-lg-none 避免重覆) #}
+          <li class="nav-item d-lg-none"><a class="nav-link" href="{{ url('/projects/new') }}">建立專案</a></li>
           {# T45:管理後台若沒有入口就等於不存在,管理員只能手打網址。 #}
           {% if identity.user.is_admin %}
-            <li class="nav-item"><a class="nav-link" href="{{ url('/admin/users') }}">管理</a></li>
+            <li class="nav-item d-lg-none"><a class="nav-link" href="{{ url('/admin/users') }}">管理</a></li>
           {% endif %}
         {% endif %}
         <li class="nav-item dropdown">
@@ -85,9 +86,47 @@
   </div>
 </nav>
 
+{#
+  T62 佈局(參考 PLM):登入且已開通 → 左側欄 + 內容;其他人只有內容。
+  側欄僅 lg 以上顯示(窄螢幕走頂列漢堡);圖示用行內 SVG——CSP 擋 data: URI
+  與外部資源,行內 SVG 是標記不是資源載入。active 判斷用 current_path
+  (剝前綴後的服務視角路徑,與 url() 的參數同座標系)。
+#}
+<div class="layout">
+{% if identity and identity.user.is_active %}
+  <aside class="sidebar d-none d-lg-flex">
+    <div class="side-head">
+      <div class="side-title">專案中心</div>
+      <div class="side-sub">程式分享平台</div>
+    </div>
+
+    <a class="side-link{% if current_path == '/' %} active{% endif %}" href="{{ url('/') }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 4h4l1.5 2h7.5v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>
+      專案總覽
+    </a>
+    <a class="side-link{% if current_path.startswith('/projects/new') %} active{% endif %}" href="{{ url('/projects/new') }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6"/></svg>
+      建立專案
+    </a>
+
+    {% if identity.user.is_admin %}
+      <div class="side-sect">管理</div>
+      <a class="side-link{% if current_path.startswith('/admin/users') %} active{% endif %}" href="{{ url('/admin/users') }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c.8-2.6 2.9-4 5.5-4s4.7 1.4 5.5 4"/></svg>
+        使用者
+      </a>
+      <a class="side-link{% if current_path.startswith('/admin/audit') %} active{% endif %}" href="{{ url('/admin/audit') }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 3.5h10M3 8h10M3 12.5h6"/></svg>
+        稽核紀錄
+      </a>
+    {% endif %}
+  </aside>
+{% endif %}
+
 <main class="page">
 {% block content %}{% endblock %}
 </main>
+</div>
 {# T58:navbar 的 collapse 與 dropdown 需要 Bootstrap JS。
    🔴 外部檔案(CSP 禁 inline script);collapse 動畫由 JS 設 element.style,
    那是 CSSOM 操作,CSP 不擋——與被禁的 inline style 屬性是兩回事。 #}

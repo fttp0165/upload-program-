@@ -673,6 +673,14 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 /* 管理清單沿用 .project-list 但單欄 */
 .admin-list { grid-template-columns: 1fr; }
 
+/* --- 麵包屑(T61,Bootstrap breadcrumb 佈景成本站配色) --- */
+
+.breadcrumb { font-size: .85rem; margin: 0 0 .4rem; }
+.breadcrumb-item a { text-decoration: none; color: var(--fg-muted); font-weight: 600; }
+.breadcrumb-item a:hover { color: var(--green); }
+.breadcrumb-item.active { color: var(--ink); font-weight: 600; }
+.breadcrumb-item + .breadcrumb-item::before { color: var(--fg-ghost); }
+
 /* --- 動效(T57) ---
  *
  * 全部收在 reduced-motion 媒體查詢內:使用者在系統層關掉動畫,這裡就一條都不生效。

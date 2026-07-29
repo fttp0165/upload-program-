@@ -23,6 +23,14 @@
   <p><a href="{{ url('/pending') }}">查看開通指引與你的識別碼 →</a></p>
 
 {% else %}
+  {# T61:麵包屑(Bootstrap breadcrumb)。連結一律 url()——紅線。 #}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url('/') }}">首頁</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ project.name }}</li>
+    </ol>
+  </nav>
+
   <header class="project-header">
     <h1>{{ project.name }}</h1>
     <p class="project-head">
@@ -35,6 +43,10 @@
     {% if project.summary %}<p class="lead">{{ project.summary }}</p>{% endif %}
   </header>
 
+  {# T61:lg 以上兩欄(左:最新版本;右:專案資訊),窄螢幕自動疊回單欄。
+     🔴 DOM 順序仍是「最新版本在前、專案資訊在後」——Q8「下載優先」的測試釘著。 #}
+  <div class="row g-0 g-lg-4">
+  <div class="col-lg-8">
   <section class="latest">
     <h2>最新版本</h2>
     {% if release %}
@@ -81,7 +93,9 @@
     <a href="{{ url('/projects/' ~ project.slug ~ '/releases/new') }}">建立新版本</a> ·
     <a href="{{ url('/projects/' ~ project.slug ~ '/releases') }}">查看版本歷史 →</a>
   </p>
+  </div>
 
+  <div class="col-lg-4">
   <section class="project-info">
     <h2>專案資訊</h2>
     <dl class="info-grid">
@@ -95,6 +109,8 @@
       <dt>最後更新</dt><dd>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
     </dl>
   </section>
+  </div>
+  </div>
 {% endif %}
 
 {% endblock %}

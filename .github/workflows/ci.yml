@@ -213,14 +213,12 @@ jobs:
           fi
           echo "✅ ${TAG} 尚未發布"
 
+      # 同 build job 的理由:dockerd 內建 builder(吃 registry mirror);只推明確版號,絕不推 latest
       - name: Build & push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          # 只推明確版號,絕不推 latest
-          tags: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          cache-from: type=gha
+        run: |
+          set -e
+          docker build -t "${IMAGE_NAME}:${GITHUB_REF_NAME}" .
+          docker push "${IMAGE_NAME}:${GITHUB_REF_NAME}"
 
       - name: 發布摘要
         run: |

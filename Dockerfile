@@ -1,4 +1,6 @@
-# syntax=docker/dockerfile:1
+# (原本第一行的 `# syntax=docker/dockerfile:1` 已移除——它會讓 buildkit 去
+#  docker.io 抓 frontend image,而本 VM 連不到 docker.io(dockerd 走 mirror.gcr.io
+#  鏡像,但該指令繞過 dockerd)。本檔未用進階語法,內建 frontend 足夠。)
 # 平台規約:multi-stage、base image 鎖版本(禁 latest)、non-root、EXPOSE 8080、
 # HEALTHCHECK 指向 /health(liveness,不查 DB)、正式級伺服器、優雅關閉。
 

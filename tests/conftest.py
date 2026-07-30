@@ -208,3 +208,22 @@ async def active_user(app, oidc):
 async def admin_user(app, oidc):
     user = await make_user(app, "sub-admin", admin=True)
     return user, oidc.issue("sub-admin")
+
+
+# T65:發布需三類齊備。給既有測試用的最小補齊——上傳 source(zip)與 doc(pdf)。
+SOURCE_ZIP = b"PK\x03\x04" + b"\x00" * 60
+DOC_PDF = b"%PDF-1.4\n" + b"\x00" * 60
+
+
+async def complete_kinds(client, token, release_id):
+    """把 release 補上 source 與 doc 各一檔(binary 由呼叫端自理)。"""
+    for name, kind, body in (
+        ("src.zip", "source", SOURCE_ZIP),
+        ("notes.pdf", "doc", DOC_PDF),
+    ):
+        resp = await client.put(
+            f"/v1/releases/{release_id}/artifacts/{name}?kind={kind}",
+            content=body,
+            headers=auth(token),
+        )
+        assert resp.status_code == 201, resp.text

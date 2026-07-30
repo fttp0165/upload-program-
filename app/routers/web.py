@@ -47,7 +47,7 @@ from ..security import (
 )
 from ..templating import render
 from ..web_urls import web_url
-from .releases import latest_published_release, load_release
+from .releases import latest_published_release, load_release, missing_required_kinds
 
 router = APIRouter(include_in_schema=False, tags=["web"])
 log = logging.getLogger(__name__)
@@ -565,6 +565,8 @@ async def upload_page(
             # JS 不自己拼路徑(它不知道前綴是什麼)。
             upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
             max_artifact_bytes=settings.max_artifact_bytes,
+            # T65:三類齊備規則——模板據此畫檢查表並停用發布鈕
+            missing_kinds=missing_required_kinds(release),
         )
     )
 
@@ -583,6 +585,9 @@ async def publish_release_form(
         if not any(a.upload_status is UploadStatus.ready for a in release.artifacts):
             # 與 API 同一條規則:空版本不可發布。
             return _redirect(request, f"/releases/{release.id}/upload?error=empty")
+        if missing_required_kinds(release):
+            # T65:三類齊備(規則本體在 releases.missing_required_kinds,只存在一份)
+            return _redirect(request, f"/releases/{release.id}/upload?error=missing-kinds")
         release.status = ReleaseStatus.published
         release.published_at = datetime.now(UTC)
         await session.commit()

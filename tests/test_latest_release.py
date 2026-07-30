@@ -9,7 +9,7 @@
 
 import hashlib
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, complete_kinds, make_user
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 120
 
@@ -39,6 +39,7 @@ async def _publish(client, token, slug, version, *, filename="tool.bin", body=EL
     )
     assert up.status_code == 201, up.text
 
+    await complete_kinds(client, token, rid)
     pub = await client.post(f"/v1/releases/{rid}/publish", headers=auth(token))
     assert pub.status_code == 200, pub.text
     return pub.json()
@@ -77,6 +78,7 @@ async def test_最新版以發布時間判定而非版本號字串(client, activ
     await _publish(client, token, "cli-tool", "v9")
 
     # v10 最後才發布 → 它的 published_at 最大
+    await complete_kinds(client, token, rid10)
     pub10 = await client.post(f"/v1/releases/{rid10}/publish", headers=auth(token))
     assert pub10.status_code == 200
 

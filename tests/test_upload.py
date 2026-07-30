@@ -2,7 +2,7 @@
 
 import hashlib
 
-from tests.conftest import auth
+from tests.conftest import auth, complete_kinds
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 200
 ZIP = b"PK\x03\x04" + b"\x00" * 200
@@ -155,6 +155,7 @@ async def test_空版本不能發布發完就鎖住(client, active_user):
         content=ELF,
         headers=auth(token),
     )
+    await complete_kinds(client, token, release_id)
     published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert published.status_code == 200
     assert published.json()["status"] == "published"
@@ -176,6 +177,7 @@ async def test_重複發布是冪等的(client, active_user):
         content=ELF,
         headers=auth(token),
     )
+    await complete_kinds(client, token, release_id)
     first = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     second = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert first.status_code == second.status_code == 200

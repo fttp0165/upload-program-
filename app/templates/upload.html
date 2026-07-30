@@ -86,8 +86,13 @@
   </section>
 
   {% if release.status.value != 'published' %}
+    {# T65:發布需三類齊備——缺項列出來、按鈕停用;伺服器端同規則兜底。 #}
+    {% if missing_kinds %}
+      <p class="notice">發布前每一版必須包含<strong>更新文件、執行檔、原始碼包</strong>各至少一個。
+        目前還缺:<strong>{{ missing_kinds | join('、') }}</strong>。</p>
+    {% endif %}
     <form method="post" action="{{ url('/releases/' ~ release.id ~ '/publish') }}" class="publish-form">
-      <button type="submit" class="btn" {% if not artifacts %}disabled{% endif %}>發布這個版本</button>
+      <button type="submit" class="btn" {% if not artifacts or missing_kinds %}disabled{% endif %}>發布這個版本</button>
       <span class="muted">發布後不可再變更檔案。</span>
     </form>
   {% endif %}

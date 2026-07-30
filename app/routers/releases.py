@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
-from ..models import ProjectRole, Release, ReleaseStatus, UploadStatus
+from ..models import ArtifactKind, ProjectRole, Release, ReleaseStatus, UploadStatus
 from ..queries import query_releases
 from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
 from ..security import (
@@ -171,6 +171,26 @@ async def update_release(
     return ReleaseOut.model_validate(release)
 
 
+# T65:發布的三類齊備規則(Benny 2026-07-31 裁示)。
+# 每一版必須是「可用的交付」:更新文件、執行檔、原始碼包各至少一個——
+# 缺任何一類的版本對使用者都是半成品(有檔沒文件、有文件沒程式)。
+_REQUIRED_KINDS: dict[ArtifactKind, str] = {
+    ArtifactKind.doc: "更新文件(doc)",
+    ArtifactKind.binary: "執行檔(binary)",
+    ArtifactKind.source: "原始碼包(source)",
+}
+
+
+def missing_required_kinds(release: Release) -> list[str]:
+    """回傳缺少的類別中文標籤(依 doc→binary→source 固定順序);齊了回空 list。
+
+    只算 upload_status=ready 的檔案——上傳到一半的不算數。
+    API 與網頁共用這一條,規則只存在一份。
+    """
+    present = {a.kind for a in release.artifacts if a.upload_status is UploadStatus.ready}
+    return [label for kind, label in _REQUIRED_KINDS.items() if kind not in present]
+
+
 @router.post("/releases/{release_id}/publish", response_model=ReleaseOut, summary="發布版本")
 async def publish_release(
     release_id: str, session: DbSession, identity: CurrentUser
@@ -184,6 +204,14 @@ async def publish_release(
     if not ready:
         raise problems.unprocessable(
             "empty-release", "版本沒有檔案", "至少要有一個上傳完成的檔案才能發布。"
+        )
+    missing = missing_required_kinds(release)
+    if missing:
+        raise problems.unprocessable(
+            "release-missing-kinds",
+            "發布內容不齊",
+            "每一版發布必須包含:更新文件(doc)、執行檔(binary)、原始碼包(source)"
+            f"各至少一個;目前缺:{'、'.join(missing)}。",
         )
 
     release.status = ReleaseStatus.published

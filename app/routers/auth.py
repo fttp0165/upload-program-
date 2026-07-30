@@ -33,7 +33,13 @@ def _safe_next(raw: str | None) -> str:
 
 
 @router.get("/auth/login", summary="導向 IdP 登入頁(Auth Code + PKCE)")
-async def login(request: Request, next: Annotated[str | None, Query()] = None):
+async def login(
+    request: Request,
+    next: Annotated[str | None, Query()] = None,
+    silent: Annotated[bool, Query()] = False,
+):
+    # T64:silent=1 走 prompt=none 靜默探測——portal 登入過的人免再按登入;
+    # 沒有 IdP session 的人由 callback 無聲送回落地頁,不會看到 Keycloak 畫面。
     oidc = request.app.state.oidc
     try:
         discovery = await oidc.load_discovery()
@@ -46,11 +52,26 @@ async def login(request: Request, next: Annotated[str | None, Query()] = None):
     nonce = secrets.token_urlsafe(16)
 
     response = RedirectResponse(
-        oidc.authorization_url(discovery, state, challenge, nonce), status_code=302
+        oidc.authorization_url(
+            discovery, state, challenge, nonce, prompt="none" if silent else None
+        ),
+        status_code=302,
     )
-    request.app.state.cookies.set_login_state(
-        response, LoginState(state=state, verifier=verifier, nonce=nonce, next_path=_safe_next(next))
+    codec = request.app.state.cookies
+    codec.set_login_state(
+        response,
+        LoginState(
+            state=state,
+            verifier=verifier,
+            nonce=nonce,
+            next_path=_safe_next(next),
+            silent=silent,
+        ),
     )
+    if silent:
+        # 🔴 防迴圈:發起當下就種探測 cookie(5 分鐘)——就算 callback 沒回來
+        # (IdP 異常、使用者中途關頁),首頁也不會再連續發起探測。
+        codec.set_sso_probe(response)
     return response
 
 
@@ -66,13 +87,25 @@ async def callback(
     codec = request.app.state.cookies
     oidc = request.app.state.oidc
 
+    login_state = codec.read_login_state(request.cookies.get(codec.login_cookie_name))
+
     if error:
+        # T64:靜默探測的 login_required 系列=「這個瀏覽器沒有 IdP session」,
+        # 是預期結果不是錯誤——無聲送回原頁(落地頁),不記 warning、不 401。
+        if (
+            login_state is not None
+            and login_state.silent
+            and error in {"login_required", "interaction_required", "consent_required"}
+        ):
+            response = RedirectResponse(
+                f"{settings.external_base}{login_state.next_path}", status_code=302
+            )
+            codec.clear_login_state(response)
+            return response
         log.warning("IdP 回傳錯誤", extra={"oidc_error": error})
         raise problems.unauthorized("登入未完成,請重試。")
     if not code or not state:
         raise problems.bad_request("callback 缺少 code 或 state")
-
-    login_state = codec.read_login_state(request.cookies.get(codec.login_cookie_name))
     if login_state is None:
         raise problems.unauthorized("登入流程已逾時,請重新登入。")
     if not secrets.compare_digest(login_state.state, state):

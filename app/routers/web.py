@@ -119,6 +119,19 @@ async def home(
 
     參數:q 關鍵字、tag 標籤、offset 分頁位移。回傳:HTML。副作用:無(唯讀)。
     """
+    # T64 靜默 SSO:瀏覽器首訪(Accept 含 text/html,沿用 T47 內容協商精神)
+    # 且這 5 分鐘內沒探測過 → 無聲問一次 IdP。portal 登入過的人直接進站;
+    # 沒 session 的人會被無聲送回這裡(帶著探測 cookie,不再發起)。
+    # curl / 冒煙(Accept: */*)不觸發——監控看到的行為與從前完全相同。
+    codec = request.app.state.cookies
+    if (
+        identity is None
+        and "text/html" in request.headers.get("accept", "")
+        and request.cookies.get(codec.sso_probe_cookie_name) is None
+    ):
+        settings = request.app.state.settings
+        return RedirectResponse(f"{settings.external_base}/auth/login?silent=1", status_code=302)
+
     settings = request.app.state.settings
     total, projects, next_url, prev_url = 0, [], None, None
 

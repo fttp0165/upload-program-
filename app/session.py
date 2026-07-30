@@ -24,6 +24,9 @@ class LoginState:
     verifier: str
     nonce: str
     next_path: str = "/"
+    # T64:靜默探測(prompt=none)發起的流程——callback 據此把 login_required
+    # 當「沒有 IdP session」無聲處理,而不是 401。預設 False 向後相容舊 cookie。
+    silent: bool = False
 
 
 @dataclass(slots=True)
@@ -72,6 +75,16 @@ class CookieCodec:
 
     def clear_login_state(self, response: Response) -> None:
         self._clear(response, self.login_cookie_name)
+
+    # --- T64 靜默 SSO 探測 cookie ---
+    # 短效標記「這個瀏覽器剛探測過」:防止首頁 ↔ IdP 迴圈。值無意義,存在即可。
+
+    @property
+    def sso_probe_cookie_name(self) -> str:
+        return f"{self._settings.session_cookie_name}_probe"
+
+    def set_sso_probe(self, response: Response) -> None:
+        self._set(response, self.sso_probe_cookie_name, "1", 300)
 
     # --- 登入後 session ---
 

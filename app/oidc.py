@@ -108,7 +108,14 @@ class OidcClient:
 
     # --- 登入流程 ---------------------------------------------------------
 
-    def authorization_url(self, discovery: Discovery, state: str, challenge: str, nonce: str) -> str:
+    def authorization_url(
+        self,
+        discovery: Discovery,
+        state: str,
+        challenge: str,
+        nonce: str,
+        prompt: str | None = None,
+    ) -> str:
         params = {
             "response_type": "code",  # 🔴 禁 implicit
             "client_id": self._settings.oidc_client_id,
@@ -119,6 +126,10 @@ class OidcClient:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }
+        # T64:prompt=none = 靜默探測——IdP 有 session 就發 code,沒有就回
+        # login_required,全程不顯示登入畫面。流程仍是 code + PKCE,契約 §4.1 不變。
+        if prompt:
+            params["prompt"] = prompt
         return str(httpx.URL(discovery.authorization_endpoint, params=params))
 
     async def exchange_code(self, code: str, verifier: str) -> dict[str, Any]:

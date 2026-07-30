@@ -13,7 +13,7 @@
 
 import re
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, complete_kinds, make_user
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -60,6 +60,7 @@ async def _publish(client, token, slug, version="v1.0.0", filename="tool.bin"):
         headers=auth(token),
     )
     assert up.status_code == 201, up.text
+    await complete_kinds(client, token, release_id)
     done = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert done.status_code == 200, done.text
     return release_id, up.json()["id"]
@@ -102,9 +103,10 @@ async def test_版本與檔案的建立刪除都有紀錄(client, active_user, a
 
     assert len(await _events(app, action="release.create")) == 1
     assert len(await _events(app, action="release.publish")) == 1
+    # T65 之後發布需三類齊備:_publish 會傳 tool.bin + src.zip + notes.pdf 共三檔
     uploads = await _events(app, action="artifact.upload")
-    assert len(uploads) == 1
-    assert uploads[0].target_label == "tool.bin"
+    assert len(uploads) == 3
+    assert {u.target_label for u in uploads} == {"tool.bin", "src.zip", "notes.pdf"}
 
     # 已發布的版本不能刪檔(既有規則),所以刪除要在另一個 draft 上做。
     draft = await client.post(

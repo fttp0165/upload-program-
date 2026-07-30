@@ -12,7 +12,7 @@ F43 只要求「次數」,「誰下載了什麼」是稽核(T38/F54)的職責。
 import asyncio
 import uuid
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, complete_kinds, make_user
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 200
 
@@ -80,6 +80,7 @@ async def test_最新版捷徑下載算同一個計數器(client, active_user):
     """🔴 兩條下載路徑共用 `_download_response()`,計數不得因為換路徑就分岔。"""
     _, token = active_user
     slug, release_id, artifact_id = await _project_release_artifact(client, token)
+    await complete_kinds(client, token, release_id)
     published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert published.status_code == 200, published.text
 

@@ -10,7 +10,7 @@
 
 import re
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, complete_kinds, make_user
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -59,6 +59,7 @@ async def test_不需curl即可完成一輪上傳與發布(client, active_user):
         headers=auth(token),
     )
     assert up.status_code == 201, up.text
+    await complete_kinds(client, token, release_id)  # T65:發布需三類齊備
 
     # 4. 發布(HTML 表單 POST)
     published = await client.post(
@@ -213,6 +214,7 @@ async def test_已發布的版本不給上傳(client, active_user):
         content=ELF,
         headers=auth(token),
     )
+    await complete_kinds(client, token, release_id)  # T65:發布需三類齊備
     await client.post(
         f"/releases/{release_id}/publish",
         headers={**BROWSER, **auth(token)},

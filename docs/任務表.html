@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-29 15:00
-<strong>版本:</strong> v1.35</p>
+<strong>最後更新:</strong> 2026-07-31 11:00
+<strong>版本:</strong> v1.42</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -394,9 +394,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T26</td>
 <td>申請 SSO client(§5)並登記契約 §9</td>
-<td>🔵</td>
+<td>✅</td>
 <td>🟢</td>
-<td><strong>client 已建立</strong>(2026-07-29,portal 執行冪等腳本,回讀驗證過:confidential + PKCE S256、禁 implicit/password、redirect URI 完整比對無萬用字元);secret 交付檔已產出(600 權限、不進 git),⏳ <strong>待安全管道交付到我方手上</strong>。~~原記「卡 Keycloak 部署 P0-A」~~——施工單 v1.1 更正:IdP 自 2026-07-27 即已上線,<strong>本案沒有外部阻擋</strong>。申請書 <a href="plans/SSO接入申請_給portal.md">plans/SSO接入申請_給portal.md</a></td>
+<td>client 已建立並回讀驗證(confidential + PKCE S256);secret 已於 2026-07-29 安全交付並完成登入實測;<strong>契約 §9 已登記本服務為平台第一個完成 SSO 端到端接入並上線的 App</strong>(portal 2026-07-30 狀況對齊函)</td>
 </tr>
 <tr>
 <td>T27</td>
@@ -408,14 +408,42 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T28</td>
 <td>cats-portal 路由 PR + 驗收</td>
-<td>🔵</td>
+<td>✅</td>
 <td>🟢</td>
-<td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
+<td>依施工單 §3.0 順序完成:我方容器 2026-07-29 先上線 → gateway 解析確認 → <code>/upload/</code> 三個 location 解除註解 + reload → 既有系統四條零差異;<strong>portal 已將變更 commit 回權威 repo</strong>(含 upstream 白名單 CI 斷言),見 2026-07-30 狀況對齊函 §2</td>
+</tr>
+<tr>
+<td>T63</td>
+<td>T2.0 <code>groups</code> claim 通知對齊(只讀不判)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>portal 2026-07-31 通知:claim 已就緒但<strong>無人被指派</strong>——🔴 現在不得以 <code>/svc/upload</code> 判開通(會鎖住所有人且症狀像 SSO 壞掉),維持後台開通;新增 4 條防禦測試釘住「帶 groups 行為不變、空陣列/不存在都承受、User 無 groups 欄位(§4.2a L2 不得快取,結構保證)」;啟用時機等 portal 通知</td>
+</tr>
+<tr>
+<td>T62</td>
+<td>導覽改版:PLM 式「頂列 + 左側欄」</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示參考 PLM:左側欄(專案總覽/建立專案/管理二項,行內 SVG 圖示、active 藏青反白,僅已開通者、僅 lg+)、頂列瘦身(桌面連結走側欄,<code>d-lg-none</code> 留給漢堡不重覆);<code>render()</code> 注入 <code>current_path</code> 做 active;<strong>344 測試零放寬全綠</strong></td>
+</tr>
+<tr>
+<td>T61</td>
+<td>Bootstrap 版面優化:麵包屑 + 專案頁兩欄</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 指示「用 bootstrap 優化」:三頁補 <strong>breadcrumb</strong>(T56 遺留 #2 結案;連結一律 <code>url()</code>)、專案頁 <strong>grid 兩欄</strong>(lg 左最新版本/右專案資訊,窄幅疊回單欄;🔴 DOM 仍下載在前,Q8 測試不動);<strong>344 測試零放寬全綠</strong></td>
+</tr>
+<tr>
+<td>T60</td>
+<td>施工單 v1.3 對齊:OIDC 伺服器端呼叫改內部端點</td>
+<td>✅</td>
+<td>🟢</td>
+<td>§4.4(sporton_core 實測;我方上線當天踩過同一坑、當時以 hairpin 解):新增三個<strong>可覆寫</strong>設定 <code>OIDC_DISCOVERY_URL</code>/<code>OIDC_TOKEN_URL</code>/<code>OIDC_JWKS_URL</code>(預設空=行為不變);🔴 瀏覽器端點與 <code>iss</code> 永遠對外(字串比對非連線)、issuer 檢查不因內部抓取放寬——<strong>7 條紅→綠</strong>,全套 344;VM 換版時 .env 追加三行後 hairpin 配件降級為備援</td>
 </tr>
 <tr>
 <td>T59</td>
-<td>管理後台顯示名稱快取(<strong>待 Platform 裁示,裁示前不動工</strong>)</td>
-<td>⬜</td>
+<td>管理後台顯示名稱快取(§4.2a L1)</td>
+<td>✅</td>
 <td>🟡</td>
 <td>營運實測:管理後台只有 sub,開通後的日常管理無法認人,且會催生管理員私記的影子對照表;已依 §4.2 紅線流程提出<strong>具名特例申請</strong>(比照 PLM §6.1):<a href="plans/申請_姓名快取特例_給portal.md">申請_姓名快取特例_給portal</a>——僅 <code>name</code> claim、登入時覆寫、僅管理後台顯示、不進 log、可整批清除、不呼叫 Admin API;獲准後才開工(migration 加 nullable 欄位,backward 為 drop column)</td>
 </tr>
@@ -719,6 +747,48 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.42</td>
+<td>2026-07-31 11:00</td>
+<td>Claude(Benny 授權)</td>
+<td>收掉兩筆過時狀態:<strong>T26、T28 轉 ✅</strong>(上線日即已完成,portal 2026-07-30 對齊函確認 commit 回權威 repo 與契約 §9 登記);M6 僅餘 T27 演練</td>
+</tr>
+<tr>
+<td>v1.41</td>
+<td>2026-07-31 09:00</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T63</strong>:groups claim 通知對齊——只讀不判(現況本就不讀),4 條防禦測試防止提早接;全套 353</td>
+</tr>
+<tr>
+<td>v1.40</td>
+<td>2026-07-30 09:30</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T59 完成</strong>:portal 2026-07-30 裁決<strong>准</strong>(升格契約通則 §4.2a L1)——migration 0006 加 <code>display_name_cache</code>(nullable)、每次登入以 <code>name</code> claim 覆寫(無 claim → NULL,不採 preferred_username)、後台顯示「名字+截斷 sub(title 帶完整值)」、/v1/me 不輸出、<code>tools/purge_name_cache.py</code> 整批清除(必然涵蓋孤兒);<strong>5 條紅→綠,全套 349</strong></td>
+</tr>
+<tr>
+<td>v1.39</td>
+<td>2026-07-29 18:00</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T62 完成</strong>:導覽改 PLM 式頂列+左側欄(active 反白、行內 SVG 圖示、窄幅漢堡);344 全綠</td>
+</tr>
+<tr>
+<td>v1.38</td>
+<td>2026-07-29 17:20</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T61 完成</strong>:Bootstrap 版面元件進內容區——麵包屑三頁(T56 遺留 #2 結案)+ 專案頁響應式兩欄;344 全綠</td>
+</tr>
+<tr>
+<td>v1.37</td>
+<td>2026-07-29 16:30</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T60 完成</strong>:portal 施工單 v1.3 §4.4 對齊——OIDC 伺服器端呼叫改可覆寫內部端點(7 條紅→綠,全套 344);runbook v1.5</td>
+</tr>
+<tr>
+<td>v1.36</td>
+<td>2026-07-29 15:30</td>
+<td>Claude(Benny 授權)</td>
+<td>補記:<strong>v0.1.2 發版中斷</strong>——tag 已建、CI 兩次「秒殺無 runner」(帳號層,疑 Actions 額度),T57/T58 尚未上線,線上維持 v0.1.1;中斷點與續辦見 <a href="dev-logs/2026-07-29_v012發版中斷_CI無runner.md">dev-logs/2026-07-29_v012發版中斷_CI無runner.md</a>;runbook 升 v1.4(版本哨兵/秒殺診斷);T59 申請日誌補齊</td>
 </tr>
 <tr>
 <td>v1.35</td>

@@ -27,30 +27,38 @@ jobs:
   # ---------------------------------------------------------------- 測試與 lint
   test:
     name: 測試 / lint / 文件同步
-    runs-on: ubuntu-latest
+    # 2026-07-31:改跑 VM 上的 self-hosted runner——GitHub 免費額度用罄(v0.1.2
+    # 發版中斷事件),自架 runner 不計分鐘數。🔴 這不牴觸「正式機不 build 部署」:
+    # image 仍推 GHCR、部署仍是改 tag 後 pull;變的只是建置在哪台機器發生。
+    # 若日後額度恢復想切回雲端,改回 ubuntu-latest 即可。
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: requirements-dev.txt
-
-      - name: 安裝相依
+      # 2026-07-30:self-hosted 上 setup-python 會嘗試下載整套工具鏈進 tool cache,
+      # 在 VM 上掙扎 3 分半後失敗(run #81 實測)。自架環境直接用系統 Python 建
+      # venv——不下載、不依賴 tool cache;切回雲端 runner 時再換回 setup-python。
+      - name: 準備 Python venv(用 VM 系統 Python)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          set -e
+          PY=$(command -v python3.12 || command -v python3)
+          echo "使用:$($PY --version)($PY)"
+          $PY -m venv .ci-venv || {
+            echo "::error::venv 建立失敗——VM 可能缺 python3-venv 套件(sudo apt install python3.12-venv)"
+            exit 1
+          }
+          .ci-venv/bin/pip install --upgrade pip
+          .ci-venv/bin/pip install -r requirements-dev.txt
 
       - name: Lint(ruff)
-        run: ruff check .
+        run: .ci-venv/bin/ruff check .
 
       - name: 測試(pytest)
-        run: pytest -q
+        run: .ci-venv/bin/pytest -q
 
       # 憲法第四條:正式文件 md 與 HTML 必須同步。靠人記得跑產生器遲早會漂移,交給 CI 擋。
       - name: 文件 md/HTML 同步檢查
-        run: python tools/render_docs.py --check
+        run: .ci-venv/bin/python tools/render_docs.py --check
 
       # 🔴 平台鐵則 8:secret 絕不進 git。這裡只做最基本的把關,不取代 secret scanning。
       - name: 檢查不該進 git 的檔案
@@ -86,25 +94,19 @@ jobs:
   # ---------------------------------------------------------------- 建置與掃描
   build:
     name: Build image + Trivy 掃描
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]   # 同上:VM self-hosted(額度事件)
     needs: test
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
-
-      # 先只建到本機,掃過才決定要不要推
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: true
-          tags: upload-program:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # 2026-07-30 run #82/#83 實測:docker-container driver 的 buildkit 是獨立容器,
+      # 不吃 dockerd 的 registry mirror(本 VM 連不到 docker.io,靠 mirror.gcr.io),
+      # 抓 base image 直接 i/o timeout。改用 dockerd 內建 builder——吃鏡像設定,
+      # 且同機重跑天然有本機層快取(GHA 快取後端在本 VM 也連不到,一併移除)。
+      - name: Build image(dockerd 內建 builder,先只建到本機)
+        run: docker build -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |
@@ -162,20 +164,23 @@ jobs:
           docker rm smoke
 
       # 🔴 有 high / critical 即失敗
-      # 版本必須帶 v 前綴且確實存在 —— 先前誤寫 `0.28.0`,CI 直接死在 action 解析階段
-      - name: Trivy 掃描
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: upload-program:ci
-          format: table
-          exit-code: "1"
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
+      # 2026-07-30 run #86:trivy-action 的 install.sh 從 GitHub Releases 資產域
+      # (objects.githubusercontent.com)下載 binary,該域在 VM 白名單外(exit 28)。
+      # 改用官方容器版:image 走 dockerd 的 registry mirror 拉(與 base image 同路),
+      # 弱點 DB 從 ghcr 抓(VM 部署時拉過 GHCR image,該路已證實可達)。
+      - name: Trivy 掃描(容器版)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.70.0 image \
+            --format table --exit-code 1 \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            upload-program:ci
 
   # ---------------------------------------------------------------- 發布
   publish:
     name: Push GHCR(僅版本 tag)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]   # 同上:VM self-hosted(額度事件)
     needs: build
     # 🔴 只有 v* tag 才推;不推 latest、不在每次 push 都發版
     if: startsWith(github.ref, 'refs/tags/v')
@@ -184,8 +189,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
 
       - name: 登入 GHCR
         uses: docker/login-action@v3
@@ -205,14 +208,12 @@ jobs:
           fi
           echo "✅ ${TAG} 尚未發布"
 
+      # 同 build job 的理由:dockerd 內建 builder(吃 registry mirror);只推明確版號,絕不推 latest
       - name: Build & push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          # 只推明確版號,絕不推 latest
-          tags: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          cache-from: type=gha
+        run: |
+          set -e
+          docker build -t "${IMAGE_NAME}:${GITHUB_REF_NAME}" .
+          docker push "${IMAGE_NAME}:${GITHUB_REF_NAME}"
 
       - name: 發布摘要
         run: |

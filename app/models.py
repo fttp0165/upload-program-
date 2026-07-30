@@ -107,6 +107,11 @@ class User(Base):
     platform_role: Mapped[PlatformRole] = mapped_column(
         _enum(PlatformRole, "platform_role"), default=PlatformRole.member, nullable=False
     )
+    # T59(契約 §4.2a L1):顯示名稱快取——僅 `name` claim、僅自本人登入的 token、
+    # 每次登入覆寫、**僅管理後台顯示**、不進 log、可整批清除(tools/purge_name_cache.py)。
+    # 🔴 claim 可能不存在(name 由 firstName+lastName 推導,皆空則無)→ 本欄為 NULL,
+    # 畫面 fallback 到 sub——這是會真的走到的路徑,不是防禦性假設。
+    display_name_cache: Mapped[str | None] = mapped_column(String(255), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

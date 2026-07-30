@@ -58,7 +58,14 @@
     {% for user in other_users %}
       <li class="project">
         <div class="project-head">
-          <code class="project-slug">{{ user.sub }}</code>
+          {# T59(§4.2a):名字是輔助,sub 仍是身分事實。🔴 截斷 sub 僅供人眼辨識,
+             所有操作(開通/停用表單)一律以資料庫 id 為輸入,不收截斷值。 #}
+          {% if user.display_name_cache %}
+            <strong>{{ user.display_name_cache }}</strong>
+            <code class="project-slug" title="{{ user.sub }}">{{ user.sub[:8] }}…</code>
+          {% else %}
+            <code class="project-slug">{{ user.sub }}</code>
+          {% endif %}
           <span class="badge">{{ user.status.value }}</span>
           {% if user.platform_role.value == 'admin' %}<span class="badge">管理員</span>{% endif %}
           {% if user.id == me.id %}

@@ -23,6 +23,15 @@
   <p><a href="{{ url('/pending') }}">查看開通指引與你的識別碼 →</a></p>
 
 {% else %}
+  {# T61:麵包屑。連結一律 url()。 #}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url('/') }}">首頁</a></li>
+      <li class="breadcrumb-item"><a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">版本歷史</li>
+    </ol>
+  </nav>
+
   <header class="project-header">
     <h1>{{ project.name }} 版本歷史</h1>
     <p class="project-head">

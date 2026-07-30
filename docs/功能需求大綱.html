@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-07-28 07:30
-<strong>版本:</strong> v3.6</p>
+<strong>最後更新:</strong> 2026-07-31 13:00
+<strong>版本:</strong> v3.7</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -173,7 +173,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>走 Keycloak(Auth Code + PKCE);<strong>不自建帳號、不存密碼</strong></td>
 <td>P0</td>
 <td>M3</td>
-<td>🔒 待 client 申請</td>
+<td>✅ 已實作(2026-07-29 正式環境登入實測)</td>
 </tr>
 <tr>
 <td>F02</td>
@@ -205,7 +205,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>導向 IdP 登出端點,登出後所有接入 App 都需重登</td>
 <td>P0</td>
 <td>M3</td>
-<td>🔒 待 client 申請</td>
+<td>✅ 已實作(T16;真實 IdP 端到端驗證列 T29 冒煙第 5 項)</td>
 </tr>
 <tr>
 <td>F06</td>
@@ -215,8 +215,20 @@ summary { cursor:pointer; color:#12228f; }
 <td>M3</td>
 <td>✅</td>
 </tr>
+<tr>
+<td>F07</td>
+<td>顯示名稱快取</td>
+<td>管理後台顯示使用者姓名——<strong>僅 <code>name</code> claim、登入時覆寫、僅後台顯示、不進 log、可整批清除</strong>;契約 §4.2a L1 通則(2026-07-30 裁決)</td>
+<td>P1</td>
+<td>—</td>
+<td>✅ 已實作(T59)</td>
+</tr>
 </tbody>
 </table>
+<blockquote>
+<p>F04 與 F07 不衝突:F04 的「不落地」是一般頁面的原則;F07 是契約 §4.2a
+<strong>明文准許</strong>的後台顯示快取(申請與裁決過程見 T59 日誌),不是繞過。</p>
+</blockquote>
 <h3>B. 專案管理</h3>
 <table>
 <thead>
@@ -699,7 +711,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>定期備份 + <strong>實際演練過的還原程序</strong></td>
 <td>P0</td>
 <td>M6</td>
-<td>⬜ 未實作(T27)</td>
+<td>⬜ <strong>備份已上線</strong>(backup.sh v2,每次換版前執行);還原演練待 staging(T27)</td>
 </tr>
 <tr>
 <td>F64</td>
@@ -707,7 +719,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>改 image tag → pull → reload gateway;回滾不動 DB</td>
 <td>P0</td>
 <td>M6</td>
-<td>⬜ 未實作(T27)</td>
+<td>✅ 已實作(runbook v1.5;2026-07-29 實際換版 v0.1.0→v0.1.1 演練過)</td>
 </tr>
 </tbody>
 </table>
@@ -748,7 +760,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>專案資訊 + <strong>最新版本置頂</strong>(說明與檔案下載按鈕直接可見)</td>
 <td>P1</td>
 <td>M7</td>
-<td>⬜ 未實作(T42)</td>
+<td>✅ 已實作(T42)</td>
 </tr>
 <tr>
 <td>F73</td>
@@ -756,7 +768,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>歷史版本列表(依發布時間倒序),可展開看各版檔案並下載</td>
 <td>P1</td>
 <td>M7</td>
-<td>⬜ 未實作(T43)</td>
+<td>✅ 已實作(T43)</td>
 </tr>
 <tr>
 <td>F74</td>
@@ -764,7 +776,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>建立版本、選檔上傳、發布(補充:沒有它使用者得用 curl)</td>
 <td>P1</td>
 <td>M7</td>
-<td>⬜ 未實作(T44)</td>
+<td>✅ 已實作(T44)</td>
 </tr>
 <tr>
 <td>F75</td>
@@ -1015,10 +1027,10 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td>A 帳號與權限</td>
-<td>6</td>
-<td>4</td>
+<td>7</td>
+<td>7</td>
 <td>0</td>
-<td>2(待 SSO client)</td>
+<td>0</td>
 </tr>
 <tr>
 <td>B 專案管理</td>
@@ -1051,8 +1063,8 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F 平台管理</td>
 <td>5</td>
-<td>4</td>
-<td>1</td>
+<td>5</td>
+<td>0</td>
 <td>0</td>
 </tr>
 <tr>
@@ -1071,14 +1083,14 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td><strong>合計</strong></td>
-<td><strong>53</strong></td>
-<td><strong>45</strong></td>
-<td><strong>6</strong></td>
-<td><strong>2</strong></td>
+<td><strong>54</strong></td>
+<td><strong>49</strong></td>
+<td><strong>5</strong></td>
+<td><strong>0</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>未實作的 6 項按優先級拆:</strong></p>
+<p><strong>未實作的 5 項按優先級拆:</strong></p>
 <table>
 <thead>
 <tr>
@@ -1090,21 +1102,25 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td>P0</td>
-<td>2</td>
-<td>F63 備份還原、F64 換版回滾(M6)</td>
+<td>1</td>
+<td>F63 還原演練(備份本身已上線;演練待 staging,T27)</td>
 </tr>
 <tr>
 <td>P1</td>
 <td>0</td>
-<td><strong>P1 全數完成</strong>(F54 稽核紀錄由 T38 收尾;模組 H 前端 F70–F76 已全數完成)</td>
+<td><strong>P1 全數完成</strong></td>
 </tr>
 <tr>
 <td>P2</td>
 <td>4</td>
-<td>F38 掃毒(M8)、<strong>F18 站內申請單</strong>、F41 檔案類型篩選、F44 README 呈現</td>
+<td>F38 掃毒(M8)、F18 站內申請單、F41 檔案類型篩選、F44 README 呈現</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>2026-07-31 review 附註:原 v3.6 的 F 模組列「4 已 1 未」與 F72–F74 表列 ⬜
+均為<strong>漏改</strong>(版本歷史 v3.2/v3.3 已宣告完成但表列未同步)——本次一併校正。</p>
+</blockquote>
 <p>2026-07-26 定案後,原本列為 P2 的五項(F16、F26、F42、F43、F54)全數升為 <strong>P1 並排進 M4–M6</strong>,
 MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/F18 兩項。</p>
 <blockquote>
@@ -1152,6 +1168,12 @@ MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>F42 標籤分類由 ⬜ 改 ✅(T36);§7 總結重算(已 35 / 未 16);<strong>M4 全數完成</strong></td>
+</tr>
+<tr>
+<td>v3.7</td>
+<td>2026-07-31 13:00</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>上線後現況校正(review 發現的漂移一次收攏)</strong>:F01/F05 由 🔒 轉 ✅(2026-07-29 上線實測);F72–F74 表列漏改補正;F64 轉 ✅(已實際換版演練);F63 註記備份已上線、僅餘還原演練;新增 <strong>F07 顯示名稱快取</strong>(§4.2a L1,T59)與 F04 的不衝突說明;§7 重算:<strong>54 項、49 已、5 未、0 阻塞</strong></td>
 </tr>
 <tr>
 <td>v3.6</td>

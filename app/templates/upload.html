@@ -16,6 +16,15 @@
   {# 完整指引(含使用者自己的 sub)在專屬頁面,其他頁面只要指路,不重複維護文案。 #}
   <p><a href="{{ url('/pending') }}">查看開通指引與你的識別碼 →</a></p>
 {% else %}
+  {# T61:麵包屑。連結一律 url()。 #}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url('/') }}">首頁</a></li>
+      <li class="breadcrumb-item"><a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ release.version }}</li>
+    </ol>
+  </nav>
+
   <h1>{{ release.version }}</h1>
   <p class="muted">
     專案:<a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>

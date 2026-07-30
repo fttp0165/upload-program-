@@ -93,7 +93,8 @@ async def callback(
     if not sub:
         raise problems.unauthorized("token 缺少 sub")
 
-    user = await upsert_user(session, sub, settings)
+    # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
+    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
     user.last_login_at = datetime.now(UTC)
     await session.commit()
 

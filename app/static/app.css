@@ -673,6 +673,54 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 /* 管理清單沿用 .project-list 但單欄 */
 .admin-list { grid-template-columns: 1fr; }
 
+/* --- 左側欄(T62,參考 PLM:圖示 + 現用項目藏青反白) --- */
+
+.layout { display: flex; align-items: stretch; }
+.layout > .page { flex: 1 1 auto; min-width: 0; }
+
+.sidebar {
+  flex: 0 0 15rem;
+  flex-direction: column;
+  gap: .2rem;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 1.5rem 1rem 2rem;
+}
+.side-head { margin: 0 .9rem 1rem; }
+.side-title { font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+.side-sub { font-size: .78rem; color: var(--fg-faint); }
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .9rem;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--fg-strong);
+  font-weight: 600;
+  font-size: .92rem;
+}
+.side-link svg { flex-shrink: 0; }
+.side-link:hover { background: var(--green-soft); color: var(--ink); }
+.side-link.active,
+.side-link.active:hover { background: var(--ink); color: #ffffff; }
+
+.side-sect {
+  font-size: .72rem;
+  letter-spacing: .08em;
+  color: var(--fg-faint);
+  margin: .9rem .9rem .25rem;
+}
+
+/* --- 麵包屑(T61,Bootstrap breadcrumb 佈景成本站配色) --- */
+
+.breadcrumb { font-size: .85rem; margin: 0 0 .4rem; }
+.breadcrumb-item a { text-decoration: none; color: var(--fg-muted); font-weight: 600; }
+.breadcrumb-item a:hover { color: var(--green); }
+.breadcrumb-item.active { color: var(--ink); font-weight: 600; }
+.breadcrumb-item + .breadcrumb-item::before { color: var(--fg-ghost); }
+
 /* --- 動效(T57) ---
  *
  * 全部收在 reduced-motion 媒體查詢內:使用者在系統層關掉動畫,這裡就一條都不生效。

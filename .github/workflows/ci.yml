@@ -164,15 +164,18 @@ jobs:
           docker rm smoke
 
       # 🔴 有 high / critical 即失敗
-      # 版本必須帶 v 前綴且確實存在 —— 先前誤寫 `0.28.0`,CI 直接死在 action 解析階段
-      - name: Trivy 掃描
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: upload-program:ci
-          format: table
-          exit-code: "1"
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
+      # 2026-07-30 run #86:trivy-action 的 install.sh 從 GitHub Releases 資產域
+      # (objects.githubusercontent.com)下載 binary,該域在 VM 白名單外(exit 28)。
+      # 改用官方容器版:image 走 dockerd 的 registry mirror 拉(與 base image 同路),
+      # 弱點 DB 從 ghcr 抓(VM 部署時拉過 GHCR image,該路已證實可達)。
+      - name: Trivy 掃描(容器版)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.70.0 image \
+            --format table --exit-code 1 \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            upload-program:ci
 
   # ---------------------------------------------------------------- 發布
   publish:

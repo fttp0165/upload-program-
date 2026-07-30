@@ -27,7 +27,11 @@ jobs:
   # ---------------------------------------------------------------- 測試與 lint
   test:
     name: 測試 / lint / 文件同步
-    runs-on: ubuntu-latest
+    # 2026-07-31:改跑 VM 上的 self-hosted runner——GitHub 免費額度用罄(v0.1.2
+    # 發版中斷事件),自架 runner 不計分鐘數。🔴 這不牴觸「正式機不 build 部署」:
+    # image 仍推 GHCR、部署仍是改 tag 後 pull;變的只是建置在哪台機器發生。
+    # 若日後額度恢復想切回雲端,改回 ubuntu-latest 即可。
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
 
@@ -86,7 +90,7 @@ jobs:
   # ---------------------------------------------------------------- 建置與掃描
   build:
     name: Build image + Trivy 掃描
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]   # 同上:VM self-hosted(額度事件)
     needs: test
     permissions:
       contents: read
@@ -175,7 +179,7 @@ jobs:
   # ---------------------------------------------------------------- 發布
   publish:
     name: Push GHCR(僅版本 tag)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]   # 同上:VM self-hosted(額度事件)
     needs: build
     # 🔴 只有 v* tag 才推;不推 latest、不在每次 push 都發版
     if: startsWith(github.ref, 'refs/tags/v')

@@ -50,6 +50,11 @@ class FakeOidc:
     async def load_discovery(self, force: bool = False):
         return None
 
+    def authorization_url(self, discovery, state, challenge, nonce, prompt=None):
+        # T64:記下 prompt 供測試斷言;回傳假的 IdP 授權網址
+        self.last_prompt = prompt
+        return f"https://idp.example.test/auth?state={state}&prompt={prompt or ''}"
+
     def verify(self, token: str, *, expected_nonce: str | None = None) -> dict:
         return self.verify_access_token(token)
 
@@ -156,6 +161,10 @@ async def app(settings):
 async def client(app) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        # T64:預設帶探測 cookie=模擬「已靜默探測過」的瀏覽器——既有測試斷言的
+        # 是落地頁本身的內容與行為,不是首訪的探測轉址;首訪行為由
+        # test_silent_sso.py 自行清掉這個 cookie 來驗。
+        ac.cookies.set(app.state.cookies.sso_probe_cookie_name, "1")
         yield ac
 
 

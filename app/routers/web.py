@@ -595,6 +595,21 @@ async def publish_release_form(
     return _redirect(request, f"/projects/{release.project.slug}")
 
 
+# --- T66 使用教學頁 ----------------------------------------------------------
+
+
+@router.get("/help", summary="使用教學頁")
+async def help_page(request: Request, identity: OptionalUser) -> HTMLResponse:
+    """使用教學 + 回報問題/功能需求管道(T66)。
+
+    **匿名可看**:教學頁擋登入毫無道理——待開通者、還沒登入的同事
+    最需要它;頁面純靜態說明,不查資料庫、不漏任何專案內容。
+
+    參數:無。回傳:HTML。副作用:無。
+    """
+    return HTMLResponse(render(request, "help.html", identity=identity))
+
+
 # --- T45 待開通頁與管理後台(F75、F76)--------------------------------------
 
 

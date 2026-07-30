@@ -101,18 +101,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
-
-      # 先只建到本機,掃過才決定要不要推
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: true
-          tags: upload-program:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # 2026-07-30 run #82/#83 實測:docker-container driver 的 buildkit 是獨立容器,
+      # 不吃 dockerd 的 registry mirror(本 VM 連不到 docker.io,靠 mirror.gcr.io),
+      # 抓 base image 直接 i/o timeout。改用 dockerd 內建 builder——吃鏡像設定,
+      # 且同機重跑天然有本機層快取(GHA 快取後端在本 VM 也連不到,一併移除)。
+      - name: Build image(dockerd 內建 builder,先只建到本機)
+        run: docker build -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |
@@ -192,8 +186,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
 
       - name: 登入 GHCR
         uses: docker/login-action@v3

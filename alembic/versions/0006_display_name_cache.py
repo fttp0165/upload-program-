@@ -8,8 +8,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0006"
-down_revision = "0005"
+revision = "0006_display_name_cache"
+down_revision = "0005_audit_events"
 branch_labels = None
 depends_on = None
 

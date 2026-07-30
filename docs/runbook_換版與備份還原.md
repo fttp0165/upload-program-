@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-29 16:30
-**版本:** v1.5
+**最後更新:** 2026-07-30 23:00
+**版本:** v1.6
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -61,6 +61,14 @@ CI 只在 `v*` tag 推 GHCR(`ghcr.io/fttp0165/upload-program:v1.2.0`),
 等於把 CI 白裝了。**驗收點是 repo 側欄 Packages 出現該版 tag**,
 Release 頁本來就只有 source zip,不會有 image。
 
+> 🔎 **發版前一分鐘檢查(v0.1.3 事故後新增):**
+> `alembic history | head -3` 驗 migration 鏈(revision id 慣例是**檔名全名**);
+> 有 migration 的版本至少本機 up→down→up 演練過。
+>
+> ⚠ **CI 發版後、VM pull 前要重新 `docker login ghcr.io`**:publish job 的
+> login-action 清理步驟會登出 ghcr,而 runner 與 deploy 共用 docker 憑證檔
+> (根治=runner 設獨立 DOCKER_CONFIG,完成後刪本註記)。
+>
 > 🩺 **CI job 幾秒內失敗、沒有任何步驟輸出、`runner_id: 0`**(2026-07-29 v0.1.2 實例):
 > 這不是程式紅燈,是**帳號層分不到 runner**——先查
 > Settings → Billing 的 Actions 分鐘額度(私有 repo 免費 2000 分/月,
@@ -218,6 +226,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |
 | v1.5 | 2026-07-29 16:30 | Claude(Benny 授權) | §A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例) |
 | v1.4 | 2026-07-29 15:30 | Claude(Benny 授權) | v0.1.2 發版中斷的兩課回寫:§A.1 補「CI 秒殺無 runner=帳號層(Billing/事故),不是程式紅燈」診斷與「驗收點是 Packages 不是 Release 頁」;§A.4 冒煙加**版本哨兵檔**(只有新版才有的靜態檔,200 才證明換到新版)與「302 判讀」附註 |
 | v1.3 | 2026-07-29 09:40 | Claude(Benny 授權) | **依首次上線實測回寫**:部署目錄定案 `/opt/upload-program`(VM 慣例);§A0 補 GHCR login 與「secret 變數要抓 32 字元那個」的教訓;compose 已內建 extra_hosts hairpin + 內部 CA;§C.1 的 backup.sh 升 v2(minio 無 tar → docker cp;主機不需 pg_restore);cron 帶 BACKUP_ROOT |

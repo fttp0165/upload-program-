@@ -1,0 +1,88 @@
+{#
+  使用教學頁(T66)。
+
+  匿名可看:待開通者與還沒登入的同事最需要這一頁。
+  內容純靜態,不查資料庫;規則描述以程式碼為準——
+  三類齊備見 releases.missing_required_kinds(),格式白名單見 filetypes.py,
+  這裡改寫成使用者看得懂的話,規則變了要記得同步這一頁。
+#}
+{% extends "base.html" %}
+{% block title %}使用教學 — upload-program{% endblock %}
+
+{% block content %}
+<h1>使用教學</h1>
+<p class="muted">內部程式分享平台:建立專案,以版本為單位發布程式,讓同事搜尋、瀏覽、下載。</p>
+
+<section>
+  <h2>快速上手</h2>
+  <ol class="help-steps">
+    <li><strong>登入</strong> —— 點右上角「登入」,使用公司帳號(Keycloak)登入。
+        已在其他平台系統登入過的話,進站會自動帶入,不必再按。</li>
+    <li><strong>等待開通</strong> —— 首次登入後帳號是「待開通」狀態。
+        依<a href="{{ url('/pending') }}">開通指引頁</a>把你的識別碼提供給平台管理員,開通後才能建立專案。</li>
+    <li><strong>建立專案</strong> —— 左側欄或導航列的「<a href="{{ url('/projects/new') }}">建立專案</a>」,
+        填入代號(網址用)、名稱與簡介;可見性選 internal(全公司可見)或 private(僅成員)。</li>
+    <li><strong>建立版本</strong> —— 進入專案頁按「建立版本」,填版本號(例:v1.0.0)與版本說明。</li>
+    <li><strong>上傳三類檔案</strong> —— 在上傳頁為這個版本上傳
+        <strong>更新文件(doc)、執行檔(binary)、原始碼包(source)</strong>各至少一個(見下節規則)。</li>
+    <li><strong>發布</strong> —— 三類齊備後「發布這個版本」才會亮起;發布後檔案即鎖定不可再變更,
+        要調整請開新版本。</li>
+    <li><strong>分享與下載</strong> —— 同事在<a href="{{ url('/') }}">首頁</a>搜尋或依標籤找到專案,
+        從專案頁下載最新版;每個檔案都附 SHA-256 供校驗。</li>
+  </ol>
+</section>
+
+<section>
+  <h2>發布規則:每一版三類齊備</h2>
+  <p>每一版發布<strong>必須包含三類檔案各至少一個</strong>,缺任何一類都無法發布
+     (本平台 99% 是 Python 專案,以下以 Python 產物舉例):</p>
+  <table class="table help-kinds">
+    <thead>
+      <tr><th>類型</th><th>放什麼</th><th>常見格式(以檔案實際內容判定)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>doc</strong> 更新文件</td>
+        <td>這一版改了什麼、怎麼安裝使用</td>
+        <td>PDF、Markdown/純文字、Word(docx/doc)、PNG/JPG/GIF 截圖</td>
+      </tr>
+      <tr>
+        <td><strong>binary</strong> 執行檔</td>
+        <td>可直接執行的產物(例:pyinstaller 打包)</td>
+        <td>exe/ELF/Mach-O、zip/tar.gz 打包的執行檔、whl、jar、msi/deb/rpm</td>
+      </tr>
+      <tr>
+        <td><strong>source</strong> 原始碼包</td>
+        <td>這一版的完整原始碼壓縮檔</td>
+        <td>zip、tar.gz、bz2、xz、7z、rar</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>檔案安全規則</h2>
+  <ul>
+    <li>上傳以<strong>檔案實際內容</strong>(magic bytes)判型,不看副檔名;
+        不在白名單的型別會被拒收並說明原因。</li>
+    <li><strong>HTML 與 SVG 一律拒收</strong>——它們會在瀏覽器裡被當成可執行內容,
+        本平台散布執行檔,不能承擔這個風險。</li>
+    <li>每個檔案保存 <strong>SHA-256</strong>,下載回應也帶同一個雜湊,供你校驗檔案完整性。</li>
+    <li>掃毒尚未接上前,檔案誠實標示 <code>not_scanned</code>;下載前請自行判斷來源信任度。</li>
+    <li>單檔與專案容量有上限,超限會明確告知目前用量與上限。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>回報問題與提交功能需求</h2>
+  <p>發現網站問題(錯誤頁、上傳失敗、顯示異常),或想提交功能需求,
+     請聯絡<strong>平台管理員</strong>(與帳號開通同一位)。回報問題時請附上:</p>
+  <ul>
+    <li><strong>重現步驟</strong>:從哪一頁、做了什麼操作、按了什麼。</li>
+    <li><strong>預期行為與實際結果</strong>:你以為會發生什麼、實際看到什麼(截圖更好)。</li>
+    <li><strong>發生時間與網址</strong>:方便管理員對照系統紀錄。</li>
+  </ul>
+  <p class="muted">功能需求會依開發計畫排入任務;已知的範圍界線
+     (git clone/push、PR/code review、線上編輯等)目前不在平台規劃內。</p>
+</section>
+{% endblock %}

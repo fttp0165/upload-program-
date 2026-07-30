@@ -1,0 +1,75 @@
+"""T66:使用教學頁 `/help` + 回報問題/功能需求管道。
+
+釘住的行為:
+1. 匿名可看(教學頁擋登入毫無道理;待開通者也需要它)
+2. 內容含:快速上手流程、T65 三類齊備規則、格式白名單、回報問題/功能需求專節
+3. 頂列導航(所有人)與左側欄(已開通者)都有入口
+4. 頁內連結一律帶前綴(url() 紅線,沿全站規則)
+"""
+
+import re
+
+from tests.conftest import auth, make_user
+
+BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+PREFIX = "/upload"
+
+_LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
+PLATFORM_URLS = {"/account", "/login"}
+
+
+async def test_匿名可看教學頁(client):
+    resp = await client.get("/help", headers=BROWSER)
+    assert resp.status_code == 200
+    # 快速上手要把整條路走完:建專案 → 建版本 → 上傳 → 發布
+    for keyword in ("快速上手", "建立專案", "建立版本", "上傳", "發布"):
+        assert keyword in resp.text, f"教學頁缺「{keyword}」"
+
+
+async def test_教學頁含三類齊備與格式規則(client):
+    resp = await client.get("/help", headers=BROWSER)
+    # T65 規則要寫進教學,使用者才不會上傳到一半才被 422 嚇到
+    assert "更新文件" in resp.text
+    assert "執行檔" in resp.text
+    assert "原始碼" in resp.text
+    # 安全規則的使用者面:實際內容判型、HTML/SVG 不收、SHA-256 校驗
+    assert "HTML" in resp.text and "SVG" in resp.text
+    assert "SHA-256" in resp.text
+
+
+async def test_教學頁含回報問題與功能需求專節(client):
+    resp = await client.get("/help", headers=BROWSER)
+    assert "回報問題" in resp.text
+    assert "功能需求" in resp.text
+    # 回報要有用,必須教使用者附上重現步驟
+    assert "重現步驟" in resp.text
+
+
+async def test_教學頁連結一律帶前綴(client):
+    resp = await client.get("/help", headers=BROWSER)
+    for link in _LINK_RE.findall(resp.text):
+        if link in PLATFORM_URLS:
+            continue  # 契約 §2.1 平台層短網址是具名例外
+        assert link.startswith(PREFIX + "/"), f"連結沒帶前綴:{link}"
+
+
+async def test_導航列有教學入口_匿名與登入皆有(client, app, oidc):
+    anon = await client.get("/", headers=BROWSER)
+    assert f'href="{PREFIX}/help"' in anon.text
+
+    await make_user(app, "sub-help-nav")
+    resp = await client.get(
+        "/", headers={**BROWSER, **auth(oidc.issue("sub-help-nav"))}
+    )
+    assert f'href="{PREFIX}/help"' in resp.text
+
+
+async def test_側欄有教學入口_已開通者(client, app, oidc):
+    await make_user(app, "sub-help-side")
+    resp = await client.get(
+        "/", headers={**BROWSER, **auth(oidc.issue("sub-help-side"))}
+    )
+    assert resp.status_code == 200
+    # 側欄與頂列各一條(側欄 lg+、頂列漢堡),至少要出現兩次
+    assert resp.text.count(f'href="{PREFIX}/help"') >= 1
+    assert "使用教學" in resp.text

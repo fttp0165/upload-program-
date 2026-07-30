@@ -58,6 +58,11 @@
     </form>
 
     <ul class="navbar-nav nav-user ms-lg-auto align-items-lg-center">
+      {# T66:教學頁對所有人開放(匿名、待開通者最需要),入口不分登入狀態。
+         已開通者桌面版另有側欄入口,這條在 lg+ 藏起來避免重覆(同 T62 的處理)。 #}
+      <li class="nav-item{% if identity and identity.user.is_active %} d-lg-none{% endif %}">
+        <a class="nav-link" href="{{ url('/help') }}">使用教學</a>
+      </li>
       {% if identity %}
         {% if identity.user.is_active %}
           {# T62:桌面版這兩條走左側欄,這裡只給窄螢幕的漢堡選單(d-lg-none 避免重覆) #}
@@ -107,6 +112,11 @@
     <a class="side-link{% if current_path.startswith('/projects/new') %} active{% endif %}" href="{{ url('/projects/new') }}">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6"/></svg>
       建立專案
+    </a>
+    {# T66:使用教學(問號圈圈圖示,行內 SVG——CSP 擋 data: URI 與外部資源) #}
+    <a class="side-link{% if current_path.startswith('/help') %} active{% endif %}" href="{{ url('/help') }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.6.3-.8.7-.8 1.4"/><path d="M8 11.6v.1"/></svg>
+      使用教學
     </a>
 
     {% if identity.user.is_admin %}

@@ -35,26 +35,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: requirements-dev.txt
-
-      - name: 安裝相依
+      # 2026-07-30:self-hosted 上 setup-python 會嘗試下載整套工具鏈進 tool cache,
+      # 在 VM 上掙扎 3 分半後失敗(run #81 實測)。自架環境直接用系統 Python 建
+      # venv——不下載、不依賴 tool cache;切回雲端 runner 時再換回 setup-python。
+      - name: 準備 Python venv(用 VM 系統 Python)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          set -e
+          PY=$(command -v python3.12 || command -v python3)
+          echo "使用:$($PY --version)($PY)"
+          $PY -m venv .ci-venv || {
+            echo "::error::venv 建立失敗——VM 可能缺 python3-venv 套件(sudo apt install python3.12-venv)"
+            exit 1
+          }
+          .ci-venv/bin/pip install --upgrade pip
+          .ci-venv/bin/pip install -r requirements-dev.txt
 
       - name: Lint(ruff)
-        run: ruff check .
+        run: .ci-venv/bin/ruff check .
 
       - name: 測試(pytest)
-        run: pytest -q
+        run: .ci-venv/bin/pytest -q
 
       # 憲法第四條:正式文件 md 與 HTML 必須同步。靠人記得跑產生器遲早會漂移,交給 CI 擋。
       - name: 文件 md/HTML 同步檢查
-        run: python tools/render_docs.py --check
+        run: .ci-venv/bin/python tools/render_docs.py --check
 
       # 🔴 平台鐵則 8:secret 絕不進 git。這裡只做最基本的把關,不取代 secret scanning。
       - name: 檢查不該進 git 的檔案

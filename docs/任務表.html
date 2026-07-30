@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-30 09:30
-<strong>版本:</strong> v1.40</p>
+<strong>最後更新:</strong> 2026-07-31 09:00
+<strong>版本:</strong> v1.41</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>設定已備妥(剝前綴寫法、128MB)但 🔴 <strong>刻意保持註解</strong>(施工單 v1.2 §3.0):nginx 對不存在的上游是 <code>[emerg]</code> 整份設定載入失敗、gateway 起不來 = <strong>全平台中斷</strong>,所以<strong>我方容器先上線 → <code>getent hosts upload-program</code> 確認解析 → portal 才解除註解 + 低峰 reload</strong>;首次上線八步見 <a href="runbook_換版與備份還原.md">runbook §A0</a>。⏳ 下一步的球在我方(等 secret 交付後部署容器)</td>
 </tr>
 <tr>
+<td>T63</td>
+<td>T2.0 <code>groups</code> claim 通知對齊(只讀不判)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>portal 2026-07-31 通知:claim 已就緒但<strong>無人被指派</strong>——🔴 現在不得以 <code>/svc/upload</code> 判開通(會鎖住所有人且症狀像 SSO 壞掉),維持後台開通;新增 4 條防禦測試釘住「帶 groups 行為不變、空陣列/不存在都承受、User 無 groups 欄位(§4.2a L2 不得快取,結構保證)」;啟用時機等 portal 通知</td>
+</tr>
+<tr>
 <td>T62</td>
 <td>導覽改版:PLM 式「頂列 + 左側欄」</td>
 <td>✅</td>
@@ -740,6 +747,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.41</td>
+<td>2026-07-31 09:00</td>
+<td>Claude(Benny 授權)</td>
+<td><strong>T63</strong>:groups claim 通知對齊——只讀不判(現況本就不讀),4 條防禦測試防止提早接;全套 353</td>
 </tr>
 <tr>
 <td>v1.40</td>

@@ -9,15 +9,15 @@ FROM python:3.12-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# asyncpg / cryptography 需要編譯工具;它們留在 builder,不進 runtime。
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
+# 2026-07-30:原本這裡 apt-get 裝 build-essential「給 asyncpg/cryptography 編譯」
+# ——實際上兩者在 cp312 都有官方 manylinux wheel,從未真的編譯過;而 CI 改跑
+# VM self-hosted 後,apt 套件庫從該網路不可達,這步直接炸(run #85)。
+# 拿掉 apt,並以 --only-binary=:all: 把「全程用 wheel、不需編譯器」變成強制:
+# 哪天有相依只出 sdist,會在這裡大聲失敗,而不是默默要求 gcc。
 WORKDIR /build
 COPY requirements.txt .
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    && /opt/venv/bin/pip install --no-cache-dir --only-binary=:all: -r requirements.txt
 
 # ---------- runtime ----------
 FROM python:3.12-slim AS runtime

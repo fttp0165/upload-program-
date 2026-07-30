@@ -14,7 +14,7 @@ services:
     # 不符合就是 502,而且 `docker ps` 會顯示 healthy——只有真使用者才會撞到。
     # 下面 cats-edge 的 `aliases` 已達到同等的 DNS 解析效果,這裡補上
     # `container_name` 是求字面與施工單完全一致,不留模糊空間給下一個接手的人猜。
-    image: ghcr.io/fttp0165/upload-program:v0.1.2   # SemVer,禁 latest;正式機只 pull 不 build
+    image: ghcr.io/fttp0165/upload-program:v0.1.3   # SemVer,禁 latest;正式機只 pull 不 build
     env_file: .env
     # 🐛 首次上線實測(2026-07-29)發現的兩件部署形態必需品:
     # 1) cats-edge 內 `catsapp.sporton.com.tw` 別名掛在 keycloak(只聽 8080)上,

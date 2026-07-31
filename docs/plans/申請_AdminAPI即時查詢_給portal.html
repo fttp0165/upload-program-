@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申請:以 Keycloak Admin REST API 即時查詢顯示名稱(取代落地快取)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/申請_AdminAPI即時查詢_給portal.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>申請:以 Keycloak Admin REST API 即時查詢顯示名稱(取代落地快取)</h1>
+<p><strong>建立日期:</strong> 2026-07-31 21:40
+<strong>最後更新:</strong> 2026-07-31 21:40
+<strong>版本:</strong> v1.0
+<strong>發文方:</strong> upload-program(申請人:Benny)
+<strong>收文方:</strong> cats-portal / Platform
+<strong>申請標的:</strong> 授予唯讀 <strong><code>view-users</code></strong> 之 service account,供管理後台<strong>即時查詢</strong>使用者顯示名稱;
+本服務隨後<strong>移除</strong>已獲准的落地快取欄位(§4.2a L1 / §6.1 具名特例)
+<strong>裁示前狀態:</strong> 本專案<strong>不動任何程式與資料庫</strong>——本文件是申請,不是通知。</p>
+<blockquote>
+<p>🔴 <strong>本文推翻我方 2026-07-29
+<a href="申請_姓名快取特例_給portal.md">申請_姓名快取特例</a> §3 的評估結論。</strong>
+當時我方主張「Admin API 是更大的授權面,為了顯示名字拿管理權限不成比例」,
+貴方據此核准了較小的落地快取。現在我方改變立場,理由見 §2——
+這一點必須明講,不能讓貴方以為前後是同一套說法。</p>
+</blockquote>
+<hr />
+<h2>1. 現況</h2>
+<p>依 §4.2a L1 具名特例,本服務 <code>users</code> 表有一個 <code>display_name_cache</code> 欄位
+(僅 <code>name</code> claim、登入時覆寫、僅後台顯示、不進 log、可整批清除,migration <code>0006</code>)。
+功能運作正常(2026-07-30 上線實測,管理後台顯示「benny lin 745497ee…」)。</p>
+<h2>2. 為什麼要改(Benny 2026-07-31 裁示)</h2>
+<p><strong>個資最小化的最佳解是「根本不落地」。</strong> 目前的快取雖然受控,但畢竟:</p>
+<table>
+<thead>
+<tr>
+<th>現況(落地快取)</th>
+<th>改為即時查詢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>姓名寫進我方業務庫,隨 DB 備份一起複製到備份檔</td>
+<td><strong>我方資料庫與備份完全沒有姓名</strong></td>
+</tr>
+<tr>
+<td>使用者改名後,要等他再次登入才會更新</td>
+<td><strong>永遠是 IdP 的當下值</strong></td>
+</tr>
+<tr>
+<td>離職者的姓名留在我方庫,直到有人跑清除工具</td>
+<td><strong>帳號一停用,查詢即反映;無殘留</strong></td>
+</tr>
+<tr>
+<td>需要契約具名特例才合法</td>
+<td>只顯示不儲存,<strong>回到 §4.2 的原則之內</strong></td>
+</tr>
+</tbody>
+</table>
+<p>換句話說,這是把「受控的例外」換成「不需要例外」。代價是需要一個新的權限,
+以及執行期對 IdP 的依賴——這兩點在 §4、§5 說明。</p>
+<h2>3. 請求的權限(請儘量收緊)</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>形式</td>
+<td><strong>專用 confidential client</strong> + service account(不重用登入用的 <code>upload-program</code> client)</td>
+</tr>
+<tr>
+<td>角色</td>
+<td><strong>僅 <code>realm-management:view-users</code></strong>(唯讀)。不需要 <code>manage-users</code>、不需要 <code>view-clients</code>、不需要 <code>query-groups</code> 以外任何權限</td>
+</tr>
+<tr>
+<td>呼叫端點</td>
+<td><code>GET /admin/realms/{realm}/users/{sub}</code> <strong>單筆查詢</strong>;不使用 <code>GET /users</code>(列舉全 realm)</td>
+</tr>
+<tr>
+<td>呼叫來源</td>
+<td>僅<strong>伺服器端</strong>,經內部端點(同 T60 對齊:<code>http://keycloak:8080/auth/...</code>),不經瀏覽器</td>
+</tr>
+<tr>
+<td>觸發時機</td>
+<td><strong>僅管理後台頁面</strong>(使用者管理、稽核紀錄)渲染時,依畫面上的 sub 逐一查詢;一般使用者頁面永不觸發</td>
+</tr>
+<tr>
+<td>憑證</td>
+<td>client secret 走 <code>.env</code>(chmod 600、不進 git),與現行 SSO secret 同一套保管方式</td>
+</tr>
+</tbody>
+</table>
+<p>若貴方認為 <code>view-users</code> 仍過大,<strong>我方接受任何更小的替代介面</strong>,例如 portal 提供
+一支「sub → 顯示名稱」的唯讀端點(我方改呼叫它即可,設計上是同一件事)。</p>
+<h2>4. 我方的實作承諾</h2>
+<ol>
+<li><strong>只顯示不落地</strong>:查得的姓名<strong>不寫入資料庫、不寫入檔案、不進 log</strong>;
+   僅存在於單次請求的記憶體中,回應送出即消失。</li>
+<li><strong>不列舉</strong>:只用 sub 單筆查;不呼叫任何列舉端點,不建立本地目錄副本。</li>
+<li><strong>失敗不擋人</strong>:IdP 逾時或錯誤 → 該列<strong>回退顯示 sub</strong>,頁面照常可用
+   (§5 的耦合風險由此控制);逾時上限 2 秒、不重試。</li>
+<li><strong>請求內去重</strong>:同一頁多列相同 sub 只查一次;不做跨請求快取
+   (跨請求快取就是另一種落地,只是換到記憶體)。</li>
+<li><strong>移除既有落地</strong>:本案上線後,提供 migration 移除 <code>display_name_cache</code> 欄位
+   (<strong>🔴 刪欄位=刪資料</strong>,依我方憲法先備份、於 staging 雙向演練;backward 為重新加回 nullable 欄位),
+   並請貴方<strong>撤銷 §6.1 對本服務的具名特例</strong>——例外不該留著不用。</li>
+<li>依憲法流程執行(先計畫、TDD 先紅後綠、開發日誌);任務編號 <strong>T73</strong>,<strong>裁示前不動工</strong>。</li>
+</ol>
+<h2>5. 我方自評的風險(不隱瞞)</h2>
+<table>
+<thead>
+<tr>
+<th>風險</th>
+<th>說明與處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>授權面擴大</strong></td>
+<td>service account 能讀全 realm 使用者資料——比目前的「登入者自己的 name claim」大。處置:專用 client、僅 <code>view-users</code>、僅單筆查、只在後台頁觸發</td>
+</tr>
+<tr>
+<td><strong>執行期耦合</strong></td>
+<td>IdP 抖動會影響管理後台。處置:2 秒逾時 + 回退顯示 sub;<code>/health</code> 不受影響,<code>/ready</code> 維持現行語意</td>
+</tr>
+<tr>
+<td><strong>後台頁效能</strong></td>
+<td>每列一次 API 呼叫。處置:管理頁本來就有分頁上限(200 筆),請求內去重;若貴方提供批次端點更佳</td>
+</tr>
+<tr>
+<td><strong>稽核頁的操作者欄</strong></td>
+<td>同樣改為即時查詢;查不到時顯示 <code>user_id</code>,不影響稽核紀錄本身的完整性</td>
+</tr>
+</tbody>
+</table>
+<h2>6. 需要貴方回覆的事項</h2>
+<ol>
+<li>是否同意授予 <code>view-users</code> service account?或改以 portal 提供的唯讀端點替代?</li>
+<li>若同意:client 名稱、secret 交付方式(比照 SSO client 的安全管道)、realm 名稱確認。</li>
+<li>具名特例的撤銷時點:我方建議「即時查詢上線並通過冒煙後」,
+   由我方通知貴方,再由貴方更新契約 §6.1。</li>
+<li>過渡期間(貴方裁示前)我方<strong>維持現行快取</strong>——它仍是合法且已獲准的做法。</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-31 21:40</td>
+<td>Claude(Benny 裁示)</td>
+<td>初版:申請唯讀 <code>view-users</code> service account 以即時查詢取代落地快取;明示推翻 2026-07-29 申請書 §3 的評估;含最小權限請求、五項實作承諾(不落地/不列舉/失敗回退/請求內去重/移除既有欄位並撤銷特例)、四項自評風險與四個待回覆事項</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

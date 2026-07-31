@@ -17,10 +17,7 @@
 
 <h1>稽核紀錄</h1>
 
-<nav class="admin-tabs">
-  <a href="{{ url('/admin/users') }}">使用者</a>
-  <span class="current">稽核紀錄</span>
-</nav>
+{% with current = "audit" %}{% include "_admin_tabs.html" %}{% endwith %}
 
 <p class="muted">
   誰在何時做了什麼(F54)。這裡的「操作者」只有本地帳號識別碼——業務庫依契約只存

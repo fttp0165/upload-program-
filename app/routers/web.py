@@ -22,6 +22,13 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import problems
 from ..audit import AuditAction, record
+from ..dashboard import (
+    QUOTA_WARN_RATIO,
+    STALE_DRAFT_DAYS,
+    collect_kpis,
+    collect_todos,
+    human_bytes,
+)
 from ..models import (
     AuditEvent,
     Project,
@@ -660,6 +667,44 @@ async def _require_web_admin(request: Request, identity, next_path: str):
         return _login_redirect(request, next_path)
     await require_admin(identity)  # 待開通 / 非管理員 → 403(與 API 同一段語意)
     return None
+
+
+@router.get("/admin", summary="管理後台:總覽(數據面板)")
+async def admin_dashboard_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """管理後台總覽(T70)。
+
+    KPI + **需要管理員動作的待辦** + 系統資訊。頁面**唯讀**:所有操作留在
+    既有頁面(看數據與改狀態混在一起,誤點成本高而收益低)。
+
+    🔴 只做聚合,不按人拆解——下載統計是總數,「誰下載了什麼」屬稽核頁的職責
+    (設計文件《管理員後台與數據面板》§2 原則 1、§4.6(b))。
+
+    參數:無。回傳:HTML。副作用:無(唯讀查詢)。
+    """
+    handled = await _require_web_admin(request, identity, "/admin")
+    if handled is not None:
+        return handled
+
+    settings = request.app.state.settings
+    kpis = await collect_kpis(session, settings)
+    todos = await collect_todos(session, settings)
+
+    return HTMLResponse(
+        render(
+            request,
+            "admin_dashboard.html",
+            identity=identity,
+            kpis=kpis,
+            todos=todos,
+            human_bytes=human_bytes,
+            stale_draft_days=STALE_DRAFT_DAYS,
+            quota_warn_percent=int(QUOTA_WARN_RATIO * 100),
+            retention_days=settings.audit_retention_days,
+            environment=settings.environment,
+        )
+    )
 
 
 @router.get("/admin/users", summary="管理後台:使用者")

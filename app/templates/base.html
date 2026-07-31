@@ -135,6 +135,11 @@
 
     {% if identity.user.is_admin %}
       <div class="side-sect">管理</div>
+      {# T70:總覽是管理員登入後最該先看的一頁,排在管理段最上方。 #}
+      <a class="side-link{% if current_path == '/admin' %} active{% endif %}" href="{{ url('/admin') }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2.5 13.5V9"/><path d="M6.5 13.5V4"/><path d="M10.5 13.5V7"/><path d="M14 13.5V2.5"/></svg>
+        總覽
+      </a>
       <a class="side-link{% if current_path.startswith('/admin/users') %} active{% endif %}" href="{{ url('/admin/users') }}">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c.8-2.6 2.9-4 5.5-4s4.7 1.4 5.5 4"/></svg>
         使用者

@@ -751,3 +751,33 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
   .btn:hover, .nav-pill:hover, .hero-cta:hover { transform: translateY(-1px); }
   .btn:active, .nav-pill:active, .hero-cta:active { transform: translateY(0); }
 }
+
+/* --- T70 管理後台總覽:KPI 卡與待辦清單 -------------------------------------
+   憲法第四條:light 主題;CSP 禁 inline style,所以樣式一律寫在這裡。
+   色彩沿用既有 token(藏青 / 綠),不新增設計語言。 */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.4rem 0 2rem;
+}
+.kpi { padding: 1.1rem 1.2rem; }
+.kpi-label { color: var(--fg-muted); font-size: .9rem; }
+.kpi-value {
+  color: var(--ink);
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: .2rem 0 .1rem;
+}
+.kpi-note { color: var(--fg-muted); font-size: .88rem; }
+.kpi-note strong { color: var(--ink); }
+
+.admin-todos .todo { margin-bottom: 1rem; padding: 1.1rem 1.3rem; }
+.admin-todos h3 { color: var(--ink); font-size: 1.1rem; margin: 0 0 .5rem; }
+.todo-list { list-style: none; margin: 0 0 .6rem; padding: 0; }
+.todo-list li { padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.todo-list li:last-child { border-bottom: none; }
+.todo-list .muted { display: block; font-size: .88rem; }
+
+.admin-system .artifact-meta { margin-top: .6rem; }

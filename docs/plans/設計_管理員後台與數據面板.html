@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計:管理員後台與數據面板</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/設計_管理員後台與數據面板.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>設計:管理員後台與數據面板</h1>
+<p><strong>建立日期:</strong> 2026-07-31 19:40
+<strong>最後更新:</strong> 2026-07-31 20:00
+<strong>版本:</strong> v1.1
+<strong>對應任務:</strong> T70–T72(待確認後開立)——Benny 裁示:「設計管理員後台與數據面板」</p>
+<blockquote>
+<p>憲法第二條 3:新功能屬大任務,<strong>先出計畫文件、經確認後才動工</strong>。
+本文是設計與範圍協議,不含程式碼。確認後才拆成 T70–T72 逐一實作。</p>
+</blockquote>
+<hr />
+<h2>1. 現況盤點(已經有什麼)</h2>
+<table>
+<thead>
+<tr>
+<th>頁面</th>
+<th>內容</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/admin/users</code></td>
+<td>待開通清單、一鍵開通、停用、指派平台角色</td>
+<td>T17 / T45(F50–F52)</td>
+</tr>
+<tr>
+<td><code>/admin/audit</code></td>
+<td>稽核紀錄查詢、依 action 篩選、保留期說明</td>
+<td>T38(F54)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>缺口:</strong> 沒有「一眼看懂平台現況」的地方。管理員目前無法回答:平台用了多少容量?
+哪些專案快滿了?這個月有沒有人在發版?有多少檔案還沒掃毒?誰的專案卡在 draft?
+這些數字<strong>現有資料表全都算得出來</strong>,只是沒有人把它們放在一頁上。</p>
+<hr />
+<h2>2. 設計原則(紅線先行,不是事後檢查)</h2>
+<ol>
+<li>🔴 <strong>個資邊界不因「後台」而放寬。</strong> 面板只顯示 <code>sub</code> 與 <code>display_name_cache</code>
+   (§4.2a L1 明文特例,僅後台顯示)。
+   <strong>面板的下載統計一律是聚合數字,不按人拆解</strong>——T37 刻意不做下載事件表、
+   業務統計只到「次數」,那是個資決定。
+   (精確地說:稽核表<strong>確實</strong>記錄了 <code>artifact.download</code> 事件與 <code>actor_id</code>,
+   那是 F54 明文賦予稽核的職責,有其專屬頁面與用途說明;
+   但「資料剛好存在」不等於「面板可以展示」——見 §4.6(b)。)</li>
+<li>🔴 <strong>CSP 逐字不放寬。</strong> 外部圖表庫(Chart.js 等 CDN)一律被 <code>default-src 'self'</code> 擋下,
+   inline <code>&lt;style&gt;</code> / <code>&lt;script&gt;</code> 同樣被擋。所以<strong>圖表在伺服器端算好,輸出內嵌 SVG</strong>
+   ——這與憲法第四條 5「圖示以內嵌 SVG 呈現」本來就同一個方向。
+   互動只用連結與表單,不引入前端框架。</li>
+<li>🔴 <strong>Light 主題</strong>(第四條 1–2),圖表配色沿用 T56 設計 token(藏青/綠),
+   不使用深色配色、不用 <code>prefers-color-scheme</code>。</li>
+<li><strong>面板唯讀。</strong> 所有操作(開通、停用、調級距)留在既有頁面。
+   看數據與改狀態混在同一頁,誤點成本高而收益低。</li>
+<li><strong>只跑聚合查詢,數量固定。</strong> 每頁的查詢數不隨資料量成長;排行榜一律 top-N;
+   不做輪詢、不做自動刷新(要新數字就重整,誠實且省事)。</li>
+<li><strong>算不出來的就說算不出來。</strong> 例如「每日登入數」——<code>users.last_login_at</code> 只存
+   最後一次,無法回推每日曲線。面板寧可標示「本平台不記錄登入歷史」,
+   也不用近似值假裝有(這與 <code>scan_status</code> 誠實標示 <code>not_scanned</code> 同一個態度)。</li>
+</ol>
+<hr />
+<h2>3. 資訊架構</h2>
+<pre><code>/admin            總覽(數據面板)   ← 新增,管理後台的新首頁
+/admin/users      使用者            ← 既有
+/admin/projects   專案治理          ← 新增
+/admin/audit      稽核紀錄          ← 既有
+</code></pre>
+<p>現有的 <code>admin-tabs</code> 由兩項擴充為四項;側欄「管理」段落加「總覽」與「專案」兩條。
+<code>/admin</code> 是管理員登入後最該先看的一頁,因此側欄的管理段落把它排在最上。</p>
+<hr />
+<h2>4. 面板內容(全部由現有 schema 算得出,<strong>無需 migration</strong>)</h2>
+<h3>4.1 KPI 卡片(第一排,六張)</h3>
+<table>
+<thead>
+<tr>
+<th>卡片</th>
+<th>數字</th>
+<th>資料來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>帳號</td>
+<td>總數,其中<strong>待開通 n</strong>(可點進使用者頁)</td>
+<td><code>users</code> count / group by status</td>
+</tr>
+<tr>
+<td>專案</td>
+<td>總數(internal / private 分計)</td>
+<td><code>projects</code> group by visibility</td>
+</tr>
+<tr>
+<td>版本</td>
+<td>已發布數 / draft 數</td>
+<td><code>releases</code> group by status</td>
+</tr>
+<tr>
+<td>檔案</td>
+<td>總數 / 其中 <code>not_scanned</code> <strong>n</strong></td>
+<td><code>artifacts</code> group by scan_status</td>
+</tr>
+<tr>
+<td>儲存</td>
+<td>總佔用(人類可讀)/ 全站配額總和</td>
+<td><code>sum(projects.total_bytes)</code> 與 <code>quota.limit_for</code></td>
+</tr>
+<tr>
+<td>下載</td>
+<td>累計下載次數</td>
+<td><code>sum(artifacts.download_count)</code></td>
+</tr>
+</tbody>
+</table>
+<p>「待開通」與「未掃描」兩個數字<strong>刻意做成顯眼的待辦</strong>,不是裝飾——
+前者擋著人用不了平台,後者是我們對使用者誠實揭露的風險。</p>
+<h3>4.2 趨勢(近 30 天,內嵌 SVG 長條圖)</h3>
+<table>
+<thead>
+<tr>
+<th>圖</th>
+<th>定義</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每日發布版本數</td>
+<td><code>releases.published_at</code> 落在該日者</td>
+<td>releases</td>
+</tr>
+<tr>
+<td>每日上傳檔案數</td>
+<td><code>artifacts.completed_at</code>(ready 者)落在該日者</td>
+<td>artifacts</td>
+</tr>
+<tr>
+<td>每日操作事件數</td>
+<td>稽核事件筆數(平台熱度)</td>
+<td>audit_events</td>
+</tr>
+<tr>
+<td>每日下載次數</td>
+<td><code>artifact.download</code> 稽核事件筆數(見 §4.6)</td>
+<td>audit_events</td>
+</tr>
+</tbody>
+</table>
+<p><strong>限制要寫在圖旁邊</strong>(而不是留給讀者誤會):
+- 已刪除的專案/版本不會出現在前兩張圖(那些列已經不存在);
+- 稽核保留 365 天,超過期間的資料已被清除;
+- <strong>沒有登入趨勢</strong>(理由見原則 6)。</p>
+<h3>4.3 排行(各 top 5)</h3>
+<ul>
+<li>下載最多的<strong>專案</strong>(sum(download_count) join release/artifact)</li>
+<li>下載最多的<strong>檔案</strong>(artifact 名 + 所屬專案)</li>
+<li>佔用容量最多的<strong>專案</strong>(含級距與使用率條)</li>
+<li>最近發布的 5 個版本(專案 + 版本號 + 發布時間)</li>
+</ul>
+<h3>4.4 需要管理員動作的清單(面板的真正價值)</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>判準</th>
+<th>連結去哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>待開通帳號</td>
+<td><code>status=pending</code></td>
+<td><code>/admin/users</code></td>
+</tr>
+<tr>
+<td>逼近配額的專案</td>
+<td><code>total_bytes ≥ 80%</code> 該級距上限</td>
+<td><code>/admin/projects</code></td>
+</tr>
+<tr>
+<td>停滯的 draft</td>
+<td>建立超過 <strong>14 天</strong>仍未發布</td>
+<td>該專案頁</td>
+</tr>
+<tr>
+<td>未掃描檔案</td>
+<td><code>scan_status=not_scanned</code> 的總數</td>
+<td>說明頁(掃毒未接,T46)</td>
+</tr>
+<tr>
+<td>擁有者已停用的專案</td>
+<td>owner 的 <code>status=disabled</code></td>
+<td><code>/admin/projects</code>(提示走 F16 轉移)</td>
+</tr>
+</tbody>
+</table>
+<p>最後一項是實務會踩到的坑:人離職後帳號停用,專案就沒有能改設定的人了。
+F16(轉移擁有權)已經做好,但<strong>沒有任何地方會告訴管理員「該轉移了」</strong>。</p>
+<h3>4.5 系統資訊</h3>
+<p>服務版本(<code>APP_VERSION</code>,T68)、環境、DB / 物件儲存 / IdP 就緒狀態(<code>/ready</code> 同一組檢查)、
+稽核保留天數與「清理需由 cron 執行」的既有提醒。</p>
+<h3>4.6 下載統計(Benny 追加:「還有統計下載次數」)</h3>
+<p>平台裡的下載資料<strong>有兩個來源,性質完全不同</strong>,設計時必須分清楚,
+否則會做出「兩個數字對不起來」的面板——那比沒有面板更糟:</p>
+<table>
+<thead>
+<tr>
+<th>來源</th>
+<th>是什麼</th>
+<th>有時間維度?</th>
+<th>會不會被清掉</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>artifacts.download_count</code></td>
+<td><strong>累計計數器</strong>(T37,原子 UPDATE)</td>
+<td>❌ 只有總數</td>
+<td>不會(除非檔案被刪)</td>
+</tr>
+<tr>
+<td><code>audit_events</code> 的 <code>artifact.download</code></td>
+<td><strong>逐次事件</strong>(T38,含 <code>occurred_at</code>)</td>
+<td>✅ 可分日</td>
+<td>✅ 保留 365 天後由 <code>purge_audit.py</code> 清除</td>
+</tr>
+</tbody>
+</table>
+<p>因此下載統計分兩層,並且<strong>在頁面上標明各自的口徑</strong>:</p>
+<p><strong>(a) 累計(來自計數器,永久且精確)</strong></p>
+<table>
+<thead>
+<tr>
+<th>指標</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>平台累計下載次數</td>
+<td><code>sum(artifacts.download_count)</code>(KPI 卡)</td>
+</tr>
+<tr>
+<td>依類型分布</td>
+<td>binary / source / doc 各佔多少——看得出大家主要抓執行檔還是原始碼</td>
+</tr>
+<tr>
+<td>下載排行 top 5</td>
+<td>專案別、檔案別、版本別各一組</td>
+</tr>
+<tr>
+<td><strong>零下載的已發布版本數</strong></td>
+<td>發了但沒人下載——治理訊號(要嘛沒人需要,要嘛沒人找得到)</td>
+</tr>
+<tr>
+<td>最新版佔比</td>
+<td>最新已發布版本的下載數 ÷ 該專案總下載數,看使用者是否卡在舊版</td>
+</tr>
+</tbody>
+</table>
+<p><strong>(b) 趨勢(來自稽核事件,近 30 / 90 天)</strong></p>
+<p>每日下載次數長條圖 + 期間總計。🔴 <strong>只做「每日總數」的聚合,不做任何按人拆解</strong>——
+稽核表雖然存了 <code>actor_id</code>(F54 明文「下載了什麼」是稽核的職責),
+但<strong>數據面板不是稽核頁</strong>:面板要回答「平台被用得多不多」,不是「誰下載了什麼」。
+要追個別行為請走 <code>/admin/audit</code>,那一頁有它自己的用途說明與存取限制。
+這條界線與 T37 當初「統計只到次數」的決定一致,<strong>不因為資料「剛好存在」就展示</strong>。</p>
+<p><strong>(c) 兩個數字為什麼會對不上(頁面要明講)</strong></p>
+<p>累計數 ≥ 近 30 天事件數,這是正常的,原因有三:計數器從開站起算、
+稽核只留 365 天、以及檔案被刪除後計數消失但稽核事件還在。
+面板把兩塊分開標題與口徑說明,不硬湊成一個數字。</p>
+<p><strong>(d) 刻意不做</strong></p>
+<ul>
+<li>❌ 每日下載<strong>快照表</strong>(把每天的計數器差額存起來):要新增表 + 排程器,
+  而稽核事件已經能算出同一條曲線;為了圖表引入寫入路徑不划算(與 §7 同一個判斷)。</li>
+<li>❌ 下載者名單、部門/人員排行:見上;那是稽核的職責,不是面板的。</li>
+<li>❌ IP、User-Agent 等「加值」維度:本平台從不記錄這些,面板不該成為引入它們的理由。</li>
+</ul>
+<hr />
+<h2>5. 專案治理頁 <code>/admin/projects</code></h2>
+<p>管理員視角的專案清單(<strong>含 private</strong>——F53 明文管理員可見全部),欄位:
+專案 / 擁有者(sub 或顯示名)/ 可見性 / 級距 / 已用容量與使用率 / 版本數 / 最後發布時間。
+排序預設「使用率高的在前」;可篩「逼近配額」「擁有者已停用」。
+調整級距的入口指向既有 API 動作(<code>project.set_quota</code> 已在稽核字彙內)。</p>
+<hr />
+<h2>6. 圖表的技術規格(CSP 之下怎麼畫)</h2>
+<ul>
+<li>伺服器端把 30 天分桶算好,模板迴圈輸出 <code>&lt;rect&gt;</code>;幾何用 SVG <strong>屬性</strong>表示
+  (<code>x</code>/<code>y</code>/<code>width</code>/<code>height</code>),<strong>不寫 <code>style=</code></strong>——inline style 會被 CSP 擋。</li>
+<li>顏色用 class,實際色值寫在 <code>static/app.css</code>(設計語言只有一份)。</li>
+<li>無資料時輸出「尚無資料」文字,不輸出空圖。</li>
+<li>無障礙:<code>&lt;svg role="img"&gt;</code> + <code>&lt;title&gt;</code>,並在圖下方附<strong>同一份數字的表格</strong>
+  ——圖表不得是資訊的唯一載體。</li>
+</ul>
+<hr />
+<h2>7. 對現有資料的影響</h2>
+<p>🟢 <strong>不動資料。</strong> 全部是唯讀聚合查詢:無 migration、無新欄位、無新表、無 <code>.env</code> 變更。</p>
+<p>刻意<strong>不做</strong>「每日快照表」:資料量小、即時算得出來;為了圖表引入一條寫入路徑
+(還要配排程器)是這個階段划不來的複雜度。等資料量或效能真的出現問題再說,
+屆時屬獨立任務。</p>
+<hr />
+<h2>8. 任務拆解(各自獨立可交付、可回滾)</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>資料</th>
+<th>依賴</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T70</strong></td>
+<td><code>/admin</code> 總覽骨架 + KPI 卡片 + 待辦清單 + 系統資訊;admin-tabs 與側欄擴充</td>
+<td>🟢</td>
+<td>無</td>
+</tr>
+<tr>
+<td><strong>T71</strong></td>
+<td>趨勢 SVG 圖(4 張,含每日下載)+ 排行榜(4 組)+ <strong>下載統計專區</strong>(§4.6 的累計層與趨勢層)</td>
+<td>🟢</td>
+<td>T70</td>
+</tr>
+<tr>
+<td><strong>T72</strong></td>
+<td><code>/admin/projects</code> 專案治理頁(含篩選與級距入口)</td>
+<td>🟢</td>
+<td>T70</td>
+</tr>
+</tbody>
+</table>
+<p>先做 T70 的理由:待辦清單(4.4)是管理員每天真正需要的東西,
+圖表再漂亮也只是輔助。T71 與 T72 順序可依當下需要對調。</p>
+<hr />
+<h2>9. 驗收標準(每個任務的紅測試方向)</h2>
+<ol>
+<li><strong>權限</strong>:匿名 → 302 去登入;已登入非管理員 → 403;管理員 → 200
+   (沿用 <code>_require_web_admin</code>,不另立規則)。</li>
+<li><strong>數字正確</strong>:fixture 造出已知資料(3 專案 / 5 版本 / 2 待開通…),
+   斷言頁面上的數字<strong>等於</strong>那些值——不是「頁面有出現數字」。</li>
+<li><strong>個資紅線</strong>:面板 HTML 不得出現 email 樣式字串;不得有任何「誰下載了什麼」的欄位;
+   顯示名稱僅來自 <code>display_name_cache</code>。</li>
+<li><strong>CSP 相容</strong>:頁面無 <code>style=</code>、無 inline <code>&lt;script&gt;</code>、無外部資源(沿用既有掃描測試模式)。</li>
+<li><strong>空狀態</strong>:全新平台(零專案零檔案)不得炸,且顯示合理的空狀態文字。</li>
+<li><strong>連結帶前綴</strong>:沿用既有「所有連結必須經 <code>url()</code>」的掃描斷言。</li>
+</ol>
+<hr />
+<h2>10. 風險與取捨</h2>
+<table>
+<thead>
+<tr>
+<th>風險</th>
+<th>處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>趨勢圖看不到已刪除的資料</td>
+<td>圖旁明文標示,不假裝完整</td>
+</tr>
+<tr>
+<td>稽核保留 365 天,更早的熱度查不到</td>
+<td>同上,標示保留期</td>
+</tr>
+<tr>
+<td>資料量成長後聚合變慢</td>
+<td>目前規模(單機、內部平台)無虞;若出現,再評估索引或 60 秒快取,列後續任務</td>
+</tr>
+<tr>
+<td>面板成為「另一個放個資的地方」</td>
+<td>驗收標準 3 以測試釘住;程式碼審查時對照本節</td>
+</tr>
+<tr>
+<td>下載的兩個口徑(累計 vs 近 30 天)被誤讀成資料有錯</td>
+<td>§4.6(c):兩塊分開標題並在頁面上寫明原因,不硬湊成一個數字</td>
+</tr>
+<tr>
+<td>稽核被清除後下載趨勢出現斷層</td>
+<td>圖旁標示保留期;累計數不受影響,兩者互補</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>11. 待 Benny 確認的事項</h2>
+<ol>
+<li><strong>範圍</strong>:T70 → T71 → T72 全做,還是先做 T70(待辦清單 + KPI)看看?</li>
+<li><strong>停滯 draft 的門檻</strong>:預設 14 天,可否?</li>
+<li><strong>逼近配額的門檻</strong>:預設 80%,可否?</li>
+<li>排行榜要不要<strong>顯示 private 專案</strong>?(管理員本來就看得到,但面板會把它們並排在同一頁——
+   我的建議是<strong>顯示並標記 private</strong>,理由是治理需要看見全部。)</li>
+<li>下載趨勢的區間:預設 <strong>30 天</strong>,另提供 90 天切換可否?(上限受稽核保留期 365 天所限)</li>
+<li>🔴 下載統計<strong>不按人拆解</strong>(§4.6(b))——這是我的建議,與 T37「統計只到次數」一致。
+   若你要的是「誰下載了什麼」,那個資料在稽核頁已經有,但把它搬進面板等於改變
+   個資邊界的性質,需要你明確裁示,我不會自行放寬。</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-07-31 20:00</td>
+<td>Claude(Benny 裁示)</td>
+<td>追加 <strong>§4.6 下載統計</strong>:釐清兩個資料來源(計數器=永久無時間維度 / 稽核事件=可分日但只留 365 天)、累計層五項指標、趨勢層每日下載圖、兩個口徑對不上的原因要寫在頁面上、刻意不做的三件事(快照表、下載者名單、IP/UA);趨勢圖由 3 張增為 4 張;T71 納入下載統計專區;新增兩條風險與兩個待確認事項</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>2026-07-31 19:40</td>
+<td>Claude(Benny 裁示)</td>
+<td>初版:現況盤點、六條設計原則(個資/CSP/light/唯讀/固定查詢/誠實)、資訊架構四頁、面板內容(KPI/趨勢/排行/待辦/系統)、專案治理頁、SVG 圖表規格、任務拆解 T70–T72、驗收標準與風險</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{#
+  管理後台的分頁列(T70 抽出共用)。
+
+  原本兩個管理頁各寫一份,加第三頁時必然漏改其中一個——與站名、版本號
+  同一類「一件事寫多份」的病。呼叫端傳 `current`(dashboard / users / audit)。
+
+  🔴 `/admin/projects` 是 T72 才會有的頁面,現在**不放連結**:懸空連結比沒有連結更糟。
+#}
+<nav class="admin-tabs">
+  {% if current == 'dashboard' %}<span class="current">總覽</span>
+  {% else %}<a href="{{ url('/admin') }}">總覽</a>{% endif %}
+
+  {% if current == 'users' %}<span class="current">使用者</span>
+  {% else %}<a href="{{ url('/admin/users') }}">使用者</a>{% endif %}
+
+  {% if current == 'audit' %}<span class="current">稽核紀錄</span>
+  {% else %}<a href="{{ url('/admin/audit') }}">稽核紀錄</a>{% endif %}
+</nav>

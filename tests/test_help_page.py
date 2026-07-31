@@ -76,3 +76,29 @@ async def test_側欄有教學入口_已開通者(client, app, oidc):
     # 側欄與頂列各一條(側欄 lg+、頂列漢堡),至少要出現兩次
     assert resp.text.count(f'href="{PREFIX}/help"') >= 1
     assert "使用教學" in resp.text
+
+
+# --- T75:回報問題的獨立入口 ------------------------------------------------
+
+
+async def test_回報專節有錨點(client):
+    """T66 把回報做成頁內一節,沒有入口等於不存在(Benny 2026-07-31 指出)。"""
+    resp = await client.get("/help", headers=BROWSER)
+    assert 'id="report"' in resp.text
+
+
+async def test_側欄與頂列都有回報問題入口(client, app, oidc):
+    await make_user(app, "sub-report-entry")
+    resp = await client.get(
+        "/", headers={**BROWSER, **auth(oidc.issue("sub-report-entry"))}
+    )
+    assert resp.status_code == 200
+    assert "回報問題" in resp.text
+    # 側欄(lg+)與頂列(漢堡)各一條,指向教學頁的錨點
+    assert resp.text.count(f'href="{PREFIX}/help#report"') >= 2
+
+
+async def test_匿名者也看得到回報入口(client):
+    """網站壞掉時,最需要回報的往往正是還沒登入成功的人。"""
+    resp = await client.get("/", headers=BROWSER)
+    assert f'href="{PREFIX}/help#report"' in resp.text

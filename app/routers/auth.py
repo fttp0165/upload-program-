@@ -10,7 +10,7 @@ import secrets
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,6 +143,37 @@ async def callback(
         ),
     )
     log.info("使用者登入", extra={"user_id": str(user.id), "status": user.status.value})
+    return response
+
+
+@router.get(
+    "/oidc/frontchannel-logout",
+    status_code=204,
+    summary="front-channel logout:IdP 登出時以 iframe 呼叫,刪我方 cookie",
+)
+async def frontchannel_logout(request: Request) -> Response:
+    """SSO 契約 v2.0 §10.3 的 front-channel logout 端點(T74)。
+
+    **要解決的事**:我方 session 是自己簽的 cookie(這是契約 §10.1 認可的設計,
+    不該「修掉」——直接轉發 IdP token 會讓後台移除角色也擋不住)。代價是
+    IdP 結束 session 時我們不知情:A 在入口登出、B 登入後,進本站**仍然是 A**。
+    共用電腦上那是安全事故,所以 IdP 的登出頁會以 iframe 載入本端點來刪 cookie。
+
+    🔴 **免認證**:iframe 載入時不會帶我方 token;要求認證等於這個端點永遠不生效。
+    🔴 **只准刪 cookie**——不建 session、不寫業務資料、不寫稽核。
+       被任意第三方呼叫的最壞後果必須只是「使用者被登出」。
+    🔴 **冪等**:本來就沒有 session 也回 204(iframe 不看內容,狀態碼要乾淨)。
+    🔴 刪除用的 `Path` 由 `CookieCodec` 統一帶上,與種下時相同——
+       Path 不符的話瀏覽器根本不會刪,那正是契約緣起段「看起來有設、實際不做事」的死法。
+
+    參數:Keycloak 會帶 `iss` 與 `sid`,**刻意不宣告也不使用**——我方 session
+    無狀態,無從比對 `sid`;帶與不帶都必須能處理(§10.3)。
+    回傳:204,無內容。副作用:僅清除本服務的 cookie。
+    """
+    response = Response(status_code=204)
+    codec = request.app.state.cookies
+    codec.clear_session(response)
+    codec.clear_login_state(response)
     return response
 
 

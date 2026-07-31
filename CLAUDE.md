@@ -1,8 +1,8 @@
 # upload-program 開發憲法(CLAUDE.md)
 
 **建立日期:** 2026-07-25 15:23
-**最後更新:** 2026-07-31 17:50
-**版本:** v2.2
+**最後更新:** 2026-07-31 23:00
+**版本:** v2.3
 
 > 本檔為本專案的最高開發準則,所有開發行為(含 AI 協作)必須遵守。
 > **本專案內**與其他文件衝突時,以本檔為準;修改本檔需在文末「版本歷史」留下紀錄。
@@ -148,7 +148,8 @@ docs/開發計畫書.md → docs/任務表.md → docs/dev-logs/
 
 - **SSO 接入**:`cats-portal/DOCS/帳號系統接入契約_SSO.md`——接 Keycloak 前必讀
   (RS256/JWKS、業務庫只存 sub、首登「待開通」deny-by-default、single logout、PKCE)。
-  **本專案已對齊版本:v1.7(2026-07-28)**,對照結果見
+  **本專案已對齊版本:v2.0(2026-07-31)**——v2.0 新增 §10 單一登出(SLO)接入義務,
+  我方 session 為 cookie 形態故**無豁免空間**,front-channel logout 端點已實作(T74),對照結果見
   [dev-logs/2026-07-28_T51_SSO契約v1.7對齊.md](docs/dev-logs/2026-07-28_T51_SSO契約v1.7對齊.md)。
   🔴 v1.5 起 **IdP 與各 App 同源**(`catsapp.sporton.com.tw/auth/...`),
   §4.10 的額外義務(cookie Path、嚴格 CSP、前端 base path、禁 token 進 localStorage)
@@ -197,6 +198,7 @@ docs/開發計畫書.md → docs/任務表.md → docs/dev-logs/
 |---|---|---|---|
 | v1.0 | 2026-07-25 15:23 | Claude(Benny 授權) | 初版:平台整合契約指標段落 + 本 repo SSO 接入狀態與紅線 |
 | v1.1 | 2026-07-25 15:35 | Claude(Benny 授權) | 補上專案定位(簡易型 GitHub)與 MVP 範圍界線;設計細節移至設計文件 |
+| v2.3 | 2026-07-31 23:00 | Claude(Benny 授權) | 平台整合契約段落記錄**已對齊 SSO 契約 v2.0**(原 v1.7):v2.0 新增 §10 單一登出義務,我方 session 為 cookie 形態不主張豁免,front-channel logout 端點隨 T74 實作 |
 | v2.2 | 2026-07-31 17:50 | Claude(Benny 裁示) | **新增第八條〈發版儀式〉**:每次 Release 必附 title 與 content(title 格式、content 四段:本版內容 / 資料影響 / 部署注意 / 測試);🔴 `APP_VERSION` 須在打 tag 前隨 PR 改好(版本號顯示於首頁,T68);重申同版不重發與發版前 migration 鏈檢查 |
 | v2.1 | 2026-07-28 02:06 | Claude(Benny 授權) | 平台整合契約段落記錄**已對齊 SSO 契約 v1.7**(原為 v1.0),並標明 v1.5 起 IdP 與各 App **同源**、§4.10 額外義務對本專案有強制力;對照結果與缺口另立 T51–T53 |
 | v2.0 | 2026-07-25 15:53 | Claude(Benny 授權) | **改版為開發憲法**:採用 PLM_HY 七條並在地化(tests/ 取代 projects/tests.py、FastAPI 取代 Django、本專案自己的 M1–M7 / T01–T26);新增〈位階〉界定平台技術規約與本憲法的管轄分界;第二條增訂事後補寫須明示違反;第三條增訂「測試全綠指實際跑過」;第四條增訂 HTML 由 tools/render_docs.py 產生以防兩版漂移;紅線重編為平台鐵則 / 自我加嚴 / git 三組;依第七條補上日期、版本與本歷史表 |

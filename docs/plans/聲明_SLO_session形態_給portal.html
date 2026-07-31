@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聲明:session 形態與 front-channel logout 端點(upload-program)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/聲明_SLO_session形態_給portal.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>聲明:session 形態與 front-channel logout 端點(upload-program)</h1>
+<p><strong>建立日期:</strong> 2026-07-31 22:50
+<strong>最後更新:</strong> 2026-07-31 22:50
+<strong>版本:</strong> v1.0
+<strong>發文方:</strong> upload-program
+<strong>收文方:</strong> cats-portal / Platform
+<strong>依據:</strong> 帳號系統接入契約 <strong>v2.0</strong> §10.2(session 形態聲明為申請 client 的必填項;
+既有接入者補聲明)、§10.3(front-channel logout 端點規格)、§10.6(本服務原列「⏸ 待其聲明」)</p>
+<hr />
+<h2>1. session 形態聲明(§10.1 三選一)</h2>
+<p><strong>本服務為「cookie / 伺服器 session」</strong> —— 因此依 §10.1 屬 🔴 <strong>MUST</strong>,<strong>不主張豁免</strong>。</p>
+<p>具體形態:登入成功後由本服務簽發自己的 session,存於 <strong>HttpOnly cookie</strong>
+(<code>Secure</code>、<code>SameSite=Lax</code>、<code>Path=/upload</code>,壽命 10 小時)。
+不使用 <code>localStorage</code>(§4.10 紅線),前端 JS 完全碰不到 token。</p>
+<h2>2. front-channel logout 端點(§10.3)</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>我方實作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路徑</td>
+<td><code>https://catsapp.sporton.com.tw/upload/oidc/frontchannel-logout</code></td>
+</tr>
+<tr>
+<td>方法</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>行為</td>
+<td>清除本服務的 session cookie 與登入往返 cookie,回 <strong>204</strong>(無內容)</td>
+</tr>
+<tr>
+<td>認證</td>
+<td><strong>免認證</strong></td>
+</tr>
+<tr>
+<td>冪等</td>
+<td>是——沒有 session 時同樣 204</td>
+</tr>
+<tr>
+<td>副作用</td>
+<td><strong>只刪 cookie</strong>:不建 session、不寫業務資料、不寫稽核(有測試釘住)</td>
+</tr>
+<tr>
+<td><code>iss</code> / <code>sid</code></td>
+<td>帶與不帶都回 204;我方 session 無狀態,<code>sid</code> 忽略</td>
+</tr>
+<tr>
+<td>刪除的 <code>Path</code></td>
+<td><code>/upload</code>,<strong>與種下時相同</strong>(Path 不符瀏覽器不會刪,有測試釘住)</td>
+</tr>
+</tbody>
+</table>
+<p>上線版本:<strong>v0.1.8</strong>(本聲明發出時該版尚未發布;端點已合併於 main,任務 T74)。</p>
+<h2>3. 請 portal 執行</h2>
+<ol>
+<li>於 <code>upload-program</code> client 註冊 <code>frontchannel.logout.url</code> =
+   <code>https://catsapp.sporton.com.tw/upload/oidc/frontchannel-logout</code>,
+   並開 <code>session.required=true</code>(依 §10.3 慣例)。</li>
+<li>回讀驗證後知會我方,雙方一起重跑契約 §10 緣起段的重現步驟
+   (A 登出 → B 登入 → 進 <code>/upload/</code> 應為 B,不得仍是 A)。</li>
+<li>§10.6 表格與 §9 登記表可將本服務由「⏸ 待其聲明」改為已完成。</li>
+</ol>
+<blockquote>
+<p>§10.3 明文時序不敏感:端點先上或註冊先設都不會壞,兩者到位才生效。
+我方端點會<strong>先</strong>上線(隨 v0.1.8),屆時再請貴方註冊。</p>
+</blockquote>
+<h2>4. 我方理解的限制(不假裝它是保證)</h2>
+<ul>
+<li>front-channel 是 <strong>best-effort</strong>:使用者直接關瀏覽器、iframe 未載入、分頁被凍結,
+  都會靜默不生效。我方<strong>不因為接了 SLO 而放長 session 壽命</strong>(維持 10 小時)。</li>
+<li>本機制成立的前提是 IdP 與各 App <strong>同站</strong>(§10.4)。若 Keycloak 日後遷出
+  共用 hostname,本端點會<strong>無聲失效</strong>;屆時請依 §8 通知,我方配合改 back-channel(§10.5)。</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-07-31 22:50</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:聲明 session 形態為 cookie(不主張豁免)、front-channel logout 端點規格對照表、請 portal 註冊與重跑重現步驟、明列 best-effort 與同站前提兩項限制</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

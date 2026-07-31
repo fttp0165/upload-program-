@@ -21,12 +21,27 @@ _LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IG
 # 契約 §2.1 的平台層短網址:由 gateway 302 轉址,**刻意不帶各 App 的前綴**
 # (加上前綴會變成一條不存在的路徑)。這是下面「所有連結帶前綴」那條紅線的
 # **具名例外**——不是把斷言放寬,例外本身在 test_sso_contract.py 有測試保護。
-PLATFORM_URLS = {"/account", "/login"}
+# T67:平台入口(`/`)也是平台層網址,同一類具名例外。
+# 🔴 白名單納入 `/` 會讓「漏掉 url() 的首頁連結」逃過這條檢查——
+#    補償斷言在 test_portal_link.py(每條 `/` 都必須帶 nav-exit / side-exit 標記)。
+PLATFORM_URLS = {"/account", "/login", "/"}
 
 
 
 def _links(html: str) -> list[str]:
     return _LINK_RE.findall(html)
+
+
+def _main(html: str) -> str:
+    """只取 <main> 內容再比對順序。
+
+    🐛 T67 踩到的坑:排序斷言原本在整頁 HTML 上找 `body.index("v9")`,
+    而版型骨架的行內 SVG 路徑資料含 `v9`(SVG 的垂直線指令),
+    比真正的版本號更早出現 → 測試紅得莫名其妙。**版面的東西不該影響排序斷言**,
+    所以先切出 <main>(內容區)再比。
+    """
+    start = html.index("<main")
+    return html[start : html.index("</main>", start)]
 
 
 async def _project(client, token, slug="cli-tool", **extra):
@@ -109,7 +124,8 @@ async def test_歷史頁依發布時間倒序(client, active_user):
     _, token = active_user
     await _reversed_order_fixture(client, token)
 
-    body = (await client.get("/projects/cli-tool/releases", headers={**BROWSER, **auth(token)})).text
+    page = (await client.get("/projects/cli-tool/releases", headers={**BROWSER, **auth(token)})).text
+    body = _main(page)
     assert body.index("v10") < body.index("v9"), "歷史頁第一筆應該是最後發布的 v10"
 
 

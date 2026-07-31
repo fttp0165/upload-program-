@@ -41,5 +41,7 @@ def render(request, template: str, **context) -> str:
         url=lambda path: web_url(settings, path),
         # 🔴 平台層短網址(契約 §2.1),**不經過 url()**——它不帶本服務的前綴。
         account_url=settings.account_console_url,
+        # T67:平台入口,同樣是平台層網址,**不經過 url()**(加前綴會變成 /upload/ 自己)。
+        portal_url=settings.portal_home_url,
         **context,
     )

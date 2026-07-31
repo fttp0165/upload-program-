@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     # 平台的東西由平台決定。
     account_console_url: str = "/account"
 
+    # T67:平台入口(catsapp 首頁)。使用者從 portal 卡片進到 `/upload/` 之後沒有回頭路,
+    # 側欄與導航列各放一條連結指回去。**同樣刻意不帶本服務前綴**——加上前綴會變成
+    # `/upload/` 自己(原地打轉),與 `account_console_url` 是同一類具名例外。
+    portal_home_url: str = "/"
+
     # 簽我們自己的 session cookie 用(不是 JWT 簽章金鑰)。
     session_secret: str
     session_cookie_name: str = "upload_session"

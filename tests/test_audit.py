@@ -20,7 +20,10 @@ PREFIX = "/upload"
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 200
 
 _LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
-PLATFORM_URLS = {"/account", "/login"}
+# T67:平台入口(`/`)也是平台層網址,同一類具名例外。
+# 🔴 白名單納入 `/` 會讓「漏掉 url() 的首頁連結」逃過這條檢查——
+#    補償斷言在 test_portal_link.py(每條 `/` 都必須帶 nav-exit / side-exit 標記)。
+PLATFORM_URLS = {"/account", "/login", "/"}
 
 
 async def _events(app, **filters):

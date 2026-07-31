@@ -58,6 +58,12 @@
     </form>
 
     <ul class="navbar-nav nav-user ms-lg-auto align-items-lg-center">
+      {# T67:回到平台入口。🔴 用 portal_url 而**不是** url()——它是平台層網址,
+         加上本服務前綴會變成 /upload/ 自己(原地打轉)。與 account_url 同一類具名例外。
+         已開通者桌面版走側欄,這裡 d-lg-none 只留給漢堡選單(同 T62/T66 的處理)。 #}
+      <li class="nav-item{% if identity and identity.user.is_active %} d-lg-none{% endif %}">
+        <a class="nav-link nav-exit" href="{{ portal_url }}">回到平台入口</a>
+      </li>
       {# T66:教學頁對所有人開放(匿名、待開通者最需要),入口不分登入狀態。
          已開通者桌面版另有側欄入口,這條在 lg+ 藏起來避免重覆(同 T62 的處理)。 #}
       <li class="nav-item{% if identity and identity.user.is_active %} d-lg-none{% endif %}">
@@ -104,6 +110,14 @@
       <div class="side-title">專案中心</div>
       <div class="side-sub">程式分享平台</div>
     </div>
+
+    {# T67:回到平台入口放在最上方——它是「離開這個 App」的動作,
+       與底下那些「在這個 App 裡面走動」的連結是不同層級,所以獨立一段。
+       🔴 href 用 portal_url,不經過 url()(理由見頂列同一條)。 #}
+    <a class="side-link side-exit" href="{{ portal_url }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5H13a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1H9.5"/><path d="M6.5 5.5 3 8l3.5 2.5"/><path d="M3 8h7"/></svg>
+      回到平台入口
+    </a>
 
     <a class="side-link{% if current_path == '/' %} active{% endif %}" href="{{ url('/') }}">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 4h4l1.5 2h7.5v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>

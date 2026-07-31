@@ -1,0 +1,153 @@
+{#
+  管理後台總覽(T70 / 設計文件《管理員後台與數據面板》§4.1、§4.4、§4.5)。
+
+  🔴 本頁**唯讀**:所有操作留在既有頁面(看數據與改狀態混在一起,誤點成本高)。
+  🔴 只有聚合數字,沒有任何「誰做了什麼」——那是稽核頁的職責(§4.6(b))。
+  🔴 CSP:不得有 inline style / script;數值以 `data-metric` 標記供測試精確定位
+     (測試斷言「數字等於實際值」,不是「頁面有出現數字」)。
+#}
+{% extends "base.html" %}
+
+{% block title %}管理總覽 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>管理總覽</h1>
+
+{% with current = "dashboard" %}{% include "_admin_tabs.html" %}{% endwith %}
+
+<p class="muted">
+  平台現況一覽。數字為**即時查詢**的結果(不做快取、不自動刷新,要新數字請重整)。
+  這一頁只看不改——開通、停用、調整級距請到對應的頁面。
+</p>
+
+{# --- KPI 六卡 ------------------------------------------------------------ #}
+<section class="kpi-grid">
+  <div class="kpi card">
+    <div class="kpi-label">帳號</div>
+    <div class="kpi-value" data-metric="users-total">{{ kpis.users_total }}</div>
+    <div class="kpi-note">待開通 <strong data-metric="users-pending">{{ kpis.users_pending }}</strong></div>
+  </div>
+
+  <div class="kpi card">
+    <div class="kpi-label">專案</div>
+    <div class="kpi-value" data-metric="projects-total">{{ kpis.projects_total }}</div>
+    <div class="kpi-note">private <strong data-metric="projects-private">{{ kpis.projects_private }}</strong></div>
+  </div>
+
+  <div class="kpi card">
+    <div class="kpi-label">已發布版本</div>
+    <div class="kpi-value" data-metric="releases-published">{{ kpis.releases_published }}</div>
+    <div class="kpi-note">draft <strong data-metric="releases-draft">{{ kpis.releases_draft }}</strong></div>
+  </div>
+
+  <div class="kpi card">
+    <div class="kpi-label">檔案</div>
+    <div class="kpi-value" data-metric="artifacts-total">{{ kpis.artifacts_total }}</div>
+    {# 掃毒未接上前一律 not_scanned——這個數字是誠實揭露,不是缺陷。 #}
+    <div class="kpi-note">未掃描 <strong data-metric="artifacts-not-scanned">{{ kpis.artifacts_not_scanned }}</strong></div>
+  </div>
+
+  <div class="kpi card">
+    <div class="kpi-label">儲存用量</div>
+    <div class="kpi-value" data-metric="storage-used">{{ human_bytes(kpis.storage_used_bytes) }}</div>
+    <div class="kpi-note">配額總和 {{ human_bytes(kpis.storage_quota_bytes) }}</div>
+  </div>
+
+  <div class="kpi card">
+    <div class="kpi-label">累計下載</div>
+    <div class="kpi-value" data-metric="downloads-total">{{ kpis.downloads_total }}</div>
+    {# §4.6(c):累計計數器從開站起算,與稽核的近期事件是兩個口徑。 #}
+    <div class="kpi-note">自平台啟用起累計</div>
+  </div>
+</section>
+
+{# --- 需要管理員動作的待辦 ------------------------------------------------- #}
+<section class="admin-todos">
+  <h2>需要處理</h2>
+
+  {% if todos.is_empty %}
+    <p class="notice">目前沒有需要處理的項目。</p>
+  {% else %}
+
+    {% if todos.pending_users %}
+      <div class="todo card">
+        <h3>待開通帳號({{ todos.pending_users }})</h3>
+        <p class="muted">在開通之前,這些同事什麼都不能做。</p>
+        <p><a href="{{ url('/admin/users') }}">前往開通 →</a></p>
+      </div>
+    {% endif %}
+
+    {% if todos.quota_warnings %}
+      <div class="todo card">
+        <h3>逼近容量上限(≥ {{ quota_warn_percent }}%)</h3>
+        <ul class="todo-list">
+          {% for item in todos.quota_warnings %}
+            <li>
+              <a href="{{ url('/projects/' ~ item.slug) }}">{{ item.name }}</a>
+              <span class="muted">{{ item.slug }} · {{ item.tier }} 級距 ·
+                {{ human_bytes(item.used_bytes) }} / {{ human_bytes(item.limit_bytes) }}
+                ({{ item.percent }}%)</span>
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="muted">需要更多空間請調整級距(擴充級距僅平台管理員可設)。</p>
+      </div>
+    {% endif %}
+
+    {% if todos.stale_drafts %}
+      <div class="todo card">
+        <h3>停滯的版本(draft 超過 {{ stale_draft_days }} 天)</h3>
+        <ul class="todo-list">
+          {% for item in todos.stale_drafts %}
+            <li>
+              <a href="{{ url('/projects/' ~ item.project_slug) }}">{{ item.project_name }}</a>
+              <span class="muted">{{ item.version }} · 已停滯 {{ item.days }} 天</span>
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="muted">可能是忘了發布,也可能是缺三類檔案之一發不出去。</p>
+      </div>
+    {% endif %}
+
+    {% if todos.orphan_projects %}
+      <div class="todo card">
+        <h3>擁有者已停用的專案</h3>
+        <ul class="todo-list">
+          {% for item in todos.orphan_projects %}
+            <li>
+              <a href="{{ url('/projects/' ~ item.slug) }}">{{ item.name }}</a>
+              <span class="muted">擁有者 <code>{{ item.owner_sub }}</code>(已停用)</span>
+            </li>
+          {% endfor %}
+        </ul>
+        {# 人離職後帳號停用,專案就沒有能改設定的人;F16 早就做好,只是沒人提醒。 #}
+        <p class="muted">請用<strong>轉移擁有權</strong>把專案交給還在職的成員,否則沒有人能改它的設定。</p>
+      </div>
+    {% endif %}
+
+    {% if todos.not_scanned_artifacts %}
+      <div class="todo card">
+        <h3>未掃描的檔案({{ todos.not_scanned_artifacts }})</h3>
+        <p class="muted">
+          掃毒尚未接上,所有檔案一律標示 <code>not_scanned</code>——這是誠實揭露,
+          不是壞掉。下載頁與 API 都會如實回報這個狀態。
+        </p>
+        <p><a href="{{ url('/help') }}">使用教學的檔案安全規則 →</a></p>
+      </div>
+    {% endif %}
+
+  {% endif %}
+</section>
+
+{# --- 系統資訊 ------------------------------------------------------------- #}
+<section class="admin-system">
+  <h2>系統</h2>
+  <dl class="artifact-meta">
+    <dt>服務版本</dt><dd>upload-program v{{ app_version }}</dd>
+    <dt>環境</dt><dd>{{ environment }}</dd>
+    <dt>稽核保留期</dt><dd>{{ retention_days }} 天(清除需由 <code>tools/purge_audit.py</code> 搭配 cron 執行)</dd>
+  </dl>
+</section>
+
+{% endblock %}

@@ -13,18 +13,21 @@
 """
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Form, Query, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
-from ..models import Issue, IssueComment, IssueStatus
+from ..filetypes import sniff
+from ..models import Issue, IssueAttachment, IssueComment, IssueStatus
 from ..security import DbSession, OptionalUser
+from ..storage import TooLarge
 from ..templating import render
 from ..version import APP_VERSION
 from .web import _login_redirect, _redirect
@@ -32,6 +35,15 @@ from .web import _login_redirect, _redirect
 router = APIRouter(include_in_schema=False, tags=["issues"])
 
 PAGE_SIZE = 20
+
+# 附件上限(T78 / 施工計畫書 §4.2 第 6 條)。放在模組常數而非設定檔:
+# 這是「回報要附截圖」的尺度判斷,不是部署參數。
+MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+MAX_ATTACHMENTS = 5
+
+# 🔴 inline 顯示只放行這三種。SVG 刻意不在其中——它是可執行的 XML,
+# 而這條路徑正是本專案唯一會讓瀏覽器直接呈現上傳內容的地方。
+INLINE_IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/gif"})
 
 # 狀態的中文顯示。放這裡而不是模板:模板要用兩次(清單與詳情),
 # 而且日後 API 若要回傳同一組字,也只有這一份。
@@ -58,7 +70,11 @@ async def _load(session, issue_id: str) -> Issue | None:
     result = await session.execute(
         select(Issue)
         .where(Issue.id == key)
-        .options(selectinload(Issue.comments), selectinload(Issue.reporter))
+        .options(
+            selectinload(Issue.comments),
+            selectinload(Issue.reporter),
+            selectinload(Issue.attachments),
+        )
     )
     return result.scalar_one_or_none()
 
@@ -300,3 +316,204 @@ async def change_status(
     )
     await session.commit()
     return _redirect(request, f"/issues/{issue.id}")
+
+
+# --- T78 附件 ---------------------------------------------------------------
+
+
+async def _load_for_attachment(session, issue_id: str, identity) -> Issue:
+    """取回報並檢查讀寫權;不存在與無權限**回應相同**(404)。"""
+    issue = await _load(session, issue_id)
+    if issue is None or not _may_read(issue, identity):
+        raise problems.not_found("找不到這件回報。")
+    return issue
+
+
+async def _store_attachment(
+    request: Request,
+    session,
+    issue: Issue,
+    identity,
+    filename: str,
+    chunks: AsyncIterator[bytes],
+) -> IssueAttachment:
+    """把上傳內容寫進物件儲存並建立附件紀錄。
+
+    🔴 型別由 **magic bytes** 判定(`on_head`),判不過就中止——
+    `upload_stream` 保證此時不會留下任何物件(與 T22/T23 同一條路徑的保證)。
+
+    參數:filename 使用者給的檔名(僅供顯示)、chunks 位元組流。
+    回傳:已 add 進 session 的附件(呼叫端負責 commit)。
+    副作用:寫物件儲存、session.add、寫稽核。
+    """
+    existing = len(issue.attachments)
+    if existing >= MAX_ATTACHMENTS:
+        raise problems.unprocessable(
+            "too-many-attachments",
+            "附件數量超過上限",
+            f"每則回報最多 {MAX_ATTACHMENTS} 張圖片,目前已有 {existing} 張。",
+        )
+
+    detected: dict[str, str] = {}
+
+    def on_head(head: bytes) -> None:
+        mime = sniff(head)
+        if mime not in INLINE_IMAGE_TYPES:
+            # 🔴 這裡的訊息要說清楚「看的是內容不是副檔名」,否則使用者會一直改檔名重試。
+            raise problems.unprocessable(
+                "rejected-file-type",
+                "附件型別不接受",
+                f"附件只收 PNG / JPEG / GIF 圖片。這個檔案的實際內容判定為 {mime},"
+                "不予接受(判型看的是檔案內容,不是副檔名)。",
+            )
+        detected["mime"] = mime
+
+    key = f"issues/{issue.id}/{uuid.uuid4()}"
+    storage = request.app.state.storage
+    try:
+        result = await storage.upload_stream(
+            key, chunks, max_bytes=MAX_ATTACHMENT_BYTES, on_head=on_head
+        )
+    except TooLarge:
+        raise problems.payload_too_large(
+            f"單張圖片上限 {MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB。"
+        ) from None
+
+    attachment = IssueAttachment(
+        issue_id=issue.id,
+        filename=filename[:255],
+        content_type=detected.get("mime", "application/octet-stream"),
+        size_bytes=result.size_bytes,
+        sha256=result.sha256,
+        storage_key=key,
+        uploaded_by_id=identity.user.id,
+    )
+    session.add(attachment)
+    await session.flush()
+    record(
+        session,
+        action=AuditAction.issue_attachment_upload,
+        actor_id=identity.user.id,
+        target_type="issue_attachment",
+        target_id=attachment.id,
+        target_label=attachment.filename,
+    )
+    return attachment
+
+
+@router.put(
+    "/v1/issues/{issue_id}/attachments/{filename}",
+    status_code=status.HTTP_201_CREATED,
+    summary="上傳回報附件(request body 為原始位元組;貼上/拖曳用)",
+)
+async def upload_attachment_xhr(
+    issue_id: str,
+    filename: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+) -> dict:
+    """XHR 路徑:JS 貼上截圖時走這裡(沿用 T44 的形態,raw body PUT)。
+
+    回傳附件 id 與 markdown 片段,讓 JS 直接插進輸入框——
+    使用者不必自己拼路徑,也就不會拼錯。
+    """
+    if identity is None:
+        raise problems.unauthorized("請先登入。")
+    issue = await _load_for_attachment(session, issue_id, identity)
+    attachment = await _store_attachment(
+        request, session, issue, identity, filename, request.stream()
+    )
+    await session.commit()
+
+    from ..web_urls import web_url
+
+    src = web_url(
+        request.app.state.settings, f"/v1/issues/{issue.id}/attachments/{attachment.id}"
+    )
+    return {"id": str(attachment.id), "markdown": f"![{attachment.filename}]({src})"}
+
+
+@router.post("/issues/{issue_id}/attachments", summary="上傳回報附件(純表單,無需 JS)")
+async def upload_attachment_form(
+    issue_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    attachment: Annotated[UploadFile, File()],
+) -> Response:
+    """🔴 漸進增強的**下層**:沒有 JS 也要能附圖。
+
+    網站壞掉時,JS 更可能就是壞掉的那一部分——而那正是使用者最需要回報的時候。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/issues/{issue_id}")
+    issue = await _load_for_attachment(session, issue_id, identity)
+
+    async def chunks() -> AsyncIterator[bytes]:
+        while data := await attachment.read(1024 * 1024):
+            yield data
+
+    stored = await _store_attachment(
+        request, session, issue, identity, attachment.filename or "image", chunks()
+    )
+    # 附件本身不會出現在內文裡,所以順手把 markdown 追加到回報內容末尾,
+    # 使用者才看得到圖(而不是只在附件清單裡)。
+    from ..web_urls import web_url
+
+    src = web_url(request.app.state.settings, f"/v1/issues/{issue.id}/attachments/{stored.id}")
+    issue.body_markdown = f"{issue.body_markdown}\n\n![{stored.filename}]({src})"
+    issue.updated_at = datetime.now(UTC)
+    await session.commit()
+    return _redirect(request, f"/issues/{issue.id}")
+
+
+@router.get(
+    "/v1/issues/{issue_id}/attachments/{attachment_id}",
+    summary="讀取回報附件(🔴 本專案唯一的 inline 顯示路徑)",
+)
+async def read_attachment(
+    issue_id: str,
+    attachment_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+) -> Response:
+    """🔴 **這是本專案唯一不用 attachment 的下載路徑**(施工計畫書 §4.2)。
+
+    收窄條件全部在這裡兌現:
+    - 型別在**上傳時**就已由 magic bytes 判定並只放行三種圖片,這裡直接用判定值;
+    - 仍帶 `nosniff`:即使某天判定出錯,也不讓瀏覽器自行猜測型別;
+    - 僅本人與管理員可讀,其他人 404(不洩漏存在);
+    - `/v1/releases/.../download` **完全沒有被動到**(有回歸測試守著)。
+    """
+    if identity is None:
+        raise problems.unauthorized("請先登入。")
+
+    issue = await _load(session, issue_id)
+    if issue is None or not _may_read(issue, identity):
+        raise problems.not_found("找不到這個附件。")
+    try:
+        key = uuid.UUID(attachment_id)
+    except ValueError:
+        raise problems.not_found("找不到這個附件。") from None
+
+    attachment = next((a for a in issue.attachments if a.id == key), None)
+    if attachment is None:
+        raise problems.not_found("找不到這個附件。")
+    # 🔴 就算資料庫裡的值被動過手腳,也不讓非圖片型別走 inline。
+    if attachment.content_type not in INLINE_IMAGE_TYPES:
+        raise problems.not_found("找不到這個附件。")
+
+    storage = request.app.state.storage
+    return StreamingResponse(
+        storage.iter_object(attachment.storage_key),
+        media_type=attachment.content_type,
+        headers={
+            # 🔴 inline 是這條路徑的**目的**,不是疏漏——但仍帶 nosniff:
+            # 即使判型某天出錯,也不讓瀏覽器自行猜測型別。
+            "Content-Disposition": "inline",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, max-age=300",
+        },
+    )

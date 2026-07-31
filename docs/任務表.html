@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-01 02:10
-<strong>版本:</strong> v1.55</p>
+<strong>最後更新:</strong> 2026-08-01 03:20
+<strong>版本:</strong> v1.56</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -429,16 +429,16 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T78</td>
 <td>問題回報:附件與貼圖</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟡</td>
-<td>🔴 <strong>本專案第一次開「非 attachment」的下載路徑</strong>——截圖要在頁面上看得到就需要 inline 顯示,故六條收窄:僅回報附件端點、僅 png/jpeg/gif(magic bytes 判定)、SVG 拒收、仍帶 nosniff、僅本人與管理員可讀、單張 5 MB 上限;貼上/拖曳走漸進增強(JS 壞掉表單仍可用)</td>
+<td>🔴 <strong>本專案第一次開「非 attachment」的下載路徑</strong>——截圖要在頁面上看得到就需要 inline 顯示,故六條收窄:僅回報附件端點、僅 png/jpeg/gif(magic bytes 判定)、SVG 拒收、仍帶 nosniff、僅本人與管理員可讀、單張 5 MB 上限;貼上/拖曳走漸進增強(JS 壞掉表單仍可用);讀取時<strong>再驗一次型別</strong>(資料被動手腳也不 inline);附件區獨立顯示(貼上但未送出的圖不會憑空消失);⚠ 依第二條 5:改為「先送出回報→詳情頁附圖」(原設想在建立表單貼圖需要回報不存在時先有 id,得引入暫存區與孤兒清理);migration <code>0008</code> 演練通過;<strong>13 條紅→綠,全套 463</strong></td>
 </tr>
 <tr>
 <td>T79</td>
 <td>問題回報:總覽待辦整合與清除工具</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td>管理總覽待辦加「未處理回報 n 件」(本平台無 email/推播,<strong>不假裝會主動通知</strong>);已關閉滿 365 天的回報與附件清除工具(比照 purge_audit 模式);<code>/help#report</code> 導引改指向 <code>/issues/new</code></td>
+<td>管理總覽待辦加「未處理回報 n 件」(本平台無 email/推播,<strong>不假裝會主動通知</strong>);已關閉滿 365 天的回報與附件清除工具(比照 purge_audit 模式);<code>/help</code> 補回報流程與「不寄信」說明;<code>tools/purge_issues.py</code> <strong>預設 dry-run</strong>、物件先刪再刪列、<code>resolved</code> 不算結案;<strong>5 條紅→綠,全套 463</strong></td>
 </tr>
 <tr>
 <td>T76</td>
@@ -845,6 +845,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.56</td>
+<td>2026-08-01 03:20</td>
+<td>Claude(Benny:完成能完成的項目,前提是先寫開發計畫書)</td>
+<td><strong>T78 附件與貼圖 + T79 收尾整合完成</strong>(18 條紅→綠,全套 463):開了本專案第一條 inline 下載路徑並以六條收窄 + 回歸測試守住舊路徑;總覽待辦加「未處理的回報」;清除工具預設 dry-run;兩份動工前計畫皆先成文</td>
 </tr>
 <tr>
 <td>v1.55</td>

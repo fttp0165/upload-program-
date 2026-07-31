@@ -813,3 +813,8 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 .badge-resolved    { background: var(--green-soft); color: #1d6b3f; }
 .badge-closed      { background: var(--line-soft); color: #4b5563; }
 .badge-wontfix     { background: var(--line-soft); color: #6b7280; }
+
+/* T78 附件 */
+.issue-figure { margin: .8rem 0; }
+.issue-figure figcaption { font-size: .85rem; margin-top: .3rem; }
+.issue-attach { margin: 1.2rem 0; }

@@ -315,3 +315,85 @@ async def test_回報頁連結都帶前綴且無inline樣式(client, active_user
             if link in {"/account", "/login", "/"}:
                 continue
             assert link.startswith(f"{PREFIX}/"), f"{path} 的連結未帶前綴:{link}"
+
+
+# --- T79:總覽待辦與清除工具 --------------------------------------------------
+
+
+async def test_總覽顯示未處理回報數(client, app, oidc, active_user):
+    """本平台沒有 email 也沒有排程器——這個數字是管理員唯一的提醒機制。"""
+    _, token = active_user
+    await _create(client, token, title="待處理的問題")
+
+    await make_user(app, "sub-todo-admin", admin=True)
+    admin = oidc.issue("sub-todo-admin")
+    page = await client.get("/admin", headers={**BROWSER, **auth(admin)})
+    assert "未處理的回報" in page.text
+    match = re.search(r'data-metric="issues-open"[^>]*>([^<]*)<', page.text)
+    assert match and match.group(1).strip() == "1"
+
+
+async def test_沒有未處理回報時總覽不顯示該項(client, app, oidc):
+    await make_user(app, "sub-todo-admin2", admin=True)
+    page = await client.get(
+        "/admin", headers={**BROWSER, **auth(oidc.issue("sub-todo-admin2"))}
+    )
+    assert "未處理的回報" not in page.text
+
+
+async def test_已關閉的回報不計入未處理(client, app, oidc, active_user):
+    _, token = active_user
+    issue_id = await _issue_id(await _create(client, token))
+    await make_user(app, "sub-close-admin", admin=True)
+    admin = oidc.issue("sub-close-admin")
+    await client.post(
+        f"/issues/{issue_id}/status",
+        data={"status": "closed"},
+        headers={**BROWSER, **auth(admin)},
+        follow_redirects=False,
+    )
+    page = await client.get("/admin", headers={**BROWSER, **auth(admin)})
+    assert "未處理的回報" not in page.text
+
+
+async def test_清除工具只刪已關閉滿保存期者(app, active_user, client):
+    """🔴 刪資料的工具:兩側都要驗——該刪的刪、不該刪的一個都不能碰。"""
+    import uuid as _uuid
+    from datetime import UTC, datetime, timedelta
+
+    from app.models import Issue
+    from tools.purge_issues import purge_closed_issues
+
+    _, token = active_user
+    old_closed = await _issue_id(await _create(client, token, title="很久以前關掉的"))
+    recent_closed = await _issue_id(await _create(client, token, title="最近關掉的"))
+    still_open = await _issue_id(await _create(client, token, title="還開著的"))
+
+    async with app.state.sessionmaker() as session:
+        from app.models import IssueStatus
+
+        now = datetime.now(UTC)
+        for issue_id, closed_at in (
+            (old_closed, now - timedelta(days=400)),
+            (recent_closed, now - timedelta(days=10)),
+        ):
+            issue = await session.get(Issue, _uuid.UUID(issue_id))
+            issue.status = IssueStatus.closed
+            issue.closed_at = closed_at
+        await session.commit()
+
+    async with app.state.sessionmaker() as session:
+        removed = await purge_closed_issues(session, app.state.storage, retention_days=365)
+        await session.commit()
+    assert removed == 1, "只有超過保存期且已關閉的那一件該被刪"
+
+    async with app.state.sessionmaker() as session:
+        assert await session.get(Issue, _uuid.UUID(old_closed)) is None
+        assert await session.get(Issue, _uuid.UUID(recent_closed)) is not None
+        assert await session.get(Issue, _uuid.UUID(still_open)) is not None
+
+
+async def test_教學頁說明回報流程與不寄信(client):
+    resp = await client.get("/help", headers=BROWSER)
+    assert "回報問題" in resp.text
+    assert "不會寄信" in resp.text or "不寄信" in resp.text

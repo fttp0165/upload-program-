@@ -369,6 +369,9 @@ class Issue(Base):
     comments: Mapped[list["IssueComment"]] = relationship(
         back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at"
     )
+    attachments: Mapped[list["IssueAttachment"]] = relationship(
+        back_populates="issue", cascade="all, delete-orphan", order_by="IssueAttachment.created_at"
+    )
 
     __table_args__ = (Index("ix_issues_status_created", "status", "created_at"),)
 
@@ -393,3 +396,30 @@ class IssueComment(Base):
 
     issue: Mapped[Issue] = relationship(back_populates="comments")
     author: Mapped["User"] = relationship(foreign_keys=[author_id])
+
+
+class IssueAttachment(Base):
+    """回報的附件——**只收圖片**(T78)。
+
+    🔴 `content_type` 存的是**判定出來的**型別,不是使用者宣稱的:
+    inline 顯示時要用它當 `Content-Type`,若信任宣稱值,等於讓上傳者決定
+    瀏覽器怎麼解讀那個位元組流,那正是 inline 路徑最危險的地方。
+    """
+
+    __tablename__ = "issue_attachments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    uploaded_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    issue: Mapped["Issue"] = relationship(back_populates="attachments")

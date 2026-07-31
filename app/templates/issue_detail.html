@@ -8,6 +8,11 @@
 {% extends "base.html" %}
 {% block title %}{{ issue.title }} — upload-program{% endblock %}
 
+{% block scripts %}
+{# 🔴 外部檔案(CSP 禁 inline script);沒有它,上面的表單照樣能用。 #}
+<script src="{{ url('/static/issue-upload.js') }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
@@ -27,6 +32,40 @@
 </p>
 
 <div class="issue-body card">{{ render(issue.body_markdown) }}</div>
+
+{# T78:附件區。內文若引用了圖片會顯示在上面;這一區保證**每張上傳過的圖都看得到**
+   ——透過 XHR 貼上但還沒插進內文的圖,否則會憑空消失。 #}
+{% if issue.attachments %}
+  <section class="issue-attachments">
+    <h2>截圖({{ issue.attachments | length }})</h2>
+    {% for item in issue.attachments %}
+      <figure class="issue-figure">
+        <img class="issue-image"
+             src="{{ url('/v1/issues/' ~ issue.id ~ '/attachments/' ~ item.id) }}"
+             alt="{{ item.filename }}">
+        <figcaption class="muted">{{ item.filename }} · {{ item.size_bytes }} bytes</figcaption>
+      </figure>
+    {% endfor %}
+  </section>
+{% endif %}
+
+{# T78:附加截圖。🔴 純表單是下層(沒有 JS 也能用);
+   static/issue-upload.js 只是在它之上加「貼上 / 拖曳」的便利。 #}
+{% if issue.status.value not in ('closed', 'wontfix') %}
+  <section class="issue-attach card" id="attach"
+           data-upload-base="{{ url('/v1/issues/' ~ issue.id ~ '/attachments') }}">
+    <h2>附加截圖</h2>
+    <form method="post" action="{{ url('/issues/' ~ issue.id ~ '/attachments') }}"
+          enctype="multipart/form-data" class="stack-form">
+      <label>
+        <span>圖片(PNG / JPEG / GIF,單張 5 MB 以內)</span>
+        <input type="file" name="attachment" accept="image/png,image/jpeg,image/gif" required>
+      </label>
+      <div class="form-actions"><button type="submit" class="btn">上傳</button></div>
+    </form>
+    <p class="muted" id="paste-hint">也可以直接在上面的輸入框貼上(Ctrl+V)或拖曳圖片。</p>
+  </section>
+{% endif %}
 
 <section class="issue-thread">
   <h2>討論({{ issue.comments | length }})</h2>

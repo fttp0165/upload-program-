@@ -66,6 +66,7 @@ class AuditAction(enum.StrEnum):
     issue_create = "issue.create"
     issue_comment = "issue.comment"
     issue_status_change = "issue.status_change"
+    issue_attachment_upload = "issue.attachment_upload"
 
 
 def record(

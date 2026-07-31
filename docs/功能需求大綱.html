@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-07-31 21:00
-<strong>版本:</strong> v3.13</p>
+<strong>最後更新:</strong> 2026-08-01 03:20
+<strong>版本:</strong> v3.14</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -795,6 +795,14 @@ summary { cursor:pointer; color:#12228f; }
 <td>✅ 已實作(T45)</td>
 </tr>
 <tr>
+<td>F82</td>
+<td>問題回報系統</td>
+<td>站內回報:Markdown 內容(伺服器端白名單轉譯,<strong>不收 HTML</strong>)、截圖附件(僅 PNG/JPEG/GIF,magic bytes 判定,<strong>唯一的 inline 顯示路徑</strong>)、我的回報清單、討論串、狀態機(僅管理員可改)、稽核、總覽待辦、365 天清除工具;🔴 僅回報者本人與管理員可見(404 不洩漏存在),待開通者亦可回報</td>
+<td>P1</td>
+<td>M7</td>
+<td>✅ 已實作(T77–T79)</td>
+</tr>
+<tr>
 <td>F81</td>
 <td>管理後台總覽</td>
 <td><code>/admin</code> 數據面板:KPI 六卡(帳號/專案/版本/檔案/儲存/累計下載)、<strong>需要管理員動作的待辦</strong>(待開通、逼近配額 ≥80%、停滯 draft &gt;14 天、未掃描檔案、擁有者已停用的專案)、系統資訊;🔴 唯讀、只做聚合不按人拆解</td>
@@ -1116,15 +1124,15 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>H 前端介面</td>
-<td>12</td>
-<td>12</td>
+<td>13</td>
+<td>13</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr>
 <td><strong>合計</strong></td>
-<td><strong>59</strong></td>
-<td><strong>54</strong></td>
+<td><strong>60</strong></td>
+<td><strong>55</strong></td>
 <td><strong>5</strong></td>
 <td><strong>0</strong></td>
 </tr>
@@ -1208,6 +1216,12 @@ MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>F42 標籤分類由 ⬜ 改 ✅(T36);§7 總結重算(已 35 / 未 16);<strong>M4 全數完成</strong></td>
+</tr>
+<tr>
+<td>v3.14</td>
+<td>2026-08-01 03:20</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>新增 F82 問題回報系統 ✅(T77–T79)</strong>:Markdown 白名單轉譯、截圖附件(唯一 inline 路徑,六條收窄)、狀態機與權限、總覽待辦、清除工具;§7 重算:<strong>60 項、55 已、5 未、0 阻塞</strong></td>
 </tr>
 <tr>
 <td>v3.13</td>

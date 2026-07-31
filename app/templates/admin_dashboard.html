@@ -78,6 +78,15 @@
       </div>
     {% endif %}
 
+    {% if todos.open_issues %}
+      <div class="todo card">
+        <h3>未處理的回報(<span data-metric="issues-open">{{ todos.open_issues }}</span>)</h3>
+        {# 沒有 email 也沒有推播,所以這裡是唯一的提醒 —— 使用者那邊也看得到同一個狀態。 #}
+        <p class="muted">待處理或處理中的問題回報。平台不會寄信通知使用者,他們靠這裡的狀態得知進度。</p>
+        <p><a href="{{ url('/issues') }}">查看回報 →</a></p>
+      </div>
+    {% endif %}
+
     {% if todos.quota_warnings %}
       <div class="todo card">
         <h3>逼近容量上限(≥ {{ quota_warn_percent }}%)</h3>

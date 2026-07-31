@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-31 23:00
-<strong>版本:</strong> v1.51</p>
+<strong>最後更新:</strong> 2026-08-01 03:20
+<strong>版本:</strong> v1.56</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -418,6 +418,34 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>✅</td>
 <td>🟢</td>
 <td>SSO 契約 <strong>v2.0</strong> 新增 §10 SLO 義務,§10.6 列本服務「⏸ 待其聲明」;我方 session 是 HttpOnly cookie → §10.1 屬 <strong>MUST 無豁免空間</strong>;實作 <code>GET /oidc/frontchannel-logout</code>:<strong>免認證</strong>(iframe 不帶 token,要求認證等於永不生效)、冪等 204、<strong>只刪 cookie</strong>(不建 session/不寫業務/不寫稽核,有零副作用測試)、<code>iss</code>/<code>sid</code> 帶與不帶皆可、刪除的 <code>Path</code> 與種下時相同(有測試——Path 不符瀏覽器不刪,正是契約緣起段全平台的死法);聲明文 <a href="plans/聲明_SLO_session形態_給portal.md">聲明_SLO_session形態_給portal</a> 待端點上線後送出請 portal 註冊;CLAUDE.md 契約對齊 v1.7→<strong>v2.0</strong>;<strong>7 條紅→綠,全套 409</strong></td>
+</tr>
+<tr>
+<td>T77</td>
+<td>問題回報系統:回報 + 清單 + 狀態機(無附件)</td>
+<td>✅</td>
+<td>🟡</td>
+<td>Benny 裁示:回報要有富文本、可貼照片、有清單、管理員可回覆、記錄進度與關閉狀態;設計文件 <a href="plans/設計_問題回報系統.md">設計_問題回報系統</a> v1.0 + <a href="plans/施工計畫書_問題回報系統.md">施工計畫書</a> v1.0(含五題<strong>建議裁示</strong>、DDL、權限矩陣、測試條數、三期發版 v0.2.0–v0.2.2)<strong>待 Benny 逐條確認</strong>;🔴 富文本<strong>不採 HTML</strong>(同源之下一次 XSS = 全平台帳號淪陷)改用 <strong>Markdown + 白名單轉譯</strong>;三張新表 + 狀態機(僅管理員可改,resolved/closed 分開讓回報者能說「還是不行」)+ 待開通者亦可回報(他們最可能遇到問題卻無處可說);自動帶入 <code>app_version</code> 與 <code>page_url</code>;<strong>自己寫 <code>markdown_lite</code>(先 escape 再只產生白名單標籤)而不引入 markdown+消毒器兩個相依</strong>;回傳 <code>Markup</code> 讓模板免用 <code>|safe</code>(禁令不開例外);入口導引依第二條 5 由第三期提前至本期(沒有入口的表單等於不存在);migration <code>0007_issues</code> up→down→up 演練通過;<strong>36 條紅→綠,全套 445</strong></td>
+</tr>
+<tr>
+<td>T78</td>
+<td>問題回報:附件與貼圖</td>
+<td>✅</td>
+<td>🟡</td>
+<td>🔴 <strong>本專案第一次開「非 attachment」的下載路徑</strong>——截圖要在頁面上看得到就需要 inline 顯示,故六條收窄:僅回報附件端點、僅 png/jpeg/gif(magic bytes 判定)、SVG 拒收、仍帶 nosniff、僅本人與管理員可讀、單張 5 MB 上限;貼上/拖曳走漸進增強(JS 壞掉表單仍可用);讀取時<strong>再驗一次型別</strong>(資料被動手腳也不 inline);附件區獨立顯示(貼上但未送出的圖不會憑空消失);⚠ 依第二條 5:改為「先送出回報→詳情頁附圖」(原設想在建立表單貼圖需要回報不存在時先有 id,得引入暫存區與孤兒清理);migration <code>0008</code> 演練通過;<strong>13 條紅→綠,全套 463</strong></td>
+</tr>
+<tr>
+<td>T79</td>
+<td>問題回報:總覽待辦整合與清除工具</td>
+<td>✅</td>
+<td>🟢</td>
+<td>管理總覽待辦加「未處理回報 n 件」(本平台無 email/推播,<strong>不假裝會主動通知</strong>);已關閉滿 365 天的回報與附件清除工具(比照 purge_audit 模式);<code>/help</code> 補回報流程與「不寄信」說明;<code>tools/purge_issues.py</code> <strong>預設 dry-run</strong>、物件先刪再刪列、<code>resolved</code> 不算結案;<strong>5 條紅→綠,全套 463</strong></td>
+</tr>
+<tr>
+<td>T76</td>
+<td>README 更新(v2.0)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「更新 README.md」;原本只有標題 + 一句描述,改寫成新人打開 repo 就能自己動起來的門面:定位與線上狀態、功能一覽(只寫已實作,不寫願望)、技術棧與<strong>路徑拓撲圖</strong>(gateway 剝前綴最常被誤解)、本地開發指令、部署三條必記紅線(細節指向 runbook,不做第二份會漂移的說明)、契約 v2.0 對齊、憲法八條摘要與紅線、文件索引;🐛 初稿的 <code>pip install -e ".[dev]"</code> 是錯的(相依以 requirements*.txt 為準),已改正——寫指令就要確認它真的能跑;依第七條補日期/版本/版本歷史</td>
 </tr>
 <tr>
 <td>T75</td>
@@ -817,6 +845,36 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.56</td>
+<td>2026-08-01 03:20</td>
+<td>Claude(Benny:完成能完成的項目,前提是先寫開發計畫書)</td>
+<td><strong>T78 附件與貼圖 + T79 收尾整合完成</strong>(18 條紅→綠,全套 463):開了本專案第一條 inline 下載路徑並以六條收窄 + 回歸測試守住舊路徑;總覽待辦加「未處理的回報」;清除工具預設 dry-run;兩份動工前計畫皆先成文</td>
+</tr>
+<tr>
+<td>v1.55</td>
+<td>2026-08-01 02:10</td>
+<td>Claude(Benny 裁示「照建議做」)</td>
+<td><strong>T77 問題回報第一期完成</strong>(36 條紅→綠,全套 445):自家 Markdown 轉譯器、兩張表 + migration 演練、狀態機與權限(非本人非管理員 404)、待開通者可回報、入口提前接上;施工計畫書回寫 v1.1</td>
+</tr>
+<tr>
+<td>v1.54</td>
+<td>2026-08-01 01:00</td>
+<td>Claude(Benny 指示)</td>
+<td><strong>新增問題回報系統施工計畫書</strong>:五題建議裁示(inline 圖片建議接受、Markdown 白名單、僅本人與管理員、365 天、先交付 T77)、兩支 migration DDL、端點與權限矩陣、安全設計逐條、各期測試條數、三期發版 v0.2.0–v0.2.2、風險與回滾、驗收清單</td>
+</tr>
+<tr>
+<td>v1.53</td>
+<td>2026-08-01 00:20</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>開立 T77–T79 問題回報系統</strong>:設計文件成文(富文本走 Markdown 不走 HTML、貼圖需開 inline 路徑並以六條收窄、三表資料模型、狀態機與權限、無 email 不假裝通知、保存期 365 天);<strong>待 Benny 裁示五個問題後動工</strong></td>
+</tr>
+<tr>
+<td>v1.52</td>
+<td>2026-07-31 23:45</td>
+<td>Claude(Benny 指示)</td>
+<td><strong>T76 README 更新完成</strong>(v2.0:功能一覽、路徑拓撲圖、開發與部署指引、文件索引)</td>
 </tr>
 <tr>
 <td>v1.51</td>

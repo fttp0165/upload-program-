@@ -71,7 +71,7 @@
       </li>
       {# T75:回報問題。網站壞掉時最需要回報的往往是還沒登入成功的人,所以不分登入狀態都給。 #}
       <li class="nav-item{% if identity and identity.user.is_active %} d-lg-none{% endif %}">
-        <a class="nav-link" href="{{ url('/help#report') }}">回報問題</a>
+        <a class="nav-link" href="{{ url('/issues/new') }}">回報問題</a>
       </li>
       {% if identity %}
         {% if identity.user.is_active %}
@@ -138,7 +138,7 @@
     </a>
     {# T75:回報問題(對話框圖示,行內 SVG)。指向教學頁的 #report 錨點,
        不另立頁面——內容只有一段,拆開反而讓「教學」與「回報」斷了關係。 #}
-    <a class="side-link" href="{{ url('/help#report') }}">
+    <a class="side-link{% if current_path.startswith('/issues') %} active{% endif %}" href="{{ url('/issues/new') }}">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 3.5v6a1 1 0 0 1-1 1H6l-3 2.5v-2.5h-.5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1z"/><path d="M8 5.2v2.4"/><path d="M8 9v.1"/></svg>
       回報問題
     </a>

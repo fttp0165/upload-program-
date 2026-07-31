@@ -21,6 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import Settings
 from .models import (
     Artifact,
+    Issue,
+    IssueStatus,
     Project,
     QuotaTier,
     Release,
@@ -102,6 +104,9 @@ class Todos:
 
     pending_users: int = 0
     not_scanned_artifacts: int = 0
+    # T79:未處理的問題回報。本平台沒有 email 也沒有排程器,
+    # 這個數字是管理員唯一會被提醒的地方——沒有它,回報會安靜地躺在資料庫裡。
+    open_issues: int = 0
     quota_warnings: list[ProjectUsage] = field(default_factory=list)
     stale_drafts: list[StaleDraft] = field(default_factory=list)
     orphan_projects: list[OrphanProject] = field(default_factory=list)
@@ -110,6 +115,7 @@ class Todos:
     def is_empty(self) -> bool:
         return not (
             self.pending_users
+            or self.open_issues
             or self.not_scanned_artifacts
             or self.quota_warnings
             or self.stale_drafts
@@ -250,8 +256,16 @@ async def collect_todos(session: AsyncSession, settings: Settings) -> Todos:
         for project, owner in orphan_rows
     ]
 
+    open_issues = await _scalar(
+        session,
+        select(func.count())
+        .select_from(Issue)
+        .where(Issue.status.in_((IssueStatus.open, IssueStatus.in_progress))),
+    )
+
     return Todos(
         pending_users=kpi_pending,
+        open_issues=open_issues,
         not_scanned_artifacts=not_scanned,
         quota_warnings=quota_warnings[:TOP_N],
         stale_drafts=stale_drafts,

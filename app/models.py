@@ -316,3 +316,110 @@ class AuditEvent(Base):
     target_label: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     # 事件當下的請求識別碼,可與 stdout log 互相對照。
     trace_id: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+
+
+class IssueStatus(enum.StrEnum):
+    """問題回報的狀態(T77)。
+
+    🔴 `resolved`(我方認為修好了)與 `closed`(結案)刻意分開:
+    中間留一段讓回報者能說「還是不行」。若只有一個「已完成」,
+    使用者就沒有位置表達異議,回報系統會慢慢變成單向的許願池。
+    """
+
+    open = "open"
+    in_progress = "in_progress"
+    resolved = "resolved"
+    closed = "closed"
+    wontfix = "wontfix"
+
+
+class Issue(Base):
+    """使用者回報的網站問題(T77 / 設計文件《問題回報系統》)。
+
+    🔴 內容存 **Markdown 原文**,不存轉譯後的 HTML——轉譯規則改了要能立即全站生效,
+    而且資料庫裡永遠不該躺著一段「可執行的東西」。
+    """
+
+    __tablename__ = "issues"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # 🔴 RESTRICT:有回報紀錄的使用者刪不掉,與稽核同一個立場。
+    reporter_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[IssueStatus] = mapped_column(
+        _enum(IssueStatus, "issue_status"), default=IssueStatus.open, nullable=False
+    )
+    # 使用者按下回報時所在的頁面,與當下的服務版本——兩者都是使用者不會記得、
+    # 但排查時最需要的資訊,所以由系統自動帶入而不是要人填。
+    page_url: Mapped[str] = mapped_column(String(512), default="", nullable=False)
+    app_version: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    closed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    reporter: Mapped["User"] = relationship(foreign_keys=[reporter_id])
+    comments: Mapped[list["IssueComment"]] = relationship(
+        back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at"
+    )
+    attachments: Mapped[list["IssueAttachment"]] = relationship(
+        back_populates="issue", cascade="all, delete-orphan", order_by="IssueAttachment.created_at"
+    )
+
+    __table_args__ = (Index("ix_issues_status_created", "status", "created_at"),)
+
+
+class IssueComment(Base):
+    """回報的討論串:回報者補充說明,或管理員回覆處理進度(T77)。"""
+
+    __tablename__ = "issue_comments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # CASCADE:回報刪掉時討論串一起走,不留孤兒(與 users 的 RESTRICT 是不同考量)。
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    # 是否為平台方回覆——顯示時要讓使用者一眼看出「這是官方回應」。
+    is_staff_reply: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    issue: Mapped[Issue] = relationship(back_populates="comments")
+    author: Mapped["User"] = relationship(foreign_keys=[author_id])
+
+
+class IssueAttachment(Base):
+    """回報的附件——**只收圖片**(T78)。
+
+    🔴 `content_type` 存的是**判定出來的**型別,不是使用者宣稱的:
+    inline 顯示時要用它當 `Content-Type`,若信任宣稱值,等於讓上傳者決定
+    瀏覽器怎麼解讀那個位元組流,那正是 inline 路徑最危險的地方。
+    """
+
+    __tablename__ = "issue_attachments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    uploaded_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    issue: Mapped["Issue"] = relationship(back_populates="attachments")

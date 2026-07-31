@@ -77,12 +77,19 @@
 <section id="report">
   <h2>回報問題與提交功能需求</h2>
   <p>發現網站問題(錯誤頁、上傳失敗、顯示異常),或想提交功能需求,
-     請聯絡<strong>平台管理員</strong>(與帳號開通同一位)。回報問題時請附上:</p>
+     請用站內的<a href="{{ url('/issues/new') }}"><strong>回報問題</strong></a>功能送出
+     (送出後可在<a href="{{ url('/issues') }}">我的回報</a>看處理進度;平台不會寄信通知)。
+     回報時請附上:</p>
   <ul>
     <li><strong>重現步驟</strong>:從哪一頁、做了什麼操作、按了什麼。</li>
     <li><strong>預期行為與實際結果</strong>:你以為會發生什麼、實際看到什麼(截圖更好)。</li>
     <li><strong>發生時間與網址</strong>:方便管理員對照系統紀錄。</li>
   </ul>
+  <p class="muted">
+    送出後可在<a href="{{ url('/issues') }}">我的回報</a>看到處理狀態與平台回覆;
+    詳情頁可以貼上或選擇截圖(PNG / JPEG / GIF,單張 5 MB 以內)。
+    🔴 <strong>平台不會寄信通知</strong>——有回覆時請回到那一頁查看。
+  </p>
   <p class="muted">功能需求會依開發計畫排入任務;已知的範圍界線
      (git clone/push、PR/code review、線上編輯等)目前不在平台規劃內。</p>
 </section>

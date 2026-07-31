@@ -1,0 +1,48 @@
+{#
+  回報問題(T77)。
+
+  🔴 純表單、不需要 JS——網站壞掉時,JS 更可能是壞掉的那一部分。
+  貼上截圖的漸進增強留到第二期(T78),沒有它這一頁照樣能用。
+  🔴 內容以 Markdown 存原文,顯示時才轉譯(見 markdown_lite.py)。
+#}
+{% extends "base.html" %}
+{% block title %}回報問題 — upload-program{% endblock %}
+
+{% block content %}
+<h1>回報問題</h1>
+
+<p class="muted">
+  回報後可在<a href="{{ url('/issues') }}">我的回報</a>看到處理進度。
+  🔴 本平台<strong>不會寄信通知</strong>——有回覆時請回來這一頁看。
+</p>
+
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+
+<form method="post" action="{{ url('/issues/new') }}" class="stack-form">
+  <label>
+    <span>標題</span>
+    <input type="text" name="title" maxlength="200" value="{{ form.title or '' }}"
+           placeholder="一句話說明問題,例:上傳頁按發布沒反應" required>
+  </label>
+
+  <label>
+    <span>問題描述</span>
+    <textarea name="body_markdown" rows="12" required
+              placeholder="請盡量包含:&#10;1. 重現步驟(從哪一頁、做了什麼)&#10;2. 預期行為與實際結果&#10;3. 發生時間">{{ form.body_markdown or '' }}</textarea>
+  </label>
+
+  {# 使用者從哪一頁按過來的;沒有就留空,不強迫填。 #}
+  <input type="hidden" name="page_url" value="{{ form.page_url or '' }}">
+
+  <p class="muted">
+    支援簡單格式:<code>**粗體**</code>、<code>`程式碼`</code>、
+    <code>```</code> 區塊、<code>- </code> 清單、<code>&gt; </code> 引言。
+    系統會自動記錄你目前使用的服務版本。
+  </p>
+
+  <div class="form-actions">
+    <button type="submit" class="btn">送出回報</button>
+    <a href="{{ url('/issues') }}">我的回報</a>
+  </div>
+</form>
+{% endblock %}

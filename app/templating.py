@@ -13,6 +13,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .branding import SITE_NAME
+from .markdown_lite import render_markdown
 from .version import APP_VERSION
 from .web_urls import web_url
 
@@ -49,5 +50,8 @@ def render(request, template: str, **context) -> str:
         app_version=APP_VERSION,
         # T69:站名單一來源 app/branding.py——模板不得再硬編碼(有測試釘住)。
         site_name=SITE_NAME,
+        # T77:使用者寫的 Markdown 轉安全 HTML。回傳 Markup,模板照常 {{ }}——
+        # 輸入在轉譯器裡已全數逸出,`|safe` 的禁令維持不變(見 markdown_lite.py)。
+        render=render_markdown,
         **context,
     )

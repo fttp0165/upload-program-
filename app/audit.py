@@ -61,6 +61,13 @@ class AuditAction(enum.StrEnum):
     artifact_delete = "artifact.delete"
     artifact_download = "artifact.download"
 
+    # 問題回報(T77):回報是使用者主動留下的紀錄,狀態變更則是我方的處置——
+    # 兩者都要能事後說明「誰在何時做了什麼」。
+    issue_create = "issue.create"
+    issue_comment = "issue.comment"
+    issue_status_change = "issue.status_change"
+    issue_attachment_upload = "issue.attachment_upload"
+
 
 def record(
     session: AsyncSession,

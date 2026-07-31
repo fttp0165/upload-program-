@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施工計畫書:網站問題回報系統(T77–T79)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/施工計畫書_問題回報系統.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>施工計畫書:網站問題回報系統(T77–T79)</h1>
+<p><strong>建立日期:</strong> 2026-08-01 01:00
+<strong>最後更新:</strong> 2026-08-01 02:10
+<strong>版本:</strong> v1.1
+<strong>依據:</strong> <a href="設計_問題回報系統.md">設計_問題回報系統</a> v1.0(Benny 2026-07-31 裁示)
+<strong>狀態:</strong> 📋 <strong>建議書</strong>——§0 是我方對五個待裁示問題的<strong>建議答案</strong>;
+Benny 逐條確認(或改)後,本文即成為施工依據,依憲法第二條開工。</p>
+<hr />
+<h2>0. 建議裁示(五題,附理由)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>題目</th>
+<th><strong>建議</strong></th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>貼圖要不要 inline 顯示</td>
+<td>✅ <strong>要</strong>,但依 §4.2 六條收窄</td>
+<td>回報的價值有一半在截圖;要使用者「下載附件再自己開」會讓人乾脆不附圖,那等於沒收到那半的資訊。風險可用型別白名單 + 權限 + nosniff 壓到可接受</td>
+</tr>
+<tr>
+<td>2</td>
+<td>富文本形式</td>
+<td>✅ <strong>Markdown + 伺服器端白名單轉譯</strong></td>
+<td>同源之下一次 XSS = 全平台帳號淪陷;WYSIWYG 要收 HTML、要自託管編輯器 JS,兩者都在放大攻擊面。Markdown 的表達力對「回報一個問題」綽綽有餘</td>
+</tr>
+<tr>
+<td>3</td>
+<td>可見範圍</td>
+<td>✅ <strong>僅回報者本人 + 平台管理員</strong></td>
+<td>回報常夾帶畫面截圖與內部資料;全站可見會讓人不敢寫實情,反而降低回報品質</td>
+</tr>
+<tr>
+<td>4</td>
+<td>保存期</td>
+<td>✅ <strong>已關閉滿 365 天</strong>清除(工具 + cron,不自動跑)</td>
+<td>與稽核同一節奏、同一模式;內容是使用者自由書寫,不該無限期留存</td>
+</tr>
+<tr>
+<td>5</td>
+<td>施工範圍</td>
+<td>✅ <strong>分三期,先交付 T77</strong></td>
+<td>沒有附件的回報系統已經能收到問題;附件是風險最高的部分,值得單獨一個 PR 專心審</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>若第 1 題你選「維持 attachment」,施工計畫只需把 §4.2 的 inline 端點改為
+沿用既有下載標頭,其餘不變——<strong>T78 的工作量與風險都會下降</strong>。</p>
+</blockquote>
+<hr />
+<h2>1. 分期與交付物</h2>
+<table>
+<thead>
+<tr>
+<th>期別</th>
+<th>任務</th>
+<th>交付物</th>
+<th>資料影響</th>
+<th>PR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一期</td>
+<td><strong>T77</strong> 回報主體</td>
+<td>三張表的前兩張(issues / issue_comments)、建立與清單與詳情頁、狀態機、權限、稽核</td>
+<td>🟡 加表</td>
+<td>PR-A</td>
+</tr>
+<tr>
+<td>第二期</td>
+<td><strong>T78</strong> 附件與貼圖</td>
+<td>issue_attachments 表、上傳端點、<strong>inline 顯示端點</strong>、貼上/拖曳 JS</td>
+<td>🟡 加表</td>
+<td>PR-B</td>
+</tr>
+<tr>
+<td>第三期</td>
+<td><strong>T79</strong> 收尾整合</td>
+<td>管理總覽待辦、清除工具、使用教學補一節</td>
+<td>🟢</td>
+<td>PR-C</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>v1.1 修正(第二條 5 回寫)</strong>:入口導引(側欄/頂列/教學頁指向 <code>/issues/new</code>)
+原列第三期,<strong>已提前於第一期完成</strong>——沒有入口的表單等於不存在(T66/T75 的教訓),
+不該讓 v0.2.0 上線一個沒人連得到的功能。</p>
+</blockquote>
+<p><strong>每一期各自可上線、可回滾</strong>;第二期未完成前,回報系統照樣能用(只是不能附圖)。</p>
+<hr />
+<h2>2. 資料庫變更</h2>
+<h3>2.1 第一期 migration <code>0007_issues</code></h3>
+<pre><code class="language-sql">CREATE TABLE issues (
+    id              UUID PRIMARY KEY,
+    reporter_id     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    title           VARCHAR(200) NOT NULL,
+    body_markdown   TEXT NOT NULL,
+    status          issue_status NOT NULL DEFAULT 'open',
+    page_url        VARCHAR(512) NOT NULL DEFAULT '',
+    app_version     VARCHAR(32)  NOT NULL DEFAULT '',
+    created_at      TIMESTAMPTZ NOT NULL,
+    updated_at      TIMESTAMPTZ NOT NULL,
+    closed_at       TIMESTAMPTZ,
+    closed_by_id    UUID REFERENCES users(id) ON DELETE RESTRICT
+);
+CREATE INDEX ix_issues_reporter ON issues (reporter_id);
+CREATE INDEX ix_issues_status   ON issues (status, created_at DESC);
+
+CREATE TABLE issue_comments (
+    id             UUID PRIMARY KEY,
+    issue_id       UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    author_id      UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    body_markdown  TEXT NOT NULL,
+    is_staff_reply BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX ix_issue_comments_issue ON issue_comments (issue_id, created_at);
+</code></pre>
+<ul>
+<li><code>ON DELETE RESTRICT</code>(對 users):<strong>有回報紀錄的使用者刪不掉</strong>——與稽核同一個立場。</li>
+<li><code>ON DELETE CASCADE</code>(comments → issue):回報刪掉時討論串一起走,不留孤兒。</li>
+<li><code>issue_status</code> 用 enum type(與現有 <code>_enum()</code> 慣例一致)。</li>
+<li>🔴 revision id <strong>用檔名全名</strong> <code>0007_issues</code>(v0.1.3 事故的結論)。</li>
+</ul>
+<h3>2.2 第二期 migration <code>0008_issue_attachments</code></h3>
+<pre><code class="language-sql">CREATE TABLE issue_attachments (
+    id             UUID PRIMARY KEY,
+    issue_id       UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    comment_id     UUID REFERENCES issue_comments(id) ON DELETE CASCADE,
+    storage_key    VARCHAR(512) NOT NULL,
+    content_type   VARCHAR(64)  NOT NULL,   -- 判定出來的,不是使用者宣稱的
+    size_bytes     BIGINT NOT NULL,
+    sha256         VARCHAR(64) NOT NULL,
+    uploaded_by_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at     TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX ix_issue_attachments_issue ON issue_attachments (issue_id);
+</code></pre>
+<p>MinIO key 前綴 <code>issues/{issue_id}/{uuid}</code>,與 artifacts 完全分開。</p>
+<h3>2.3 演練(兩期都要)</h3>
+<p><code>alembic upgrade head</code> → <code>downgrade -1</code> → <code>upgrade head</code> 本機演練;
+backward 為 <code>DROP TABLE</code>(<strong>會刪掉回報內容</strong>,回滾前必須先備份——寫進 runbook 的不可逆清單)。</p>
+<hr />
+<h2>3. 端點與頁面</h2>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路徑</th>
+<th>權限</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/issues/new</code></td>
+<td>已登入(含待開通)</td>
+<td>回報表單</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/issues/new</code></td>
+<td>同上</td>
+<td>建立;成功 303 到詳情頁</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/issues</code></td>
+<td>已登入</td>
+<td>本人的清單;管理員看全部 + 狀態篩選</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/issues/{id}</code></td>
+<td>本人 / 管理員</td>
+<td>內容 + 附件 + 討論串</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/issues/{id}/comments</code></td>
+<td>本人 / 管理員</td>
+<td>新增回覆</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/issues/{id}/status</code></td>
+<td><strong>僅管理員</strong></td>
+<td>狀態變更(表單 POST)</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/v1/issues/{id}/attachments/{filename}</code></td>
+<td>本人 / 管理員</td>
+<td>第二期:XHR 上傳(沿用 T44 的形態)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/v1/issues/{id}/attachments/{aid}</code></td>
+<td>本人 / 管理員</td>
+<td>第二期:<strong>inline 顯示</strong></td>
+</tr>
+</tbody>
+</table>
+<p>🔴 <strong>非本人非管理員一律 404</strong>(不是 403)——與 private 專案同一個立場:
+不洩漏「這個回報存不存在」。</p>
+<hr />
+<h2>4. 安全設計(逐條要有測試)</h2>
+<h3>4.1 Markdown 轉譯</h3>
+<ul>
+<li>伺服器端轉譯,<strong>輸出標籤白名單</strong>:<code>p br strong em code pre ul ol li a img blockquote h3</code></li>
+<li><code>a</code>:只准 <code>http/https</code>,強制 <code>rel="noopener noreferrer"</code>;<code>javascript:</code> / <code>data:</code> 一律剝除</li>
+<li><code>img</code>:<strong>只准指向我方附件端點</strong>(相對路徑 <code>/upload/v1/issues/...</code>),外部圖片一律剝除
+  ——否則回報頁會變成對外發請求的載體(追蹤像素、內容外洩)</li>
+<li>原始 HTML <strong>一律逸出</strong>,不論白名單(Markdown 的 <code>md_in_html</code> 不啟用)</li>
+<li>轉譯後的結果<strong>不存回資料庫</strong>(存的永遠是 Markdown 原文,轉譯是顯示時的事)</li>
+</ul>
+<h3>4.2 inline 圖片端點的六條收窄</h3>
+<ol>
+<li>只有這一條路徑是 inline;<code>/v1/releases/.../download</code> <strong>完全不動</strong></li>
+<li>型別由 <strong>magic bytes 判定</strong>,只放行 <code>image/png</code> <code>image/jpeg</code> <code>image/gif</code></li>
+<li>🔴 SVG 一律拒收(可執行的 XML)</li>
+<li>回應帶 <code>X-Content-Type-Options: nosniff</code>;<code>Content-Type</code> 用<strong>判定值</strong></li>
+<li>僅回報者本人與平台管理員可讀,其他人 404</li>
+<li>單張 ≤ 5 MB、單則回報 ≤ 5 張</li>
+</ol>
+<h3>4.3 權限矩陣(測試逐格驗)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>建立</th>
+<th>看自己的</th>
+<th>看別人的</th>
+<th>回覆自己的</th>
+<th>改狀態</th>
+<th>讀附件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>匿名</td>
+<td>302 登入</td>
+<td>302</td>
+<td>302</td>
+<td>302</td>
+<td>302</td>
+<td>302</td>
+</tr>
+<tr>
+<td>待開通</td>
+<td>✅</td>
+<td>✅</td>
+<td>404</td>
+<td>✅</td>
+<td>403</td>
+<td>本人 ✅</td>
+</tr>
+<tr>
+<td>一般使用者</td>
+<td>✅</td>
+<td>✅</td>
+<td>404</td>
+<td>✅</td>
+<td>403</td>
+<td>本人 ✅</td>
+</tr>
+<tr>
+<td>平台管理員</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3>4.4 稽核(沿用 T38 單一入口)</h3>
+<p>新增 action:<code>issue.create</code>、<code>issue.comment</code>、<code>issue.status_change</code>、<code>issue.attachment_upload</code>。
+<code>target_label</code> 存<strong>標題快照</strong>(回報刪掉後仍知道刪的是哪一件)。</p>
+<hr />
+<h2>5. 測試計畫(先紅後綠)</h2>
+<p><strong>第一期(T77)預估 20–24 條</strong></p>
+<ul>
+<li>權限矩陣逐格(上表 24 格擇要 12 條)</li>
+<li>🔴 XSS:<code>&lt;script&gt;</code>、<code>&lt;img onerror&gt;</code>、<code>javascript:</code> 連結、<code>data:</code> 圖片、內嵌 HTML → 全部不得出現可執行內容</li>
+<li>🔴 外部圖片被剝除(<code>![](https://evil/x.png)</code> 不得產生對外請求的 <code>&lt;img&gt;</code>)</li>
+<li>狀態機:合法轉移成功、非法轉移被拒、每次變更有稽核</li>
+<li>建立時自動帶入 <code>app_version</code> 與 <code>page_url</code></li>
+<li>清單:分頁、狀態篩選、空狀態、他人的回報不出現</li>
+<li>migration up→down→up</li>
+</ul>
+<p><strong>第二期(T78)預估 12–15 條</strong></p>
+<ul>
+<li>HTML / SVG / PDF 偽裝成 <code>.png</code> → 一律拒收且不留物件</li>
+<li>inline 端點:三種型別各一條、<code>nosniff</code> 存在、<code>Content-Disposition</code> <strong>不是</strong> attachment</li>
+<li>非本人非管理員 → 404</li>
+<li>單張超過 5 MB → 413;第 6 張 → 422</li>
+<li>🔴 <strong>回歸測試</strong>:<code>/v1/releases/.../download</code> <strong>仍然是 attachment</strong>(確保沒被順手改壞)</li>
+<li>關閉 JS 的情境:表單仍可送出(以無 JS 的純 POST 驗)</li>
+</ul>
+<p><strong>第三期(T79)預估 6–8 條</strong></p>
+<ul>
+<li>管理總覽待辦出現「未處理回報 n」且數字正確;無回報時不出現</li>
+<li>清除工具:只刪「已關閉滿 365 天」者,連同附件物件一起刪;未達期限不刪</li>
+</ul>
+<hr />
+<h2>6. 交付與發版</h2>
+<table>
+<thead>
+<tr>
+<th>期別</th>
+<th>版本</th>
+<th>部署注意</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一期</td>
+<td><strong>v0.2.0</strong>(新功能面,升次版號)</td>
+<td>🔴 <strong>有 migration</strong>:換版後需 <code>alembic upgrade head</code>;<code>.env</code> 不變</td>
+</tr>
+<tr>
+<td>第二期</td>
+<td>v0.2.1</td>
+<td>🔴 有 migration;<code>.env</code> 不變</td>
+</tr>
+<tr>
+<td>第三期</td>
+<td>v0.2.2</td>
+<td>無 migration;新增 cron 一行(清除工具)</td>
+</tr>
+</tbody>
+</table>
+<p>每一版依憲法第八條備妥 title 與 content,<code>APP_VERSION</code> 在打 tag 前隨 PR 改好。</p>
+<hr />
+<h2>7. 風險與回滾</h2>
+<table>
+<thead>
+<tr>
+<th>風險</th>
+<th>處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🔴 轉譯器漏洞導致 XSS</td>
+<td>白名單而非黑名單;不啟用任何「允許原始 HTML」的選項;XSS 測試涵蓋五種載體;轉譯結果不落庫(改規則即全站生效)</td>
+</tr>
+<tr>
+<td>🔴 inline 端點被拿來當圖床 / 外洩管道</td>
+<td>權限限本人與管理員、型別白名單、大小與張數上限、走稽核</td>
+</tr>
+<tr>
+<td>回滾會刪掉使用者的回報</td>
+<td><code>DROP TABLE</code> 列入 runbook 的<strong>不可逆清單</strong>;回滾前必備份</td>
+</tr>
+<tr>
+<td>沒有通知機制,回報石沉大海</td>
+<td>管理總覽待辦顯示未處理數;頁面明說「不會寄信,請回來看」</td>
+</tr>
+<tr>
+<td>附件佔滿磁碟</td>
+<td>單張 5 MB × 5 張上限;清除工具;總覽的儲存 KPI 已能看見成長</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>8. 施工順序(逐步可驗證)</h2>
+<pre><code>PR-A(T77)  models → migration 0007 → dashboard/audit action → 路由 → 模板 → 測試 → 文件
+   ↓ 上線 v0.2.0,實際收幾則回報看看形態對不對
+PR-B(T78)  migration 0008 → 上傳/inline 端點 → 貼上 JS(漸進增強)→ 測試 → 文件
+   ↓ 上線 v0.2.1
+PR-C(T79)  總覽待辦 → 清除工具 → 教學頁與導引 → 測試 → 文件
+   ↓ 上線 v0.2.2
+</code></pre>
+<p><strong>先上線再做下一期</strong>的理由:回報系統的形態(欄位夠不夠、狀態夠不夠)只有真的收過
+幾則回報才知道。等三期全做完才上線,等於把三期的猜測一次押上去。</p>
+<hr />
+<h2>9. 驗收清單(每期上線後)</h2>
+<ul>
+<li>[ ] 一般使用者能從側欄「回報問題」一路完成回報,且看得到自己的清單與狀態</li>
+<li>[ ] 管理員能回覆、能改狀態,變更有稽核</li>
+<li>[ ] 待開通者也能回報(這一條最容易漏)</li>
+<li>[ ] 貼上截圖能在頁面上看到(第二期)</li>
+<li>[ ] 別人的回報看不到、猜 id 直接開 → 404</li>
+<li>[ ] 管理總覽的「未處理回報」數字正確(第三期)</li>
+<li>[ ] <code>/v1/releases/.../download</code> 仍然是 attachment(回歸)</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-01 02:10</td>
+<td>Claude</td>
+<td>依第二條 5 回寫:入口導引由第三期提前至第一期(已隨 T77 完成);其餘不變</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>2026-08-01 01:00</td>
+<td>Claude(Benny 指示)</td>
+<td>初版:五題建議裁示、三期交付與 PR 切分、兩支 migration 的 DDL 與演練、端點與權限矩陣、Markdown 轉譯與 inline 圖片的安全設計逐條、各期測試計畫條數、發版與部署注意、風險與回滾、施工順序與驗收清單</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

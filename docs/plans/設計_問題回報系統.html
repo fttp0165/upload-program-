@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計:網站問題回報系統(富文本 + 貼圖 + 回覆與進度追蹤)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/設計_問題回報系統.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>設計:網站問題回報系統(富文本 + 貼圖 + 回覆與進度追蹤)</h1>
+<p><strong>建立日期:</strong> 2026-08-01 00:20
+<strong>最後更新:</strong> 2026-08-01 00:20
+<strong>版本:</strong> v1.0
+<strong>對應任務:</strong> T77–T79(待確認後開立)——Benny 2026-07-31 裁示:
+「問題回報的頁面希望有個富文本,可以讓使用者貼照片或是敘述,發出來後會有列表,
+之後管理員修正可以回覆,並記錄進度跟關閉狀態」</p>
+<blockquote>
+<p>憲法第二條 3:新功能屬大任務,<strong>先出計畫文件、經確認後才動工</strong>。本文不含程式碼。</p>
+</blockquote>
+<hr />
+<h2>1. 要做什麼</h2>
+<p>把現在只有一段「請聯絡管理員」文字的回報管道(T66/T75),變成真正的<strong>站內問題追蹤</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>使用者端</th>
+<th>管理員端</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>填寫回報(標題 + 內容 + <strong>貼上截圖</strong>)</td>
+<td>看到所有回報的清單與篩選</td>
+</tr>
+<tr>
+<td>看自己回報過的清單與目前狀態</td>
+<td><strong>回覆</strong>(討論串)</td>
+</tr>
+<tr>
+<td>看到管理員的回覆</td>
+<td>改<strong>狀態</strong>(處理中 / 已修正 / 已關閉 / 不處理)</td>
+</tr>
+<tr>
+<td>補充說明(再回覆)</td>
+<td>從管理總覽的待辦看到「未處理回報」數</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>2. 🔴 先講最重要的取捨:富文本與貼圖會撞到既有紅線</h2>
+<p>這是本設計唯一需要 Benny 明確拍板的地方,其餘都是實作細節。</p>
+<h3>2.1 「富文本」不會是 HTML</h3>
+<p>本服務散布可執行檔,CSP 是 <code>default-src 'self'</code>,而且依 SSO 契約 §4.10,
+<strong>IdP 與各 App 同源</strong>——我們出現一次 XSS,等於全平台帳號淪陷。</p>
+<p>因此:<strong>不接受使用者送 HTML、不存 HTML、不輸出使用者的 HTML</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>評估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>所見即所得編輯器(送 HTML)+ 後端消毒</td>
+<td>❌ 消毒器是永無止境的軍備競賽;一次失手代價是全平台。而且要引入前端編輯器套件——CSP 禁 CDN,得自託管一包 JS,攻擊面再擴大</td>
+</tr>
+<tr>
+<td><strong>Markdown 純文字 + 伺服器端轉譯(白名單)</strong></td>
+<td>✅ <strong>建議</strong>。存的是純文字(不可執行),轉譯在我方掌控中,標籤白名單只放 p/br/strong/em/code/pre/ul/ol/li/a/img;<code>a</code> 強制 <code>rel="noopener noreferrer"</code>,<code>img</code> 只准指向<strong>我方自己的附件端點</strong></td>
+</tr>
+<tr>
+<td>純文字 + 換行</td>
+<td>可行但太陽春:回報常需要貼路徑、錯誤訊息(要 code 區塊)與截圖</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>這與 F44「README 呈現」當初定下的原則一致:<strong>伺服器端轉譯後輸出消毒過的內容</strong>,
+不得把上傳的 HTML 餵給瀏覽器。</p>
+</blockquote>
+<h3>2.2 貼圖要 inline 顯示 = 本專案第一次開「非 attachment」的下載路徑</h3>
+<p>現況紅線:<strong>所有下載一律 <code>Content-Disposition: attachment</code> + <code>nosniff</code></strong>,
+絕不讓上傳內容在本網域被瀏覽器直接呈現。截圖要能在頁面上看到,就必須有一條 inline 路徑。</p>
+<p>我建議的收窄方式(每一條都要有測試):</p>
+<ol>
+<li><strong>只有回報附件端點</strong>是 inline,<code>/v1/releases/.../download</code> 那條<strong>完全不動</strong>;</li>
+<li>只准 <code>image/png</code>、<code>image/jpeg</code>、<code>image/gif</code>——以 <strong>magic bytes 判定</strong>,不看副檔名、不看使用者宣稱;</li>
+<li>🔴 <strong>SVG 一律拒收</strong>(它是可執行的 XML,現有白名單已擋,這裡再擋一次);</li>
+<li>回應仍帶 <code>X-Content-Type-Options: nosniff</code>,<code>Content-Type</code> 用<strong>判定出來的</strong>型別;</li>
+<li>附件只能由<strong>回報者本人與平台管理員</strong>讀取(不是公開連結);</li>
+<li>單張上限 5 MB、單則回報最多 5 張(避免被當圖床)。</li>
+</ol>
+<p><strong>如果你不接受這條 inline 路徑</strong>,替代方案是:截圖仍以 attachment 下載
+(點擊後下載檔案再自行開啟)。功能可用,但體驗差一截。<strong>請擇一裁示。</strong></p>
+<hr />
+<h2>3. 資料模型(🟡 新增兩張表)</h2>
+<pre><code>issues                         issue_comments
+  id                             id
+  reporter_id  → users.id        issue_id   → issues.id
+  title                          author_id  → users.id
+  body_markdown                  body_markdown
+  status  open/in_progress/      is_staff_reply (bool)
+          resolved/closed/wontfix created_at
+  page_url      使用者當時的網址
+  app_version   回報當下的服務版本(哪一版出的問題)
+  created_at / updated_at      issue_attachments
+  closed_at / closed_by_id       id, issue_id, comment_id(nullable)
+                                 storage_key, content_type, size_bytes, sha256
+                                 uploaded_by_id, created_at
+</code></pre>
+<ul>
+<li><code>app_version</code> 自動帶入(T68 的常數)——使用者不會記得自己看到問題時是哪一版。</li>
+<li><code>page_url</code> 由前端帶入(使用者從哪一頁按的回報)。</li>
+<li>圖片存 MinIO,key 前綴 <code>issues/{issue_id}/{uuid}</code>,與 artifacts 分開。</li>
+<li><strong>不加 email 欄位</strong>:通知靠站內清單(§6),不落地任何聯絡方式。</li>
+</ul>
+<h2>4. 狀態機</h2>
+<pre><code>open ──→ in_progress ──→ resolved ──→ closed
+  └──────────────────────→ wontfix ──→ closed
+</code></pre>
+<ul>
+<li><strong>只有平台管理員能改狀態</strong>;回報者只能補充回覆。</li>
+<li><code>resolved</code>(我方認為修好了)與 <code>closed</code>(結案)分開:讓回報者有機會說「還是不行」。</li>
+<li>每次狀態變更都寫<strong>稽核</strong>(<code>issue.status_change</code>),沿用 T38 的單一入口。</li>
+</ul>
+<h2>5. 權限</h2>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>誰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建立回報</td>
+<td><strong>任何已登入者</strong>(含<strong>待開通</strong>——他們最可能遇到問題卻無處可說)</td>
+</tr>
+<tr>
+<td>看自己的回報與其附件</td>
+<td>回報者本人</td>
+</tr>
+<tr>
+<td>看全部回報、回覆、改狀態</td>
+<td>平台管理員</td>
+</tr>
+<tr>
+<td>看別人的回報</td>
+<td>❌ 不開放(回報內容常含畫面資料,不該全站可見)</td>
+</tr>
+</tbody>
+</table>
+<h2>6. 通知(誠實面對現況)</h2>
+<p>本平台<strong>沒有 email、沒有推播、沒有排程器</strong>。所以:</p>
+<ul>
+<li>使用者:自己的回報清單顯示狀態;有新回覆時在清單標「有更新」。</li>
+<li>管理員:<strong>管理總覽(T70)的待辦區</strong>加一項「未處理的問題回報 n 件」——這是既有機制,最省。</li>
+<li><strong>不假裝會主動通知</strong>;頁面上明說「我們不會寄信,請回來看這一頁」。</li>
+</ul>
+<h2>7. 頁面</h2>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/issues/new</code></td>
+<td>回報表單:標題、內容(Markdown,附即時預覽)、拖曳/貼上圖片</td>
+</tr>
+<tr>
+<td><code>/issues</code></td>
+<td>我的回報清單(管理員看到全部,可依狀態篩選)</td>
+</tr>
+<tr>
+<td><code>/issues/{id}</code></td>
+<td>內容 + 附件 + 討論串 + (管理員)回覆框與狀態切換</td>
+</tr>
+<tr>
+<td><code>/help#report</code></td>
+<td>改為指向 <code>/issues/new</code>,保留「附什麼」的指引</td>
+</tr>
+</tbody>
+</table>
+<p>貼上圖片需要 JS(<code>paste</code> 事件 + XHR 上傳),沿用 T44 上傳頁的做法:
+<strong>外部 JS 檔、參數走 <code>data-*</code>、不碰 token(靠 HttpOnly cookie)</strong>。
+🔴 <strong>JS 壞掉時表單仍必須可用</strong>(純文字送出、附件用 <code>&lt;input type="file"&gt;</code>)——漸進增強。</p>
+<h2>8. 對現有資料的影響</h2>
+<p>🟡 <strong>新增三張表 + 一個 MinIO 前綴</strong>,不動任何既有資料。
+migration 提供 backward(drop table),先在 staging 雙向演練。</p>
+<p><strong>保存期</strong>:建議<strong>已關閉滿 365 天</strong>的回報連同附件自動清除,
+沿用 <code>tools/purge_audit.py</code> 的模式(工具 + cron,不自動跑)。
+回報內容是使用者自由書寫,可能夾帶個資與畫面資料,不該無限期保存。</p>
+<h2>9. 任務拆解</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>資料</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T77</strong></td>
+<td>資料模型 + migration + 建立/清單/詳情(<strong>純 Markdown,無附件</strong>)+ 狀態機 + 權限 + 稽核</td>
+<td>🟡</td>
+</tr>
+<tr>
+<td><strong>T78</strong></td>
+<td>附件:上傳、magic bytes 判定、<strong>inline 顯示端點</strong>(§2.2 六條收窄)、貼上/拖曳的漸進增強 JS</td>
+<td>🟡</td>
+</tr>
+<tr>
+<td><strong>T79</strong></td>
+<td>管理總覽待辦整合 + 清除工具 + <code>/help#report</code> 導引改寫</td>
+<td>🟢</td>
+</tr>
+</tbody>
+</table>
+<p>先做 T77 的理由:<strong>沒有附件的回報系統已經能用</strong>,而附件是風險最高的部分,
+值得單獨一個 PR 專心審。</p>
+<h2>10. 驗收標準(紅測試方向)</h2>
+<ol>
+<li>🔴 <strong>XSS</strong>:送入 <code>&lt;script&gt;</code>、<code>&lt;img onerror=...&gt;</code>、<code>javascript:</code> 連結、Markdown 內嵌 HTML
+   ——輸出一律被逸出或剝除,頁面不得出現可執行內容。</li>
+<li>🔴 <strong>附件型別</strong>:HTML/SVG/PDF 偽裝成 <code>.png</code> 一律拒收(magic bytes 判定)。</li>
+<li>🔴 <strong>inline 端點</strong>:只回三種 image 型別、帶 <code>nosniff</code>、非本人非管理員一律 404。</li>
+<li>權限矩陣:待開通者可建、看不到別人的、非管理員不能改狀態。</li>
+<li>狀態機:非法轉移被拒;每次變更有稽核。</li>
+<li>漸進增強:關閉 JS 的情況下,表單仍可送出。</li>
+<li>清單分頁、空狀態、附件數與大小上限。</li>
+</ol>
+<h2>11. 待 Benny 裁示</h2>
+<ol>
+<li>🔴 <strong>§2.2 的 inline 圖片路徑</strong>:接受(截圖能在頁面上直接看到),
+   還是維持「一律 attachment」(點了才下載)?<strong>我建議接受,但這是我方第一次開這個口子。</strong></li>
+<li>富文本採 <strong>Markdown + 白名單轉譯</strong>可以嗎?(所見即所得送 HTML 我不建議,理由見 §2.1)</li>
+<li>回報是否<strong>只有本人與管理員看得到</strong>?(我建議是)</li>
+<li>保存期 <strong>已關閉滿 365 天清除</strong>可以嗎?</li>
+<li>範圍:先做 T77(無附件可用版)再做 T78,還是三個一起?</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-01 00:20</td>
+<td>Claude(Benny 裁示)</td>
+<td>初版:功能範圍、🔴 富文本不採 HTML 而用 Markdown + 白名單轉譯、🔴 貼圖需要開 inline 顯示路徑(六條收窄)、資料模型三表、狀態機與權限、通知現況(無 email 不假裝)、頁面規劃、保存期、任務拆解 T77–T79、驗收標準與五個待裁示事項</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

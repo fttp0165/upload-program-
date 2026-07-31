@@ -88,17 +88,24 @@ async def test_回報專節有錨點(client):
 
 
 async def test_側欄與頂列都有回報問題入口(client, app, oidc):
+    """T77 起入口指向**真正的回報表單**,不再是教學頁的錨點。
+
+    (T75 當時還沒有表單,只能連到說明段落;現在有了,連過去才有意義。)
+    """
     await make_user(app, "sub-report-entry")
     resp = await client.get(
         "/", headers={**BROWSER, **auth(oidc.issue("sub-report-entry"))}
     )
     assert resp.status_code == 200
     assert "回報問題" in resp.text
-    # 側欄(lg+)與頂列(漢堡)各一條,指向教學頁的錨點
-    assert resp.text.count(f'href="{PREFIX}/help#report"') >= 2
+    # 側欄(lg+)與頂列(漢堡)各一條
+    assert resp.text.count(f'href="{PREFIX}/issues/new"') >= 2
 
 
 async def test_匿名者也看得到回報入口(client):
-    """網站壞掉時,最需要回報的往往正是還沒登入成功的人。"""
+    """網站壞掉時,最需要回報的往往正是還沒登入成功的人。
+
+    連結本身不分登入狀態都給;點進去若未登入,回報頁會把人送去登入(T77)。
+    """
     resp = await client.get("/", headers=BROWSER)
-    assert f'href="{PREFIX}/help#report"' in resp.text
+    assert f'href="{PREFIX}/issues/new"' in resp.text

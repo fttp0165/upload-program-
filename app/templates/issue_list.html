@@ -1,0 +1,45 @@
+{#
+  問題回報清單(T77)。一般使用者只看得到自己的,管理員看得到全部並可依狀態篩選。
+  🔴 標題是使用者自由文字,靠 autoescape 逸出,禁用 |safe。
+#}
+{% extends "base.html" %}
+{% block title %}問題回報 — upload-program{% endblock %}
+
+{% block content %}
+<h1>{% if identity.user.is_admin %}所有問題回報{% else %}我的回報{% endif %}</h1>
+
+<p class="muted">
+  共 {{ total }} 件。<a href="{{ url('/issues/new') }}">回報新問題 →</a>
+</p>
+
+{% if identity.user.is_admin %}
+  <p class="project-tags">
+    <a class="tag" href="{{ url('/issues') }}">全部</a>
+    {% for value, label in status_labels.items() %}
+      <a class="tag" href="{{ url('/issues') }}?status={{ value.value }}">{{ label }}</a>
+    {% endfor %}
+  </p>
+{% endif %}
+
+{% if issues %}
+  <ul class="project-list issue-list">
+    {% for issue in issues %}
+      <li class="project">
+        <div class="project-head">
+          <a class="project-name" href="{{ url('/issues/' ~ issue.id) }}">{{ issue.title }}</a>
+          <span class="badge badge-{{ issue.status.value }}">{{ status_labels[issue.status] }}</span>
+        </div>
+        <p class="muted">
+          回報於 {{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}
+          · 版本 v{{ issue.app_version or '—' }}
+          · 回覆 {{ issue.comments | length }}
+        </p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">
+    {% if current_status %}沒有這個狀態的回報。{% else %}還沒有任何回報。{% endif %}
+  </p>
+{% endif %}
+{% endblock %}

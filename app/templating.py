@@ -12,6 +12,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from .branding import SITE_NAME
 from .version import APP_VERSION
 from .web_urls import web_url
 
@@ -46,5 +47,7 @@ def render(request, template: str, **context) -> str:
         portal_url=settings.portal_home_url,
         # T68:首頁要印版本號;單一真相在 app/version.py(tag 前隨 PR 改)。
         app_version=APP_VERSION,
+        # T69:站名單一來源 app/branding.py——模板不得再硬編碼(有測試釘住)。
+        site_name=SITE_NAME,
         **context,
     )

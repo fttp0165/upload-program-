@@ -46,7 +46,7 @@
   「#」不是路徑,不該以連結偽裝按鈕。
 #}
 <nav class="nav navbar navbar-expand-lg">
-  <a class="nav-brand navbar-brand" href="{{ url('/') }}">程式分享平台</a>
+  <a class="nav-brand navbar-brand" href="{{ url('/') }}">{{ site_name }}</a>
 
   <button class="navbar-toggler nav-toggler" type="button" data-bs-toggle="collapse"
           data-bs-target="#topnav" aria-controls="topnav" aria-expanded="false"
@@ -108,7 +108,7 @@
   <aside class="sidebar d-none d-lg-flex">
     <div class="side-head">
       <div class="side-title">專案中心</div>
-      <div class="side-sub">程式分享平台</div>
+      <div class="side-sub">{{ site_name }}</div>
     </div>
 
     {# T67:回到平台入口放在最上方——它是「離開這個 App」的動作,

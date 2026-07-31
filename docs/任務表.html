@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-31 18:00
-<strong>版本:</strong> v1.47</p>
+<strong>最後更新:</strong> 2026-07-31 18:50
+<strong>版本:</strong> v1.48</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -411,6 +411,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>✅</td>
 <td>🟢</td>
 <td>依施工單 §3.0 順序完成:我方容器 2026-07-29 先上線 → gateway 解析確認 → <code>/upload/</code> 三個 location 解除註解 + reload → 既有系統四條零差異;<strong>portal 已將變更 commit 回權威 repo</strong>(含 upstream 白名單 CI 斷言),見 2026-07-30 狀況對齊函 §2</td>
+</tr>
+<tr>
+<td>T69</td>
+<td>更名「AI 小程式分享平台」</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示:「把程式分享的名稱改成 AI 小程式分享平台」;原字串散在五處(品牌/側欄副標/首頁大標/教學頁/OpenAPI summary),順手收成<strong>單一來源</strong> <code>app/branding.py</code>,並以<strong>掃描所有模板</strong>的測試確保沒有人再硬編碼;🔴 技術識別名 <code>upload-program</code>(平台服務名、<code>/upload/</code> 路徑、GHCR image、compose 服務名、log service 欄)<strong>不動</strong>——改它要 portal 重做路由;分頁標題維持 <code>— upload-program</code>;<strong>5 條紅→綠(4 紅起步),全套 386</strong></td>
 </tr>
 <tr>
 <td>T68</td>
@@ -782,6 +789,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.48</td>
+<td>2026-07-31 18:50</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T69 更名「AI 小程式分享平台」完成</strong>(5 條紅→綠,全套 386);功能需求大綱新增 F80(v3.12)</td>
 </tr>
 <tr>
 <td>v1.47</td>

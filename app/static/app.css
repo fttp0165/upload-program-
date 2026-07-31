@@ -781,3 +781,35 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 .todo-list .muted { display: block; font-size: .88rem; }
 
 .admin-system .artifact-meta { margin-top: .6rem; }
+
+/* --- T77 問題回報 ---------------------------------------------------------
+   使用者寫的內容以 markdown_lite 轉譯後放進 .issue-body / .issue-comment;
+   樣式只管排版,安全性在轉譯器(見 app/markdown_lite.py)。 */
+.issue-body, .issue-comment { margin: 1rem 0; padding: 1.1rem 1.3rem; }
+.issue-body p, .issue-comment p { margin: .4rem 0; }
+.issue-body pre, .issue-comment pre {
+  background: var(--line-soft);
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  overflow-x: auto;
+  font-size: .86rem;
+}
+.issue-body code, .issue-comment code { background: var(--line-soft); border-radius: 4px; padding: 1px 5px; }
+.issue-body pre code, .issue-comment pre code { background: none; padding: 0; }
+.issue-body blockquote, .issue-comment blockquote {
+  border-left: 4px solid var(--line);
+  margin: .6rem 0;
+  padding: .2rem 0 .2rem .9rem;
+  color: var(--fg-muted);
+}
+/* 截圖(T78 起才會有):限制寬度,不讓大圖撐破版面 */
+.issue-image { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+.issue-comment.staff { border-left: 4px solid var(--green); }
+.issue-thread h2 { margin-top: 1.6rem; }
+.issue-admin { margin-top: 1.6rem; }
+
+.badge-open        { background: #fdf0d5; color: #8a5a00; }
+.badge-in_progress { background: #e6efff; color: #1b2a6b; }
+.badge-resolved    { background: var(--green-soft); color: #1d6b3f; }
+.badge-closed      { background: var(--line-soft); color: #4b5563; }
+.badge-wontfix     { background: var(--line-soft); color: #6b7280; }

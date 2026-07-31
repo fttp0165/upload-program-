@@ -1,0 +1,71 @@
+{#
+  問題回報詳情與討論串(T77)。
+
+  🔴 `body_html` 由 `markdown_lite.render_markdown()` 產生(回傳 Markup),
+     模板照常 `{{ }}`——輸入在轉譯器裡已全數逸出,**不需要也不得用 |safe**。
+  🔴 標題與其他使用者輸入一律靠 autoescape。
+#}
+{% extends "base.html" %}
+{% block title %}{{ issue.title }} — upload-program{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url('/') }}">首頁</a></li>
+    <li class="breadcrumb-item"><a href="{{ url('/issues') }}">問題回報</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ issue.title }}</li>
+  </ol>
+</nav>
+
+<h1>{{ issue.title }}</h1>
+
+<p class="muted">
+  <span class="badge badge-{{ issue.status.value }}">{{ status_labels[issue.status] }}</span>
+  · 回報於 {{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}
+  · 服務版本 <code>v{{ issue.app_version or '—' }}</code>
+  {% if issue.page_url %} · 發生頁面 <code>{{ issue.page_url }}</code>{% endif %}
+</p>
+
+<div class="issue-body card">{{ render(issue.body_markdown) }}</div>
+
+<section class="issue-thread">
+  <h2>討論({{ issue.comments | length }})</h2>
+  {% for comment in issue.comments %}
+    <div class="issue-comment card{% if comment.is_staff_reply %} staff{% endif %}">
+      <p class="muted">
+        {% if comment.is_staff_reply %}<strong>平台回覆</strong>{% else %}回報者補充{% endif %}
+        · {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+      </p>
+      {{ render(comment.body_markdown) }}
+    </div>
+  {% else %}
+    <p class="muted">還沒有回覆。</p>
+  {% endfor %}
+
+  <form method="post" action="{{ url('/issues/' ~ issue.id ~ '/comments') }}" class="stack-form">
+    <label>
+      <span>{% if identity.user.is_admin %}回覆(會標示為平台回覆){% else %}補充說明{% endif %}</span>
+      <textarea name="body_markdown" rows="5" required></textarea>
+    </label>
+    <div class="form-actions"><button type="submit" class="btn">送出</button></div>
+  </form>
+</section>
+
+{% if identity.user.is_admin %}
+  {# 🔴 狀態只有管理員能改:「已修正」是平台方的宣告,回報者自行標記會讓狀態失去意義。 #}
+  <section class="issue-admin card">
+    <h2>變更狀態</h2>
+    <form method="post" action="{{ url('/issues/' ~ issue.id ~ '/status') }}" class="stack-form">
+      <label>
+        <span>新狀態</span>
+        <select name="status">
+          {% for value in assignable %}
+            <option value="{{ value.value }}"{% if value == issue.status %} selected{% endif %}>{{ status_labels[value] }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="form-actions"><button type="submit" class="btn">更新狀態</button></div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

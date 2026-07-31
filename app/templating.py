@@ -12,6 +12,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from .version import APP_VERSION
 from .web_urls import web_url
 
 _env = Environment(
@@ -43,5 +44,7 @@ def render(request, template: str, **context) -> str:
         account_url=settings.account_console_url,
         # T67:平台入口,同樣是平台層網址,**不經過 url()**(加前綴會變成 /upload/ 自己)。
         portal_url=settings.portal_home_url,
+        # T68:首頁要印版本號;單一真相在 app/version.py(tag 前隨 PR 改)。
+        app_version=APP_VERSION,
         **context,
     )

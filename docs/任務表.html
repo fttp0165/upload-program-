@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-07-31 17:10
-<strong>版本:</strong> v1.46</p>
+<strong>最後更新:</strong> 2026-07-31 18:00
+<strong>版本:</strong> v1.47</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -413,6 +413,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>依施工單 §3.0 順序完成:我方容器 2026-07-29 先上線 → gateway 解析確認 → <code>/upload/</code> 三個 location 解除註解 + reload → 既有系統四條零差異;<strong>portal 已將變更 commit 回權威 repo</strong>(含 upstream 白名單 CI 斷言),見 2026-07-30 狀況對齊函 §2</td>
 </tr>
 <tr>
+<td>T68</td>
+<td>首頁版本號 + 憲法第八條〈發版儀式〉</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示:「加入 CLAUDE.md 每次發布 Release 提供 title 跟 content,並且在服務的首頁加入版本號」;新增 <code>app/version.py</code> 為<strong>單一真相</strong>(不吃 env 覆寫——版本是事實不是部署參數),首頁頁尾三種狀態皆顯示,<code>main.py</code> 寫死的 <code>0.1.0</code>(脫節五版)改讀同一常數並以<strong>防漂移測試</strong>釘住;CLAUDE.md 升 <strong>v2.2</strong> 新增第八條:Release 必附 title 與 content(content 四段:本版內容/資料影響/部署注意/測試)、🔴 <code>APP_VERSION</code> 須在打 tag 前隨 PR 改好、同版不重發、發版前驗 migration 鏈;<strong>4 條紅→綠,全套 381</strong></td>
+</tr>
+<tr>
 <td>T67</td>
 <td>回到平台入口連結</td>
 <td>✅</td>
@@ -775,6 +782,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.47</td>
+<td>2026-07-31 18:00</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T68 首頁版本號 + 憲法第八條〈發版儀式〉完成</strong>(4 條紅→綠,全套 381);功能需求大綱新增 F79(v3.11);CLAUDE.md 升 v2.2</td>
 </tr>
 <tr>
 <td>v1.46</td>

@@ -25,6 +25,7 @@ from .oidc import OidcClient
 from .routers import admin, artifacts, auth, health, me, projects, releases, search, web
 from .session import CookieCodec
 from .storage import ObjectStorage
+from .version import APP_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="upload-program",
         summary="公司內部開發者程式分享平台",
-        version="0.1.0",
+        # T68:讀單一真相 app/version.py——原本寫死的 "0.1.0" 已與現實脫節五個版本。
+        version=APP_VERSION,
         root_path=settings.api_prefix,  # 掛在子路徑下,但收到的是被剝過前綴的路徑
         lifespan=lifespan,
         docs_url="/docs",

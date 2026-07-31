@@ -78,4 +78,11 @@
   {% endif %}
 {% endif %}
 
+{#
+  T68:版本號。放在首頁最底、三種狀態(匿名 / 待開通 / 已開通)都看得到——
+  使用者回報問題時報得出版本,我方換版驗證也不必再挑「只有新版才有」的靜態檔當哨兵。
+  單一真相是 app/version.py,由 templating 注入。
+#}
+<p class="muted app-version">upload-program v{{ app_version }}</p>
+
 {% endblock %}

@@ -16,7 +16,10 @@ BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
 
 _LINK_RE = re.compile(r"""\b(?:href|src|action)\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
-PLATFORM_URLS = {"/account", "/login"}
+# T67:平台入口(`/`)也是平台層網址,同一類具名例外。
+# 🔴 白名單納入 `/` 會讓「漏掉 url() 的首頁連結」逃過這條檢查——
+#    補償斷言在 test_portal_link.py(每條 `/` 都必須帶 nav-exit / side-exit 標記)。
+PLATFORM_URLS = {"/account", "/login", "/"}
 
 
 def _links(html: str) -> list[str]:

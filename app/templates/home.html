@@ -12,7 +12,7 @@
 {% if identity is none %}
   {# T56 hero:設計稿的未登入落地頁。刻意不放「建立專案」連結(有測試釘住)。 #}
   <div class="hero">
-    <h1>公司內部程式分享平台</h1>
+    <h1>公司內部{{ site_name }}</h1>
     <p class="lead">建立專案,上傳原始碼、執行檔與程式文件,以版本為單位發布、瀏覽與下載。所有內容僅限公司內部使用。</p>
     <p class="notice">請先<a class="hero-cta" href="{{ url('/auth/login') }}">登入</a></p>
     <p class="hero-note">使用公司帳號登入;首次登入後需請管理員開通</p>

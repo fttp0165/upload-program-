@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import problems
+from .branding import SITE_NAME
 from .config import Settings, get_settings
 from .db import create_engine, create_sessionmaker
 from .logging_setup import setup_logging
@@ -61,7 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="upload-program",
-        summary="公司內部開發者程式分享平台",
+        # T69:summary 是給人看的說明,用站名;title 維持技術識別名 upload-program。
+        summary=f"公司內部{SITE_NAME}",
         # T68:讀單一真相 app/version.py——原本寫死的 "0.1.0" 已與現實脫節五個版本。
         version=APP_VERSION,
         root_path=settings.api_prefix,  # 掛在子路徑下,但收到的是被剝過前綴的路徑

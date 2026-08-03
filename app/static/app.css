@@ -118,15 +118,25 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   white-space: nowrap;
 }
 
-/* 雙圓 logo:藏青圓 + box-shadow 疊出綠圓(設計稿),純偽元素、零標記 */
-.nav-brand::before {
-  content: "";
-  width: 15px;
-  height: 21px;
-  border-radius: 50%;
+/* 品牌標誌(T80)
+ *
+ * 這裡原本是 `.nav-brand::before` —— 用一個藏青圓 + box-shadow 疊出綠圓,
+ * 「純偽元素、零標記」地近似設計稿的雙圓標誌。
+ * 2026-08-03 改為載入**入口網站的官方檔**(/static/logo.png):
+ * 偽元素畫得出形狀與比例,畫不出兩個橢圓之間交錯的白色鋸齒與 SPORTON LAB. 字樣,
+ * 於是使用者從 portal 首頁點進來,看到的是一個「很像但不一樣」的標記。
+ *
+ * 🔴 偽元素必須整段移除,不能只是被圖蓋住 —— 留著會在真圖旁邊再畫一個近似標記。
+ * (Keycloak login theme 那次就是兩層 header 各畫一個 logo,本機預覽的 DOM 只有
+ *  一層所以看起來正常,上線才發現;回歸斷言在 tests/test_branding.py。)
+ *
+ * 官方檔是 320×328 的透明底 PNG,略高於寬;固定高度 + width:auto 讓它按原比例縮,
+ * 不會被壓扁。
+ */
+.nav-brand-logo {
+  height: 22px;
+  width: auto;
   flex-shrink: 0;
-  background: var(--ink);
-  box-shadow: 11px 0 0 -1px var(--green);
   margin-right: 10px;
 }
 

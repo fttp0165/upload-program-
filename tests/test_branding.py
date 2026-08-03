@@ -8,6 +8,8 @@
 路徑、image 名與 log 的 `service` 欄位。行銷名稱與技術識別是兩件事。
 """
 
+import hashlib
+import re
 from pathlib import Path
 
 from tests.conftest import auth, make_user
@@ -69,9 +71,9 @@ async def test_技術識別名不變(client):
 #
 # 🔴 因此第一條斷言比對的是 **SHA-256**,不是「有一張圖」——
 #    「看起來很像」正是現在這個問題本身,用眼睛驗收會把它驗過。
-
-import hashlib
-import re
+#
+# (本節用到的 hashlib / re 已併入檔頭的 import —— ruff E402 不允許
+#  module level import 出現在檔案中段,分節寫在這裡會被 CI 擋下。)
 
 _STATIC = Path(__file__).parent.parent / "app" / "static"
 _LOGO = _STATIC / "logo.png"

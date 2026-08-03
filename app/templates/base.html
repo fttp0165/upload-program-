@@ -32,6 +32,10 @@
    以我方樣式覆蓋,設計語言(T56)不因引入框架而改變。 #}
 <link rel="stylesheet" href="{{ url('/static/vendor/bootstrap.min.css') }}">
 <link rel="stylesheet" href="{{ url('/static/app.css') }}">
+{# T80:分頁圖示。與導航列品牌同一支官方檔——分頁是使用者開著多個平台服務時
+   分辨「哪個分頁是哪個服務」的唯一線索,留瀏覽器預設空白等於少了一個識別。
+   🔴 一樣要經過 url():裸路徑在 gateway 剝前綴後於瀏覽器端會 404。 #}
+<link rel="icon" type="image/png" href="{{ url('/static/logo.png') }}">
 </head>
 <body>
 {#
@@ -46,7 +50,18 @@
   「#」不是路徑,不該以連結偽裝按鈕。
 #}
 <nav class="nav navbar navbar-expand-lg">
-  <a class="nav-brand navbar-brand" href="{{ url('/') }}">{{ site_name }}</a>
+  {# T80:品牌標誌用**入口網站的官方檔**(cats-portal/landing/assets/sporton-logo.png),
+     不再用 app.css 的 .nav-brand::before 偽元素近似畫。偽元素的形狀與比例對,
+     但官方標誌兩個橢圓之間有交錯的白色鋸齒、還帶 SPORTON LAB. 字樣,畫不出來——
+     使用者從 portal 首頁點進來會看到一個「很像但不一樣」的標記。
+     🔴 src 經過 url()(gateway 剝前綴後轉發,裸路徑在瀏覽器端 404);
+     🔴 自託管於 /static/,屬 CSP 的 'self',**不放寬 CSP、不用 data: URI**
+        (data: URI 會被 default-src 'self' 擋掉,而放寬 CSP 是契約 §4.10 紅線)。
+     alt 留空 + aria-hidden:緊鄰的 site_name 已經是同一個連結的無障礙名稱,
+     再讀一次標誌名只是重複。 #}
+  <a class="nav-brand navbar-brand" href="{{ url('/') }}">
+    <img class="nav-brand-logo" src="{{ url('/static/logo.png') }}" alt="" aria-hidden="true">
+    {{ site_name }}</a>
 
   <button class="navbar-toggler nav-toggler" type="button" data-bs-toggle="collapse"
           data-bs-target="#topnav" aria-controls="topnav" aria-expanded="false"

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-03 16:30
-<strong>版本:</strong> v1.57</p>
+<strong>最後更新:</strong> 2026-08-04 12:00
+<strong>版本:</strong> v1.58</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -446,6 +446,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>✅</td>
 <td>🟢</td>
 <td>使用者交辦「把網頁服務 logo 都換成入口網站的 logo」;原本導航列的標記是 <code>app.css</code> 的 <code>.nav-brand::before</code> 偽元素(藏青圓 + box-shadow 疊綠圓)——形狀比例對,但<strong>畫不出</strong>官方標誌兩橢圓間交錯的白鋸齒與 SPORTON LAB. 字樣,從 portal 首頁點進來會看到「很像但不一樣」的標記;改載入官方檔 <code>app/static/logo.png</code>(與 cats-portal landing、Keycloak 登入頁<strong>同一支</strong>,SHA-256 比對而非目視)+ 補上原本缺席的 favicon;🔴 偽元素整段移除(不是被圖蓋住——Keycloak theme 那次就是兩層各畫一個,本機預覽的 DOM 只有一層所以看不出來);🔴 <code>src</code>/<code>href</code> 都經 <code>url()</code>(既有 <code>test_web_layout</code> 逐一掃描把關)、自託管屬 CSP <code>'self'</code> <strong>不放寬 CSP、不用 data: URI</strong>;<strong>5 條紅→綠,全套 468</strong></td>
+</tr>
+<tr>
+<td>T81</td>
+<td>靜態檔快取破壞(CSS/JS 帶版本查詢字串)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>🐛 <strong>T80 上線後實測發現的缺陷</strong>:v0.2.0 上線後首頁的 logo 以原始尺寸 320×328 佔滿半個畫面,而 T80 應已移除的 <code>.nav-brand::before</code> 小圓點仍畫著——伺服器吐的 HTML 是對的,<strong>CSS 是舊的</strong>;根因是 <code>base.html</code> 引用靜態檔時<strong>沒有任何快取破壞機制</strong>(Starlette 的 <code>StaticFiles</code> 只送 ETag/Last-Modified、不送 <code>Cache-Control</code>,瀏覽器改套<strong>啟發式快取</strong>,那段期間連 revalidate 都不做);🔴 這個缺陷<strong>在開發與測試時永遠看不到</strong>(pytest client、無痕視窗都是全新 client),只有<strong>已經用過這個網站的人</strong>會中招,所以不能靠「記得測」防守、只能靠結構防守;新增模板 helper <code>static()</code> 統一補 <code>?v=&lt;APP_VERSION&gt;</code>(值取自版本單一來源,發版即自動失效,不必記得手動 bump),並以斷言禁止模板繞過它直接用 <code>url()</code>;帶版本的網址回 <code>immutable</code> 長快取、<strong>裸網址不回</strong>(哨兵檔 <code>/static/logo.png</code> 得留著換內容的餘地);順修 T80 一條寫死 <code>url('…')</code> 字面值的斷言(改驗渲染後輸出——比對原始碼只是在賭 helper 的行為);<strong>4 條紅→綠,全套 474</strong></td>
 </tr>
 <tr>
 <td>T76</td>
@@ -852,6 +859,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.58</td>
+<td>2026-08-04 12:00</td>
+<td>Claude(上線實測)</td>
+<td><strong>T81 靜態檔快取破壞完成</strong>(4 條紅→綠,全套 474):T80 上線後 logo 顯示為原始尺寸、舊偽元素小圓點還在——不是 CSS 寫錯,是瀏覽器拿到舊 CSS;缺陷的形態是<strong>開發與測試環境永遠複現不了</strong>(每次都是全新 client),因此改以結構防守:模板 helper <code>static()</code> 統一帶 <code>?v=&lt;APP_VERSION&gt;</code> + 斷言禁止繞過。<code>APP_VERSION</code> 0.2.0 → 0.2.1</td>
 </tr>
 <tr>
 <td>v1.57</td>

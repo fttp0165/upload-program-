@@ -48,6 +48,21 @@ def render(request, template: str, **context) -> str:
         portal_url=settings.portal_home_url,
         # T68:首頁要印版本號;單一真相在 app/version.py(tag 前隨 PR 改)。
         app_version=APP_VERSION,
+        # T81:靜態檔一律走這個,**不要**用 `url()`——它會多帶 `?v=<APP_VERSION>`。
+        #
+        # 🐛 為什麼需要:T80 改了 app.css(移除 .nav-brand::before、新增
+        # .nav-brand-logo),上線後首頁卻是 logo 以原始尺寸佔滿半個畫面、
+        # 而應該已經移除的小圓點還在——瀏覽器用了舊 CSS。Starlette 的
+        # StaticFiles 只送 ETag/Last-Modified,不送 Cache-Control,沒有
+        # Cache-Control 時瀏覽器套用**啟發式快取**,那段期間連 revalidate 都不做。
+        #
+        # 這個缺陷在開發與測試時**永遠看不到**:pytest 的 client 與剛開的
+        # 無痕視窗都是全新 client,一定拿到最新檔案;只有已經用過這個網站的
+        # 人會中招。所以它不能靠「記得測」防守,只能靠結構防守。
+        #
+        # 值取自 APP_VERSION 而非人工遞增的數字:發版本來就會改它,失效因此
+        # 是自動的——要人記得 bump 的版本號,遲早會有人不記得。
+        static=lambda path: f"{web_url(settings, path)}?v={APP_VERSION}",
         # T69:站名單一來源 app/branding.py——模板不得再硬編碼(有測試釘住)。
         site_name=SITE_NAME,
         # T77:使用者寫的 Markdown 轉安全 HTML。回傳 Markup,模板照常 {{ }}——

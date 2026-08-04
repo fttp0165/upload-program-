@@ -30,12 +30,13 @@
 {# T58:Bootstrap 5 自託管(CSP 禁外部資源,CDN 不可能)。
    🔴 載入順序是佈景機制:vendor 先、app.css 後——同名類(.btn/.badge/.card/.nav-link)
    以我方樣式覆蓋,設計語言(T56)不因引入框架而改變。 #}
-<link rel="stylesheet" href="{{ url('/static/vendor/bootstrap.min.css') }}">
-<link rel="stylesheet" href="{{ url('/static/app.css') }}">
+<link rel="stylesheet" href="{{ static('/static/vendor/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ static('/static/app.css') }}">
 {# T80:分頁圖示。與導航列品牌同一支官方檔——分頁是使用者開著多個平台服務時
    分辨「哪個分頁是哪個服務」的唯一線索,留瀏覽器預設空白等於少了一個識別。
-   🔴 一樣要經過 url():裸路徑在 gateway 剝前綴後於瀏覽器端會 404。 #}
-<link rel="icon" type="image/png" href="{{ url('/static/logo.png') }}">
+   🔴 走 static() 而非 url():除了補前綴,它還帶 `?v=<APP_VERSION>`——
+      favicon 是瀏覽器快取得最兇的東西之一,沒有版本就換不掉(T81)。 #}
+<link rel="icon" type="image/png" href="{{ static('/static/logo.png') }}">
 </head>
 <body>
 {#
@@ -54,13 +55,14 @@
      不再用 app.css 的 .nav-brand::before 偽元素近似畫。偽元素的形狀與比例對,
      但官方標誌兩個橢圓之間有交錯的白色鋸齒、還帶 SPORTON LAB. 字樣,畫不出來——
      使用者從 portal 首頁點進來會看到一個「很像但不一樣」的標記。
-     🔴 src 經過 url()(gateway 剝前綴後轉發,裸路徑在瀏覽器端 404);
+     🔴 src 經過 static()(補前綴 + 帶 `?v=`,見 T81:少了版本,改了 CSS
+        瀏覽器也不會知道——這個 logo 上線第一天就是這樣壞的);
      🔴 自託管於 /static/,屬 CSP 的 'self',**不放寬 CSP、不用 data: URI**
         (data: URI 會被 default-src 'self' 擋掉,而放寬 CSP 是契約 §4.10 紅線)。
      alt 留空 + aria-hidden:緊鄰的 site_name 已經是同一個連結的無障礙名稱,
      再讀一次標誌名只是重複。 #}
   <a class="nav-brand navbar-brand" href="{{ url('/') }}">
-    <img class="nav-brand-logo" src="{{ url('/static/logo.png') }}" alt="" aria-hidden="true">
+    <img class="nav-brand-logo" src="{{ static('/static/logo.png') }}" alt="" aria-hidden="true">
     {{ site_name }}</a>
 
   <button class="navbar-toggler nav-toggler" type="button" data-bs-toggle="collapse"
@@ -184,7 +186,7 @@
 {# T58:navbar 的 collapse 與 dropdown 需要 Bootstrap JS。
    🔴 外部檔案(CSP 禁 inline script);collapse 動畫由 JS 設 element.style,
    那是 CSSOM 操作,CSP 不擋——與被禁的 inline style 屬性是兩回事。 #}
-<script src="{{ url('/static/vendor/bootstrap.bundle.min.js') }}" defer></script>
+<script src="{{ static('/static/vendor/bootstrap.bundle.min.js') }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

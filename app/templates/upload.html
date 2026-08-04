@@ -101,5 +101,5 @@
 
 {% block scripts %}
 {# 🔴 外部檔案,不是 inline——CSP `default-src 'self'` 會擋掉 inline script。 #}
-<script src="{{ url('/static/upload.js') }}" defer></script>
+<script src="{{ static('/static/upload.js') }}" defer></script>
 {% endblock %}

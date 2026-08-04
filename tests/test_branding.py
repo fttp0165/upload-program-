@@ -93,11 +93,22 @@ def test_logo檔案與入口網站官方檔一致():
     )
 
 
-def test_導航列品牌使用官方logo圖檔():
-    """品牌區要有真圖,而且路徑必須經過 url()(帶 /upload 前綴)。"""
-    base = (_TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "url('/static/logo.png')" in base, (
-        "base.html 的品牌 logo 未用 url() 包住 —— gateway 剝前綴後轉發,"
+async def test_導航列品牌使用官方logo圖檔(client):
+    """品牌區要有真圖,而且路徑必須帶 /upload 前綴。
+
+    T81 修正:原本比對模板原始碼裡的 `url('/static/logo.png')` 字面值,
+    但靜態檔已改走 `static()`(補前綴**並且**帶 `?v=`,見 test_static_cache.py),
+    斷言因此誤判。這不是放水——`static()` 內部就是包著同一個 `web_url`,
+    斷言想保護的「路徑要帶前綴」原封不動。
+
+    順手改成驗**渲染後的輸出**而不是原始碼字串:前綴有沒有真的補上去,
+    是渲染的結果決定的;比對原始碼只是在賭 helper 的行為,helper 換了就白驗
+    ——這次就是這樣白驗了一次。
+    """
+    resp = await client.get("/", headers=BROWSER)
+    assert 'class="nav-brand-logo"' in resp.text, "導航列沒有品牌 logo 圖"
+    assert "/upload/static/logo.png" in resp.text, (
+        "品牌 logo 的路徑沒帶前綴 —— gateway 剝前綴後轉發,"
         "裸路徑在瀏覽器端會 404(決策文件 §6.2,PLM 出過這個事故)"
     )
 

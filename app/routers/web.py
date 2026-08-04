@@ -80,8 +80,18 @@ async def static_file(path: str, request: Request) -> Response:
     """提供 CSS / JS 等靜態檔。
 
     參數:path 相對於 `app/static/` 的路徑。回傳:檔案內容或 404。副作用:讀檔。
+
+    T81:帶 `?v=` 的請求回長快取。模板一律以 `static()` 產生引用(見 templating.py),
+    網址本身帶了 `APP_VERSION`,所以**同一個網址的內容永遠不會變** —— 可以放心
+    讓瀏覽器長期持有,換版時網址跟著變,自然重新下載。
+
+    🔴 `immutable` 只對帶版本的網址成立。裸網址(如換版冒煙用的哨兵檔
+    `/static/logo.png`)維持原本行為,否則哪天真要從固定網址換內容就換不掉了。
     """
-    return await _static.get_response(path, request.scope)
+    response = await _static.get_response(path, request.scope)
+    if request.query_params.get("v"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
 
 PAGE_SIZE = 20

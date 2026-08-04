@@ -10,7 +10,7 @@
 
 {% block scripts %}
 {# 🔴 外部檔案(CSP 禁 inline script);沒有它,上面的表單照樣能用。 #}
-<script src="{{ url('/static/issue-upload.js') }}" defer></script>
+<script src="{{ static('/static/issue-upload.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}

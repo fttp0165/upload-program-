@@ -23,8 +23,9 @@ def _links(html: str) -> list[str]:
     return _LINK_RE.findall(html)
 
 
-async def test_匿名首頁有回到平台入口的連結(client, app):
-    resp = await client.get("/", headers=BROWSER)
+async def test_匿名者有回到平台入口的連結(client, app):
+    # T81:匿名瀏覽器開首頁會被送去登入,改在 /help 驗導航列
+    resp = await client.get("/help", headers=BROWSER)
     assert resp.status_code == 200
     assert "回到平台入口" in resp.text
     assert f'href="{app.state.settings.portal_home_url}"' in resp.text
@@ -41,7 +42,7 @@ async def test_已開通者側欄有回到平台入口(client, app, oidc):
 
 async def test_入口連結不帶本服務前綴(client, app):
     """🔴 加上前綴就變成 /upload/ 自己——那不是回到入口,是原地打轉。"""
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)  # T81:匿名者的導航列改在 /help 驗
     assert f'href="{PREFIX}/"' in resp.text, "首頁連結本身仍應帶前綴"
     portal = app.state.settings.portal_home_url
     assert not portal.startswith(PREFIX), "平台入口不得帶本服務前綴"
@@ -65,8 +66,12 @@ async def test_每一條根連結都是具名的入口連結(client, app, oidc):
     數量對不上,這條就會紅。
     """
     await make_user(app, "sub-portal-count")
-    for headers in (BROWSER, {**BROWSER, **auth(oidc.issue("sub-portal-count"))}):
-        resp = await client.get("/", headers=headers)
+    # T81:匿名瀏覽器開首頁會被送去登入,匿名這一側改用 /help(同一份 base.html 導航列)
+    for path, headers in (
+        ("/help", BROWSER),
+        ("/", {**BROWSER, **auth(oidc.issue("sub-portal-count"))}),
+    ):
+        resp = await client.get(path, headers=headers)
         roots = [link for link in _links(resp.text) if link == "/"]
         marked = len(re.findall(r'class="[^"]*(?:nav-exit|side-exit)[^"]*"\s+href="/"', resp.text))
         assert roots, "頁面應有回到平台入口的連結"

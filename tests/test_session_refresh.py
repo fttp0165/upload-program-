@@ -13,6 +13,8 @@
 續期一定要真的去問 IdP,IdP 拒絕就是登出。
 """
 
+from urllib.parse import urlparse
+
 from app.session import SessionData
 from tests.conftest import auth, make_user
 
@@ -105,18 +107,18 @@ async def test_refresh也失效時視為未登入(client, app, oidc):
         app, access_token=oidc.issue("sub-revoked", expired=True), refresh_token=dead
     )
 
-    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie})
-    assert resp.status_code == 200
-    assert "登出" not in resp.text, "refresh 失敗就該視為未登入,不得自行延長"
-    assert "登入" in resp.text
+    # T81:「被視為未登入」在首頁的表現形式從落地頁改成 302 到登入頁,
+    # 斷言的invariant 沒有變——續期失敗的人不得繼續通行。
+    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie}, follow_redirects=False)
+    assert resp.status_code == 302, "refresh 失敗就該視為未登入,不得自行延長"
+    assert urlparse(resp.headers["location"]).path.endswith("/auth/login")
 
 
 async def test_沒有refresh_token時不崩潰(client, app, oidc):
     cookie = await _login_cookie(app, oidc, "sub-nort", expired=True, with_refresh=False)
 
-    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie})
-    assert resp.status_code == 200
-    assert "登出" not in resp.text
+    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie}, follow_redirects=False)
+    assert resp.status_code == 302  # T81:未登入 = 轉址到登入頁
     assert oidc.refresh_calls == 0
 
 
@@ -131,9 +133,8 @@ async def test_續期不繞過本地停用檢查(client, app, oidc):
         refresh_token=oidc.issue_refresh("sub-disabled52"),
     )
 
-    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie})
-    assert resp.status_code == 200
-    assert "登出" not in resp.text, "本地已停用的帳號不該因為續期成功就通行"
+    resp = await client.get("/", headers=BROWSER, cookies={COOKIE: cookie}, follow_redirects=False)
+    assert resp.status_code == 302, "本地已停用的帳號不該因為續期成功就通行"
 
 
 # --- API 呼叫端行為不變 -----------------------------------------------------

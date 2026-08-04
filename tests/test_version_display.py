@@ -15,10 +15,11 @@ from tests.conftest import auth, make_user
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 
 
-async def test_匿名首頁顯示版本號(client):
+async def test_匿名者看得到版本號(client):
+    """T81:匿名瀏覽器不再停在首頁,版本號改在 /help 驗——版號在共用頁尾,載體不影響意義。"""
     from app.version import APP_VERSION
 
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)
     assert resp.status_code == 200
     assert f"v{APP_VERSION}" in resp.text
 

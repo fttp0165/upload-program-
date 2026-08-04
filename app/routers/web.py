@@ -12,7 +12,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -126,18 +126,23 @@ async def home(
 
     參數:q 關鍵字、tag 標籤、offset 分頁位移。回傳:HTML。副作用:無(唯讀)。
     """
-    # T64 靜默 SSO:瀏覽器首訪(Accept 含 text/html,沿用 T47 內容協商精神)
-    # 且這 5 分鐘內沒探測過 → 無聲問一次 IdP。portal 登入過的人直接進站;
-    # 沒 session 的人會被無聲送回這裡(帶著探測 cookie,不再發起)。
-    # curl / 冒煙(Accept: */*)不觸發——監控看到的行為與從前完全相同。
-    codec = request.app.state.cookies
-    if (
-        identity is None
-        and "text/html" in request.headers.get("accept", "")
-        and request.cookies.get(codec.sso_probe_cookie_name) is None
-    ):
-        settings = request.app.state.settings
-        return RedirectResponse(f"{settings.external_base}/auth/login?silent=1", status_code=302)
+    # T81 入口導流(裁示 2026-08-04):從 portal 卡片進來的人已經知道這是什麼系統,
+    # 他要的是進去,不是再讀一次介紹——**瀏覽器不再停在落地頁**,依身分分三條路。
+    #
+    # 這推翻了 T53「首頁留落地頁」的那一半(深層頁 302 的那一半仍然有效)。
+    #
+    # 🔴 只有瀏覽器(Accept 含 text/html,沿用 T47 內容協商精神)才轉址:
+    #    冒煙與監控用 `Accept: */*` 打首頁、以 200 當服務活著的判準(runbook §A.4),
+    #    把它們一起改成 302 會讓監控在換版當下集體變紅,而那與登入完全無關。
+    #
+    # T64 的靜默探測(prompt=none)在這裡功成身退:互動式登入同樣達成
+    # 「portal 登入過的人免再按登入」(IdP 有 session 就直接導回、不顯示畫面),
+    # 差別只在沒有 session 時——靜默會無聲送回落地頁,正是要消滅的那一頁。
+    if "text/html" in request.headers.get("accept", ""):
+        if identity is None:
+            return _login_redirect(request, "/")
+        if not identity.user.is_active:
+            return _portal_redirect(request)
 
     settings = request.app.state.settings
     total, projects, next_url, prev_url = 0, [], None, None
@@ -173,12 +178,31 @@ async def home(
     )
 
 
-def _login_redirect(request: Request, next_path: str) -> RedirectResponse:
-    """未登入的深層頁 → 302 到 IdP 登入,並帶 `next` 導回原頁(T53)。
+def _portal_redirect(request: Request) -> RedirectResponse:
+    """已登入但未開通/已停用 → 302 回平台入口(T81 裁示「沒權限就回入口」)。
 
-    裁示(2026-07-28):**深層頁 302、首頁留落地頁**。首頁承擔「這是什麼系統、
-    找誰開通」的說明功能;深層頁則沒有這個需要——直接送人去登入才是最短路徑,
+    🔴 **迴圈防線**:入口網址若被誤設成落在本服務前綴之內(例如填成 `/upload/`,
+    `config.portal_home_url` 的註解早就警告過這個坑),未開通者會在 portal 與本服務
+    之間無限彈跳。這時退回 `/pending`——那一頁停得下來,而且正好是他需要的東西
+    (自己的 `sub`,見 `pending_page` 的說明)。
+
+    參數:request。回傳:302。副作用:無。
+    """
+    settings = request.app.state.settings
+    target = settings.portal_home_url
+    if urlparse(target).path.startswith(settings.api_prefix):
+        return RedirectResponse(web_url(settings, "/pending"), status_code=302)
+    return RedirectResponse(target, status_code=302)
+
+
+def _login_redirect(request: Request, next_path: str) -> RedirectResponse:
+    """未登入 → 302 到 IdP 登入,並帶 `next` 導回原頁(T53 深層頁;T81 起含首頁)。
+
+    裁示(2026-07-28):**深層頁 302、首頁留落地頁**——首頁承擔「這是什麼系統、
+    找誰開通」的說明功能;深層頁則沒有這個需要,直接送人去登入才是最短路徑,
     也符合 SSO 契約 §7 冒煙第 1 項。
+    **2026-08-04 修正(T81):首頁那一半被推翻**,首頁的瀏覽器請求同樣走這條;
+    落地頁只剩非瀏覽器(冒煙/監控)看得到。深層頁的部分不變。
 
     🔴 **這個轉址不得洩漏專案是否存在**:呼叫端必須在**查詢之前**就決定要不要轉,
     否則「存在就 302、不存在就 404」會讓轉址與否本身變成答案

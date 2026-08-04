@@ -42,13 +42,92 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-03 16:30
-<strong>版本:</strong> v1.57</p>
+<strong>最後更新:</strong> 2026-08-04 10:30
+<strong>版本:</strong> v1.58</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
+<hr />
+<h2>目前進度(2026-08-04 10:30)</h2>
+<p>任務 79 項:<strong>✅ 74 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>477 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h3>三個版本號現在各在哪裡</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>版本</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app/version.py</code></td>
+<td><strong>0.2.0</strong></td>
+<td>與最新 tag 一致</td>
+</tr>
+<tr>
+<td>GitHub 最新 tag</td>
+<td><strong>v0.2.0</strong></td>
+<td>PR #22 已合併並發版</td>
+</tr>
+<tr>
+<td>VM 執行中</td>
+<td><strong>v0.2.0</strong></td>
+<td>✅ 已換版(首頁頁尾實測顯示 v0.2.0)</td>
+</tr>
+</tbody>
+</table>
+<h3>尚未合併的工作</h3>
+<p>分支 <code>claude/read-article-join-project-1op5nk</code>:2026-08-01 的日結與明日待辦文件、
+<strong>T81 首頁入口導流</strong>。🟢 無 migration。</p>
+<h3>未完成的任務(4 項)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>任務</th>
+<th>卡在哪裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T27 🔵</td>
+<td>換版 runbook + 備份<strong>還原演練</strong></td>
+<td>文件已完成;演練待 staging 環境,回填證據表後才轉 ✅</td>
+</tr>
+<tr>
+<td>T29 ⬜</td>
+<td>接入冒煙清單(SSO 契約 §7)</td>
+<td>六項餘 4 項待實跑;<strong>T81 改了首頁行為,第 1 項的說明要一併更新</strong>(現在首頁也 302,比當初報給 portal 的更貼近 §7)</td>
+</tr>
+<tr>
+<td>T73 ⬜</td>
+<td>顯示名稱改 Admin API 即時查詢</td>
+<td><strong>待 portal 裁示</strong>;契約 v2.0 §4.2a L1 明文禁用 Admin API,已非授權問題而是<strong>通則層級變更</strong>,申請書需重寫</td>
+</tr>
+<tr>
+<td>T46 ⬜</td>
+<td>病毒掃描接上(F38)</td>
+<td>M8 第二期,不納入 MVP</td>
+</tr>
+</tbody>
+</table>
+<h3>等外部回覆(不在本專案手上)</h3>
+<ol>
+<li><strong>SLO 聲明文</strong>送 portal → 對方登錄 <code>frontchannel.logout.url</code> 後,才能重跑契約 §10 的 A→B 復現步驟(T74 端點已實作)。</li>
+<li><strong>Admin API <code>view-users</code></strong> 申請(T73 前置)。</li>
+</ol>
+<h3>未結的收尾項目(v0.2.0 換版時未做完)</h3>
+<ul>
+<li>[ ] <code>tools/purge_issues.py</code> 排進 VM cron(runbook §C.2)</li>
+<li>[ ] runbook 的「不可逆操作」清單補上 <code>0007</code> / <code>0008</code> 的 <code>DROP TABLE</code></li>
+<li>[ ] 🐛 <strong>登入曾出現 401「授權碼交換失敗」</strong>(trace <code>5983122e</code>):<code>app/oidc.py</code> 只記 status
+      不記 IdP 的 <code>error</code>,無法一眼定位。<strong>建議另立任務</strong>補上(錯誤回應的 body 只有
+      <code>error</code> / <code>error_description</code>,不含 token);裁示前不動工</li>
+</ul>
 <hr />
 <h2>M1 規則與計畫</h2>
 <table>
@@ -446,6 +525,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>✅</td>
 <td>🟢</td>
 <td>使用者交辦「把網頁服務 logo 都換成入口網站的 logo」;原本導航列的標記是 <code>app.css</code> 的 <code>.nav-brand::before</code> 偽元素(藏青圓 + box-shadow 疊綠圓)——形狀比例對,但<strong>畫不出</strong>官方標誌兩橢圓間交錯的白鋸齒與 SPORTON LAB. 字樣,從 portal 首頁點進來會看到「很像但不一樣」的標記;改載入官方檔 <code>app/static/logo.png</code>(與 cats-portal landing、Keycloak 登入頁<strong>同一支</strong>,SHA-256 比對而非目視)+ 補上原本缺席的 favicon;🔴 偽元素整段移除(不是被圖蓋住——Keycloak theme 那次就是兩層各畫一個,本機預覽的 DOM 只有一層所以看不出來);🔴 <code>src</code>/<code>href</code> 都經 <code>url()</code>(既有 <code>test_web_layout</code> 逐一掃描把關)、自託管屬 CSP <code>'self'</code> <strong>不放寬 CSP、不用 data: URI</strong>;<strong>5 條紅→綠,全套 468</strong></td>
+</tr>
+<tr>
+<td>T81</td>
+<td>首頁入口導流(未登入直上登入頁、未開通回入口)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 2026-08-04:「點擊卡片還是會進入登入頁面,不要進到這一頁。<strong>沒權限就回入口,沒登入就進登入頁,有權限就進總覽</strong>」——<strong>推翻 T53「首頁留落地頁」的那一半</strong>(深層頁 302 的那一半不變):從 portal 卡片進來的人已經知道這是什麼系統,再讀一次介紹只是擋路;🔴 <strong>非瀏覽器(<code>Accept: */*</code>)維持 200 落地頁</strong>——冒煙與監控拿首頁 200 當服務活著的判準(runbook §A.4),一起改掉會讓監控在換版當下集體變紅;🔴 <strong>停用者在 callback 就擋下、不建 session</strong>——<code>optional_identity</code> 把 disabled 的 403 吞成 None,網頁層看不出「停用」與「匿名」的差別,不擋就會 首頁→IdP→callback→首頁 無聲繞死;🔴 入口網址誤設成指回本服務時退回 <code>/pending</code>(迴圈防線);T64 靜默探測在首頁功成身退(互動式登入同樣達成免再按登入,差別只在沒 session 時);<strong>F79 版本號隨之搬到共用版型</strong>,否則匿名與待開通者再也看不到版本號;<strong>8 條紅→綠 + 23 條既有測試改寫,全套 477</strong></td>
 </tr>
 <tr>
 <td>T76</td>
@@ -852,6 +938,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.58</td>
+<td>2026-08-04 10:30</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T81 首頁入口導流完成</strong>(8 條紅→綠,既有 23 條依新行為改寫,全套 477):推翻 T53「首頁留落地頁」的那一半;落地頁只剩非瀏覽器看得到(冒煙判準不動);停用者的迴圈在 callback 擋下;F79 版本號搬到共用版型;〈目前進度〉一節同步更新(PR #22 已合併、v0.2.0 已發並已上 VM)</td>
 </tr>
 <tr>
 <td>v1.57</td>

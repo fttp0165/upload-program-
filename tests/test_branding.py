@@ -21,7 +21,7 @@ _TEMPLATES = Path(__file__).parent.parent / "app" / "templates"
 async def test_首頁顯示新名稱(client):
     from app.branding import SITE_NAME
 
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)
     assert resp.status_code == 200
     assert SITE_NAME == "AI 小程式分享平台"
     assert SITE_NAME in resp.text
@@ -58,7 +58,7 @@ async def test_技術識別名不變(client):
     resp = await client.get("/openapi.json")
     assert resp.json()["info"]["title"] == "upload-program"
 
-    page = await client.get("/", headers=BROWSER)
+    page = await client.get("/help", headers=BROWSER)
     assert "upload-program" in page.text  # 分頁標題 / 頁尾版本行
 
 

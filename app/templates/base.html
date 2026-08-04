@@ -180,6 +180,14 @@
 <main class="page">
 {% block content %}{% endblock %}
 </main>
+{#
+  T68 的版本號,T81 從 home.html 搬到這裡。
+  T68 當初挑首頁的理由是「匿名 / 待開通 / 已開通三種狀態都看得到」——
+  使用者回報問題時報得出版本,換版驗證也不必挑哨兵檔。T81 之後匿名與待開通的
+  瀏覽器**再也到不了首頁**,那個理由就要求它搬家,否則 T68 等於被悄悄廢掉。
+  單一真相仍是 app/version.py,由 templating 注入。
+#}
+<p class="muted app-version">upload-program v{{ app_version }}</p>
 </div>
 {# T58:navbar 的 collapse 與 dropdown 需要 Bootstrap JS。
    🔴 外部檔案(CSP 禁 inline script);collapse 動畫由 JS 設 element.style,

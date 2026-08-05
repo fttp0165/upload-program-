@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-05 09:40
-<strong>版本:</strong> v1.60</p>
+<strong>最後更新:</strong> 2026-08-05 11:00
+<strong>版本:</strong> v1.61</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-05 09:40)</h2>
-<p>任務 81 項:<strong>✅ 76 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>477 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-05 11:00)</h2>
+<p>任務 82 項:<strong>✅ 77 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>485 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -550,6 +550,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>PR #24 合併後 main 的常數還停在 <code>0.2.0</code>,而 v0.2.0 tag 指的是 <code>c504b1c</code>——<strong>程式碼自稱的版本與 tag 指的 commit 是兩件事</strong>,正是憲法第八條 4 要防的「首頁對使用者說謊、換版驗證判錯」;選 0.2.1 是因為 T81 為行為調整、T82 為相依修補,<strong>無新增功能面</strong>;🔴 <strong>不重發 v0.2.0</strong>(第八條 5;該版已部署到 VM,移 tag 會讓「使用者手上那一版」與「tag 說的那一版」分家),比照 T69 沒搭上 v0.1.6 的處置;<strong>不寫新測試</strong>——既有版本號測試全部讀同一常數(T68 的單一真相),再寫 <code>assert == "0.2.1"</code> 只是把字面值抄第二遍、抓不到任何錯,比照第三條 4 純重構條款;全套 477 綠</td>
 </tr>
 <tr>
+<td>T84</td>
+<td>稽核紀錄顯示使用者名稱</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「稽核紀錄顯示使用者名稱」——原本兩排 UUID,認不出「誰把誰開通了」,而<strong>認不出人的稽核紀錄等於沒有稽核紀錄</strong>;來源是 T59 的 <code>display_name_cache</code>;🔴 <strong>名字只上後台 HTML,不上 JSON API</strong>(§4.2a L1 的例外僅涵蓋「管理後台顯示」,<code>AuditEventOut</code> docstring 亦寫明「稽核不是繞過個資紅線的後門」——API 帶名字等於開一條整批匯出姓名的路);🔴 <strong>一次 <code>IN</code> 查完不逐列查</strong>(設計文件 §2 查詢數固定;有測試以 <code>before_cursor_execute</code> 實際計數,1 列與 10 列相同);🔴 <strong>UUID 不因為有名字就拿掉</strong>(名字只是登入當下的快照,id 才是身分事實);模板過時註解依第二條 5 回寫(原文寫於 T59 之前,當時確實無名可用);🐛 過程中抓到<strong>自己寫的假綠測試</strong>——手動塞名字會被「每次登入覆寫」清成 NULL,導致「API 不含名字」在根本沒有名字時通過,已改由登入 claim 寫入並加前提斷言;<strong>8 條紅→綠,全套 485</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -954,6 +961,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.61</td>
+<td>2026-08-05 11:00</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T84 稽核紀錄顯示使用者名稱完成</strong>(8 條紅→綠,全套 485):名字只上後台不上 API、一次 IN 查完並以查詢計數釘住、查不到退回 UUID;記下一個<strong>自己寫的假綠安全測試</strong>及其修法</td>
 </tr>
 <tr>
 <td>v1.60</td>

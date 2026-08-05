@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-04 10:30
-<strong>版本:</strong> v1.58</p>
+<strong>最後更新:</strong> 2026-08-04 11:30
+<strong>版本:</strong> v1.59</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-04 10:30)</h2>
-<p>任務 79 項:<strong>✅ 74 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-04 11:30)</h2>
+<p>任務 80 項:<strong>✅ 75 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>477 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -127,6 +127,8 @@ summary { cursor:pointer; color:#12228f; }
 <li>[ ] 🐛 <strong>登入曾出現 401「授權碼交換失敗」</strong>(trace <code>5983122e</code>):<code>app/oidc.py</code> 只記 status
       不記 IdP 的 <code>error</code>,無法一眼定位。<strong>建議另立任務</strong>補上(錯誤回應的 body 只有
       <code>error</code> / <code>error_description</code>,不含 token);裁示前不動工</li>
+<li>[ ] 🔴 <strong><code>requirements.txt</code> 仍是相容區間不是 lock 檔</strong>——建置不可重現,同一個 tag 重建
+      可能得到不同內容;T82 的 CVE 只是症狀,建議另立任務做 pip-compile</li>
 </ul>
 <hr />
 <h2>M1 規則與計畫</h2>
@@ -534,6 +536,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 2026-08-04:「點擊卡片還是會進入登入頁面,不要進到這一頁。<strong>沒權限就回入口,沒登入就進登入頁,有權限就進總覽</strong>」——<strong>推翻 T53「首頁留落地頁」的那一半</strong>(深層頁 302 的那一半不變):從 portal 卡片進來的人已經知道這是什麼系統,再讀一次介紹只是擋路;🔴 <strong>非瀏覽器(<code>Accept: */*</code>)維持 200 落地頁</strong>——冒煙與監控拿首頁 200 當服務活著的判準(runbook §A.4),一起改掉會讓監控在換版當下集體變紅;🔴 <strong>停用者在 callback 就擋下、不建 session</strong>——<code>optional_identity</code> 把 disabled 的 403 吞成 None,網頁層看不出「停用」與「匿名」的差別,不擋就會 首頁→IdP→callback→首頁 無聲繞死;🔴 入口網址誤設成指回本服務時退回 <code>/pending</code>(迴圈防線);T64 靜默探測在首頁功成身退(互動式登入同樣達成免再按登入,差別只在沒 session 時);<strong>F79 版本號隨之搬到共用版型</strong>,否則匿名與待開通者再也看不到版本號;<strong>8 條紅→綠 + 23 條既有測試改寫,全套 477</strong></td>
 </tr>
 <tr>
+<td>T82</td>
+<td>修 CI:cryptography CVE-2026-69247</td>
+<td>✅</td>
+<td>🟢</td>
+<td>PR #24 的 Trivy 步驟擋下建置——<code>cryptography</code> 是 <code>pyjwt[crypto]</code> 的<strong>遞移相依</strong>,requirements 用相容區間所以每次建置抓當下最新可解版,這次抓到帶洞的 49.0.0(HIGH,fixed in 50.0.0);<strong>與 T81 無關,main 現在建置也會紅</strong>;修法是加明確下限 <code>cryptography&gt;=50.0.0</code>,🔴 <strong>不用 <code>.trivyignore</code> 換綠燈</strong>(本服務散布可執行檔,掃描是自我加嚴的一環,調鬆掃描是拿紅線換方便);🔴 lock 檔化(pip-compile)刻意<strong>不順手做</strong>——影響面遠大於一個 CVE,該有自己的計畫;升級後全站 <strong>477 綠</strong>(JWT 驗簽是實際會走到的路徑,不是裝了沒用)</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -938,6 +947,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.59</td>
+<td>2026-08-04 11:30</td>
+<td>Claude(CI 紅燈觸發)</td>
+<td><strong>T82 修 CI:cryptography CVE-2026-69247</strong>(HIGH):遞移相依 + 相容區間 = 建置抓到帶洞版本;加明確下限而非 ignore CVE、也不順手改 lock 檔;遺留:requirements 仍非 lock 檔,建置不可重現,建議另立任務</td>
 </tr>
 <tr>
 <td>v1.58</td>

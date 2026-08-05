@@ -45,7 +45,7 @@ def test_env_example的issuer為D2子路徑形式():
 
 async def test_導航列有帳號設定連結(client):
     """§4.8:App 禁自建註冊/改密碼頁,只需在 UI 放連結指向 Account Console。"""
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)  # T81:匿名者的導航列改在 /help 驗
     assert "帳號設定" in resp.text
 
 
@@ -55,7 +55,7 @@ async def test_帳號設定連結不帶前綴(client):
     `/account` 是 gateway 層的 302 轉址(契約 §2.1);加上我們的前綴會變成
     `/upload/account`——一條不存在的路徑。
     """
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)  # T81:匿名者的導航列改在 /help 驗
     assert 'href="/account"' in resp.text, "帳號設定應正好指向 /account"
     assert f'href="{PREFIX}/account"' not in resp.text, "平台短網址不得加上本服務的前綴"
 

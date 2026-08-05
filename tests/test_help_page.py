@@ -57,7 +57,8 @@ async def test_教學頁連結一律帶前綴(client):
 
 
 async def test_導航列有教學入口_匿名與登入皆有(client, app, oidc):
-    anon = await client.get("/", headers=BROWSER)
+    # T81:匿名瀏覽器開首頁會被送去登入,/help 是匿名者仍看得到導航列的頁面
+    anon = await client.get("/help", headers=BROWSER)
     assert f'href="{PREFIX}/help"' in anon.text
 
     await make_user(app, "sub-help-nav")
@@ -107,5 +108,5 @@ async def test_匿名者也看得到回報入口(client):
 
     連結本身不分登入狀態都給;點進去若未登入,回報頁會把人送去登入(T77)。
     """
-    resp = await client.get("/", headers=BROWSER)
+    resp = await client.get("/help", headers=BROWSER)  # T81:匿名者的導航列改在 /help 驗
     assert f'href="{PREFIX}/issues/new"' in resp.text

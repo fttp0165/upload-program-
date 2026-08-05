@@ -1,9 +1,10 @@
 """T53 深層頁未登入導向 IdP(SSO 契約 §7 冒煙第 1 項)。
 
 裁示(2026-07-28 Benny):**深層頁 302、首頁留落地頁**。
+**2026-08-04(T81)推翻後半**:首頁對瀏覽器同樣 302;落地頁只剩非瀏覽器看得到。
 
-- 深層頁(`/projects/*`)未登入 → 302 到 `/auth/login`,帶 `next` 導回原頁
-- 首頁(`/`)保留「請先登入」的落地說明頁——它承擔「這是什麼系統、找誰開通」的說明功能
+- 深層頁(`/projects/*`)未登入 → 302 到 `/auth/login`,帶 `next` 導回原頁(不變)
+- 首頁(`/`)~~保留落地說明頁~~ → 瀏覽器一律 302 到登入(T81)
 
 🔴 302 **不得因此洩漏專案是否存在**:T42 好不容易做到的結構保證
 (匿名一律不查詢)不能因為改成轉址就破功。存在的 private 專案與不存在的 slug
@@ -60,12 +61,25 @@ async def test_302帶next導回原頁(client, active_user):
     assert query.get("next") == ["/projects/redir-tool/releases"], query
 
 
-# --- 首頁保留落地頁 ---------------------------------------------------------
+# --- 首頁:T53 的「留落地頁」已於 T81 被推翻 --------------------------------
 
 
-async def test_首頁不轉址而是顯示落地頁(client):
-    """裁示:首頁承擔「這是什麼系統、找誰開通」的說明功能,不直接彈到 IdP。"""
+async def test_首頁對瀏覽器同樣轉址到登入(client):
+    """**T81 推翻 T53 的這一半**(2026-08-04 Benny:「不要進到這一頁」)。
+
+    T53 當時的理由是「首頁承擔『這是什麼系統、找誰開通』的說明功能」;
+    實際使用後推翻:從 portal 卡片進來的人已經知道這是什麼系統,再讀一次介紹
+    只是擋在他和系統之間。深層頁 302 的那一半不變,行為完整版見
+    `test_entry_routing.py`。
+    """
     resp = await client.get("/", headers=BROWSER, follow_redirects=False)
+    assert resp.status_code == 302
+    assert urlparse(resp.headers["location"]).path == f"{PREFIX}/auth/login"
+
+
+async def test_落地頁只剩非瀏覽器看得到(client):
+    """🔴 冒煙與監控(`Accept: */*`)拿首頁 200 當服務活著的判準,不得一起改掉。"""
+    resp = await client.get("/", follow_redirects=False)
     assert resp.status_code == 200
     assert "登入" in resp.text
 

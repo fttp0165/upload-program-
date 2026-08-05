@@ -88,7 +88,8 @@ async def test_各頁的待開通提示連到待開通頁(client, app, oidc):
     await make_user(app, "sub-pending45c", status=UserStatus.pending)
     token = oidc.issue("sub-pending45c")
 
-    body = (await client.get("/", headers={**BROWSER, **auth(token)})).text
+    # T81:待開通者開首頁會被送回平台入口,改用 /help(待開通者仍看得到的頁面)
+    body = (await client.get("/help", headers={**BROWSER, **auth(token)})).text
     assert f'href="{PREFIX}/pending"' in body
 
 

@@ -51,10 +51,15 @@ async def test_匿名訪客看到登入提示而不是專案列表(client, activ
     _, token = active_user
     await _make_project(client, token, "public-tool", "公開工具")
 
-    resp = await client.get("/", headers=BROWSER)
-    assert resp.status_code == 200
-    assert "登入" in resp.text
-    assert "公開工具" not in resp.text, "匿名訪客不該看到任何專案"
+    # T81:匿名瀏覽器改為 302 去登入頁——「不漏出專案」這條紅線在兩種視角都要成立
+    browser = await client.get("/", headers=BROWSER, follow_redirects=False)
+    assert browser.status_code == 302
+    assert "公開工具" not in browser.text, "轉址回應也不該夾帶任何專案"
+
+    machine = await client.get("/", follow_redirects=False)  # 冒煙視角:仍是落地頁
+    assert machine.status_code == 200
+    assert "登入" in machine.text
+    assert "公開工具" not in machine.text, "匿名訪客不該看到任何專案"
 
 
 async def test_待開通者看到與API相同的指引文案(client, app, oidc):
@@ -65,7 +70,8 @@ async def test_待開通者看到與API相同的指引文案(client, app, oidc):
     await make_user(app, "sub-pending-web", status=UserStatus.pending)
     token = oidc.issue("sub-pending-web")
 
-    resp = await client.get("/", headers={**BROWSER, **auth(token)})
+    # T81:待開通者開首頁會被送回平台入口;共用文案的落點改為 /pending 那一頁
+    resp = await client.get("/pending", headers={**BROWSER, **auth(token)})
     assert resp.status_code == 200
     assert pending_activation().detail in resp.text
 

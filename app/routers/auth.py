@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .. import problems
 from ..config import Settings
 from ..db import get_session
+from ..models import UserStatus
 from ..oidc import make_pkce
 from ..security import upsert_user
 from ..session import LoginState, SessionData
@@ -128,6 +129,21 @@ async def callback(
 
     # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
     user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
+
+    # 🔴 T81 迴圈防線:停用者**不建立 session**,當場送回平台入口。
+    #
+    # 根本原因:`optional_identity` 對 disabled 會吞掉 403 回 None——網頁層看不出
+    # 「停用」與「匿名」的差別。T81 讓首頁把匿名瀏覽器送去登入之後,停用者若拿得到
+    # session,就會 首頁 → IdP → callback → 首頁 → IdP … 永遠繞下去(IdP 那邊有
+    # session,每一圈都是無聲的,使用者只會看到瀏覽器一直轉)。
+    # 擋在這裡而不是首頁,是因為「被停用的帳號本來就不該有 session」——
+    # 這件事跟首頁怎麼導流無關,即使日後改回落地頁也應該成立。
+    if user.status is UserStatus.disabled:
+        log.info("停用帳號登入被拒", extra={"user_id": str(user.id)})
+        response = RedirectResponse(settings.portal_home_url, status_code=302)
+        codec.clear_login_state(response)
+        return response
+
     user.last_login_at = datetime.now(UTC)
     await session.commit()
 

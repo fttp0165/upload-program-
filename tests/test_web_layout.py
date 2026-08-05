@@ -36,26 +36,36 @@ def _links(html: str) -> list[str]:
 # --- 首頁與導航列 -----------------------------------------------------------
 
 
-async def test_首頁回HTML且含站名(client):
-    resp = await client.get("/", headers=BROWSER)
+async def test_首頁回HTML且含站名(client, active_user):
+    # T81:首頁對匿名瀏覽器改為 302,所以版型斷言改用「真的看得到首頁的人」
+    _, token = active_user
+    resp = await client.get("/", headers={**BROWSER, **auth(token)})
     assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"].startswith("text/html")
     assert "upload-program" in resp.text
 
 
 async def test_導航列含搜尋框與登入入口(client):
-    resp = await client.get("/", headers=BROWSER)
+    # T81:匿名瀏覽器開首頁會被送去登入,`/help` 是匿名者仍看得到導航列的頁面
+    resp = await client.get("/help", headers=BROWSER)
     body = resp.text
     assert "<nav" in body
     assert 'name="q"' in body, "導航列要有搜尋框(F70)"
     assert "登入" in body
 
 
-async def test_匿名訪客開首頁得到200而不是401(client):
-    """網頁跟 API 不同:匿名訪客該看到登入按鈕,不是一頁錯誤。"""
-    resp = await client.get("/", headers=BROWSER)
-    assert resp.status_code == 200
-    assert "登出" not in resp.text
+async def test_匿名訪客開首頁不得到401(client):
+    """網頁跟 API 不同:匿名訪客該被帶去登入,不是一頁錯誤。
+
+    T81 之後這條分兩種視角:瀏覽器 302 去登入頁、非瀏覽器(冒煙/監控)仍是 200。
+    兩者都不是 401——這才是這條測試從一開始要守的東西。
+    """
+    browser = await client.get("/", headers=BROWSER, follow_redirects=False)
+    assert browser.status_code == 302
+
+    machine = await client.get("/", follow_redirects=False)
+    assert machine.status_code == 200
+    assert "登出" not in machine.text
 
 
 async def test_已登入者的導航列顯示名字與登出(client, app, oidc):
@@ -94,9 +104,10 @@ async def test_顯示名稱來自IdP而非業務庫(client, app, oidc):
 # --- 🔴 子路徑正確性 --------------------------------------------------------
 
 
-async def test_首頁所有連結都帶路徑前綴(client):
+async def test_首頁所有連結都帶路徑前綴(client, active_user):
     """🔴 一個都不能漏——漏掉一個就是一次 404 事故。"""
-    resp = await client.get("/", headers=BROWSER)
+    _, token = active_user  # T81:改用登入者視角,那才是現在真的會被看到的首頁
+    resp = await client.get("/", headers={**BROWSER, **auth(token)})
     found = [link for link in _links(resp.text) if link not in PLATFORM_URLS]
     assert found, "頁面應該要有連結可檢查"
     for link in found:

@@ -131,14 +131,26 @@ async def test_管理後台說明為何只有sub(client, admin_user):
 
 
 async def test_管理後台不顯示個資欄位(client, app, oidc, admin_user):
-    """🔴 業務庫結構上就沒有這些欄位,頁面自然也不該有。"""
+    """🔴 業務庫結構上就沒有 email 欄位,頁面自然也不該有。
+
+    **T85 修正這條測試的斷言方式。** 原本是整頁搜尋「姓名」二字,那在 T59 之前
+    等價於「頁面沒有名字」;T59(契約 §4.2a L1)之後**名字本來就會顯示**,
+    這條測試能繼續綠只是因為當時的文案剛好沒用到那兩個字——它守的東西早已不是
+    它字面上寫的東西,而任何一句提到「姓名」的說明文字都會誤觸它。
+
+    改成斷言**真正的 invariant**:頁面不得出現 email。並且用 `@` 掃全頁,
+    比原本只找「電子郵件」這個標籤更嚴——標籤可以改名,email 本身不會沒有 `@`。
+
+    名字的邊界由 §4.2a L1 的專屬測試把關(`test_display_name_cache.py`、
+    `test_pending_list_names.py`),不靠這條的字串比對代管。
+    """
     _, admin_token = admin_user
     await make_user(app, "sub-noleak", status=__import__(
         "app.models", fromlist=["UserStatus"]).UserStatus.pending)
 
     body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
     assert "電子郵件" not in body
-    assert "姓名" not in body
+    assert "@" not in body, "頁面出現 email——業務庫結構上根本沒有這個欄位"
 
 
 # --- 一鍵開通 ---------------------------------------------------------------

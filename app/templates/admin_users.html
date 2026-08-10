@@ -26,8 +26,9 @@
 
 <p class="muted">
   本平台依帳號系統接入契約,業務資料庫<strong>只存 sub</strong>,個資一律不落地。
-  所以下面只有識別碼、沒有名字。要認出某個人,請他到「帳號待開通」頁把自己的 sub
-  複製給你——那一頁就是為了這件事存在的。
+  名字是<strong>登入當下的快取</strong>(契約 §4.2a L1,僅 <code>name</code> claim)——
+  IdP 沒有姓名、或那個人最後一次登入早於本功能上線,就會是空白。
+  空白時請他到「帳號待開通」頁把自己的識別碼複製給你,並對照下面的申請時間。
 </p>
 
 <h2>待開通({{ pending_users | length }})</h2>
@@ -36,8 +37,20 @@
     {% for user in pending_users %}
       <li class="project">
         <div class="project-head">
-          <code class="project-slug">{{ user.sub }}</code>
+          {# T85:T59 只改了下面「其他帳號」那個迴圈,這裡漏掉了——而漏掉的正好是
+             最需要名字的那一半:「開通」是本頁唯一有後果的操作,**認不出是誰就不該按**。
+             🔴 沒有名字時顯示完整 sub(不得空白);截斷值僅供人眼辨識,
+             表單一律以資料庫 id 為鍵(契約 L1 第 8 條)。 #}
+          {% if user.display_name_cache %}
+            <strong>{{ user.display_name_cache }}</strong>
+            <code class="project-slug" title="{{ user.sub }}">{{ user.sub[:8] }}…</code>
+          {% else %}
+            <code class="project-slug">{{ user.sub }}</code>
+          {% endif %}
           <span class="badge badge-warn">待開通</span>
+          {# 名字空白時,管理員唯一還能對上的線索是「剛剛誰跟我說他申請了」。
+             時間不是個資,不動任何紅線。 #}
+          <span class="muted">申請於 {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
           <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/activate') }}">
             <button class="btn" type="submit">開通</button>
           </form>

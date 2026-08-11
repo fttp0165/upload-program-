@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 測試項目清單</h1>
 <p><strong>建立日期:</strong> 2026-08-12 00:10
-<strong>最後更新:</strong> 2026-08-12 00:10
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-08-12 01:20
+<strong>版本:</strong> v1.1
 <strong>對應任務:</strong> T90
 <strong>適用對象:</strong> 測試工程師(與所有做驗收的人)</p>
 <blockquote>
@@ -141,7 +141,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>A-01</td>
 <td>未登入,從 portal 卡片點進 <code>/upload/</code> → <strong>直接到 Keycloak 登入畫面</strong>,不停任何中間頁</td>
-<td>🖐</td>
+<td>✅+🖐(302 由 smoke.sh 驗;IdP 畫面人工)</td>
 <td>✓</td>
 </tr>
 <tr>
@@ -856,6 +856,8 @@ summary { cursor:pointer; color:#12228f; }
 <h2>冒煙子集(換版後 15–20 分鐘)</h2>
 <p>依序:<strong>A-01 → A-02 → A-03</strong>(登入三態)→ <strong>C-01 + E-02 + D-04</strong>(建案→三類上傳→發布一輪)
 → <strong>F-01</strong>(下載)→ <strong>G-01</strong>(回報)→ <strong>A-10</strong>(登出)→ <strong>J-01 + J-02 + K-06</strong>(部署驗證)。</p>
+<p>其中可腳本化的部分(J-01 大半、J-02、K-06、A-01 的 302、A-12、I-01/I-02 標頭)
+由 <strong><code>tools/smoke.sh --vm --expect vX.Y.Z</code></strong> 一鍵執行(T91);其餘冒煙項仍是人工。</p>
 <p>🔴 登入不可用期間,A/B/E/G 的冒煙項記「<strong>未驗</strong>」並註明原因——恢復後補跑,不得略過。</p>
 <hr />
 <h2>本文的維護</h2>
@@ -876,6 +878,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(T91)</td>
+<td>冒煙子集標注可由 <code>tools/smoke.sh</code> 一鍵執行的範圍;A-01 方式改 ✅+🖐(302 腳本驗、IdP 畫面人工)</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-08-12 00:10</td>

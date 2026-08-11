@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 00:30
-<strong>版本:</strong> v1.68</p>
+<strong>最後更新:</strong> 2026-08-12 01:20
+<strong>版本:</strong> v1.69</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 00:30)</h2>
-<p>任務 88 項:<strong>✅ 83 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>506 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 01:20)</h2>
+<p>任務 89 項:<strong>✅ 84 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>508 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -599,6 +599,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 對 T89 的回饋:SOP 是流程,他要的是<strong>測試工程師會測的項目</strong>;新增 <code>docs/測試項目清單.md</code>:依使用者旅程(登入SSO 13 / 開通 7 / 專案 10 / 版本 8 / 上傳 10 / 下載 6 / 回報 13)+ 四跨切面(後台 8 / 安全 9 / 維運 7 / 介面 6)共 <strong>97 項</strong>,逐項「條件→動作→預期」一行可執行;每項標 <strong>✅ 自動</strong>(CI 每次跑,人工抽查)/ <strong>🖐 人工</strong>(測試工程師主力:真實 Keycloak、貼上/拖放/取消、跨 App 登出、視覺、VM cron)與<strong>冒煙 ✓</strong>(15–20 分鐘子集,含執行順序);🔴 明訂登入不可用期間冒煙項記「未驗」不得略過;附測試地圖 SVG;每項皆從實作長出(F/T 編號的產物),不抄模板;SOP 升 v2.1 補互指(SOP=怎麼測、清單=測什麼);純文件,全套 506 維持全綠</td>
 </tr>
 <tr>
+<td>T91</td>
+<td>冒煙腳本 <code>tools/smoke.sh</code>(一鍵換版驗證)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「可以寫測試腳本驗證嗎?」——答案分層:清單 ✅ 項早有 506 條 pytest;<strong>冒煙裡對正式站打 curl 的部分本任務腳本化</strong>;真實 IdP 畫面/貼上拖放/跨 App 登出維持 🖐 人工。腳本逐項印 ✅/❌/⏭ 並以 exit code 回報,對應清單編號(J-01/J-02/K-06/A-01/A-12/I-01/I-02);🔴 <strong>登入後項目刻意不自動化</strong>——ROPC 是契約禁手,塞帳密給腳本多一份外洩面,一律明示 SKIP 指回清單,<strong>跳過要看得見不得假裝驗過</strong>;腳本自身依第三條測:pytest 守門(<code>bash -n</code> + 關鍵檢查字串)先紅後綠,再以測試設定起真 uvicorn 實跑——<strong>正向全過、負向(錯誤版本)會咬人</strong>;🐛 實跑抓到腳本 bug:/help 教學內文的範例版本號 v1.0.0 被裸抓撿走,哨兵改錨定 T68 頁尾固定格式 <code>upload-program vX.Y.Z</code>;🐛 另收一次 T12 同款(scratchpad 腳本目錄不在 sys.path);runbook §A.4 升 v1.8 加一鍵入口、清單升 v1.1 標注腳本化範圍;<strong>2 條守門測試,全套 508</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1003,6 +1010,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.69</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(Benny:可否寫測試腳本)</td>
+<td><strong>T91 冒煙腳本完成</strong>(守門 2 條紅→綠,全套 508):可腳本化者一鍵化、登入後項明示 SKIP;本機實跑抓到哨兵裸抓撿錯範例版本號的 bug,改錨定頁尾固定格式</td>
 </tr>
 <tr>
 <td>v1.68</td>

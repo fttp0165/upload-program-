@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-08-11 11:40
-<strong>版本:</strong> v1.7
+<strong>最後更新:</strong> 2026-08-12 01:20
+<strong>版本:</strong> v1.8
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -171,6 +171,12 @@ gateway 仍指向舊 IP——症狀最惡劣:<code>docker ps</code> healthy、�
 <p>這是與 portal 的<strong>明文約定</strong>,不是禮貌。portal 把「執行期動態解析上游」
 列入改進項,屆時本步驟可移除(移除時本文件要同步升版)。</p>
 <h3>A.4 換版冒煙(reload 之後才算數)</h3>
+<blockquote>
+<p>🆕 T91:以下檢查中可腳本化的部分已做成 <strong><code>tools/smoke.sh</code></strong>(隨 compose 一起
+scp,同 backup.sh):<code>./smoke.sh --vm --expect vX.Y.Z</code>。
+它逐項印 ✅/❌/⏭ 並以 exit code 回報;<strong>需登入的驗證點會明示 SKIP</strong>,
+仍要照《測試項目清單》人工補驗。底下的逐條指令保留作後備與出處。</p>
+</blockquote>
 <pre><code class="language-bash"># 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
 curl -sk -o /dev/null -w '/upload/static/ = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/app.css
@@ -370,6 +376,12 @@ docker compose exec svc alembic downgrade -1
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.8</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(Benny:可否寫測試腳本)</td>
+<td>§A.4 加 <strong><code>tools/smoke.sh</code> 一鍵冒煙</strong>(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備</td>
 </tr>
 <tr>
 <td>v1.7</td>

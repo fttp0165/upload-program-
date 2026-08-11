@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-11 11:40
-**版本:** v1.7
+**最後更新:** 2026-08-12 01:20
+**版本:** v1.8
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -113,6 +113,12 @@ gateway 仍指向舊 IP——症狀最惡劣:`docker ps` healthy、健康檢查�
 列入改進項,屆時本步驟可移除(移除時本文件要同步升版)。
 
 ### A.4 換版冒煙(reload 之後才算數)
+
+> 🆕 T91:以下檢查中可腳本化的部分已做成 **`tools/smoke.sh`**(隨 compose 一起
+> scp,同 backup.sh):`./smoke.sh --vm --expect vX.Y.Z`。
+> 它逐項印 ✅/❌/⏭ 並以 exit code 回報;**需登入的驗證點會明示 SKIP**,
+> 仍要照《測試項目清單》人工補驗。底下的逐條指令保留作後備與出處。
+
 
 ```bash
 # 對外路徑(經 gateway)——這才是使用者的視角
@@ -237,6 +243,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.8 | 2026-08-12 01:20 | Claude(Benny:可否寫測試腳本) | §A.4 加 **`tools/smoke.sh` 一鍵冒煙**(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備 |
 | v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |
 | v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |
 | v1.5 | 2026-07-29 16:30 | Claude(Benny 授權) | §A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例) |

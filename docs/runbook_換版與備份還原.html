@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-07-30 23:00
-<strong>版本:</strong> v1.6
+<strong>最後更新:</strong> 2026-08-11 11:40
+<strong>版本:</strong> v1.7
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -224,9 +224,23 @@ docker compose exec svc alembic downgrade -1
 <td>整張稽核表</td>
 <td>❌(stdout log 會輪替)</td>
 </tr>
+<tr>
+<td><code>0007_issues</code></td>
+<td><strong>全部問題回報與討論串</strong></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><code>0008_issue_attachments</code></td>
+<td><strong>全部回報附件的 DB 紀錄</strong></td>
+<td>❌(MinIO 物件會變成孤兒,佔空間且無從對應)</td>
+</tr>
 </tbody>
 </table>
 <p>要保留就照各檔頭的 SQL 先撈一份再 downgrade。</p>
+<p>🔴 <strong><code>0007</code> / <code>0008</code> 的 backward 是 <code>DROP TABLE</code>,銷毀的是使用者親手送出的東西。</strong>
+與前兩列不同:下載數與稽核是系統產生的紀錄,回報則是別人花時間寫的內容,
+刪掉沒有任何補救管道,連「他寫過什麼」都無從得知。
+<strong>退這兩支之前一定要先備份(§C),而且要當場驗備份讀得回來</strong>,不是確認檔案存在就算。</p>
 <hr />
 <h2>C. 備份</h2>
 <h3>C.1 備份指令(repo 內 <code>tools/backup.sh</code>,scp 到部署目錄即可)</h3>
@@ -247,6 +261,10 @@ docker compose exec svc alembic downgrade -1
 30 2 * * *  cd /opt/upload-program &amp;&amp; BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh &gt;&gt; /var/log/upload-backup.log 2&gt;&amp;1
 # 稽核紀錄保留期清理(04:00;AUDIT_RETENTION_DAYS 只是給這支腳本讀的,不掛 cron 就是無限成長的個資表)
 0 4 * * *   cd /opt/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_audit.py --apply &gt;&gt; /var/log/upload-audit-purge.log 2&gt;&amp;1
+# 已關閉滿 365 天的問題回報清除(04:30;含 MinIO 附件物件)
+# ⚠️ 旗標是 `--yes`,**不是** purge_audit 的 `--apply`——兩支腳本不同,抄錯就是「每天空跑」
+#    而且不會有任何錯誤訊息(預設 dry-run 會正常結束、正常寫 log)。
+30 4 * * *  cd /opt/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_issues.py --yes &gt;&gt; /var/log/upload-issue-purge.log 2&gt;&amp;1
 </code></pre>
 <hr />
 <h2>D. 還原演練(T27 的驗收本體;在 staging 執行)</h2>
@@ -352,6 +370,12 @@ docker compose exec svc alembic downgrade -1
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.7</td>
+<td>2026-08-11 11:40</td>
+<td>Claude(Benny 指示)</td>
+<td><strong>T88 發版前補完</strong>:§B 不可逆清單補 <code>0007_issues</code> / <code>0008_issue_attachments</code>(backward 是 <code>DROP TABLE</code>,銷毀的是<strong>使用者親手送出的內容</strong>,與前兩列的系統紀錄性質不同,故要求退版前備份並<strong>當場驗讀得回來</strong>);§C.2 cron 補 <code>purge_issues.py</code>,並明寫 ⚠️ 旗標是 <code>--yes</code> 不是 <code>--apply</code>——抄錯會每天空跑且<strong>不會有任何錯誤訊息</strong></td>
 </tr>
 <tr>
 <td>v1.6</td>

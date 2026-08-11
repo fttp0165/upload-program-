@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-07-30 23:00
-**版本:** v1.6
+**最後更新:** 2026-08-11 11:40
+**版本:** v1.7
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -163,8 +163,15 @@ docker compose exec svc alembic downgrade -1
 |---|---|---|
 | `0004_artifact_download_count` | 全部下載累計數 | ❌(無事件表可重算) |
 | `0005_audit_events` | 整張稽核表 | ❌(stdout log 會輪替) |
+| `0007_issues` | **全部問題回報與討論串** | ❌ |
+| `0008_issue_attachments` | **全部回報附件的 DB 紀錄** | ❌(MinIO 物件會變成孤兒,佔空間且無從對應) |
 
 要保留就照各檔頭的 SQL 先撈一份再 downgrade。
+
+🔴 **`0007` / `0008` 的 backward 是 `DROP TABLE`,銷毀的是使用者親手送出的東西。**
+與前兩列不同:下載數與稽核是系統產生的紀錄,回報則是別人花時間寫的內容,
+刪掉沒有任何補救管道,連「他寫過什麼」都無從得知。
+**退這兩支之前一定要先備份(§C),而且要當場驗備份讀得回來**,不是確認檔案存在就算。
 
 ---
 
@@ -192,6 +199,10 @@ docker compose exec svc alembic downgrade -1
 30 2 * * *  cd /opt/upload-program && BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh >> /var/log/upload-backup.log 2>&1
 # 稽核紀錄保留期清理(04:00;AUDIT_RETENTION_DAYS 只是給這支腳本讀的,不掛 cron 就是無限成長的個資表)
 0 4 * * *   cd /opt/upload-program && docker compose exec -T svc python tools/purge_audit.py --apply >> /var/log/upload-audit-purge.log 2>&1
+# 已關閉滿 365 天的問題回報清除(04:30;含 MinIO 附件物件)
+# ⚠️ 旗標是 `--yes`,**不是** purge_audit 的 `--apply`——兩支腳本不同,抄錯就是「每天空跑」
+#    而且不會有任何錯誤訊息(預設 dry-run 會正常結束、正常寫 log)。
+30 4 * * *  cd /opt/upload-program && docker compose exec -T svc python tools/purge_issues.py --yes >> /var/log/upload-issue-purge.log 2>&1
 ```
 
 ---
@@ -226,6 +237,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |
 | v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |
 | v1.5 | 2026-07-29 16:30 | Claude(Benny 授權) | §A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例) |
 | v1.4 | 2026-07-29 15:30 | Claude(Benny 授權) | v0.1.2 發版中斷的兩課回寫:§A.1 補「CI 秒殺無 runner=帳號層(Billing/事故),不是程式紅燈」診斷與「驗收點是 Packages 不是 Release 頁」;§A.4 冒煙加**版本哨兵檔**(只有新版才有的靜態檔,200 才證明換到新版)與「302 判讀」附註 |

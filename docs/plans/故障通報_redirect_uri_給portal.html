@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>故障通報:upload-program 登入中斷(Keycloak 回 `invalid redirect_uri`)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/故障通報_redirect_uri_給portal.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>故障通報:upload-program 登入中斷(Keycloak 回 <code>invalid redirect_uri</code>)</h1>
+<p><strong>建立日期:</strong> 2026-08-11 10:00
+<strong>最後更新:</strong> 2026-08-11 10:00
+<strong>版本:</strong> v1.0
+<strong>受文方:</strong> cats-portal(Platform)
+<strong>發文方:</strong> upload-program(負責人 Benny)
+<strong>嚴重度:</strong> 🔴 服務不可用 —— <strong>全體使用者無法登入</strong></p>
+<hr />
+<h2>1. 症狀</h2>
+<p>瀏覽器被導向 authorize 端點後,Keycloak 直接回錯誤頁,不進入登入畫面:</p>
+<pre><code>出錯啦!
+無效參數: redirect_uri
+</code></pre>
+<p>DevTools:</p>
+<pre><code>GET https://catsapp.sporton.com.tw/auth/realms/sporton/protocol/openid-connect/auth?...&amp;code_challenge=...
+→ 400 (Bad Request)
+</code></pre>
+<p><strong>影響範圍:</strong> <code>/upload/</code> 的所有使用者,包含平台管理員本人。
+沒有任何人能登入,等同服務不可用(靜態頁與 <code>/health</code> 仍正常)。</p>
+<hr />
+<h2>2. 我方送出的 <code>redirect_uri</code></h2>
+<pre><code>https://catsapp.sporton.com.tw/upload/oidc/callback/
+</code></pre>
+<p>🔴 <strong>結尾有斜線。</strong></p>
+<p>此值由 <code>PUBLIC_BASE_URL + API_PREFIX + /oidc/callback/</code> 推導(<code>app/config.py</code>),
+<strong>我方近期未曾變更</strong>:<code>PUBLIC_BASE_URL</code>、<code>API_PREFIX</code>、
+<code>OIDC_REDIRECT_URI_OVERRIDE</code> 三個變數自上線以來未動過,
+最近三個版本的異動也都在後台顯示與上傳介面,未觸及登入流程。</p>
+<hr />
+<h2>3. 時間線(兩次症狀,疑為同一根因)</h2>
+<table>
+<thead>
+<tr>
+<th>時間</th>
+<th>症狀</th>
+<th>我方 trace_id</th>
+<th>研判</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>稍早</td>
+<td>登入走完 IdP 後,<strong>在 callback 端 401</strong>「授權碼交換失敗」</td>
+<td><code>5983122e-8d48-4c62-9ab6-e2804188b529</code></td>
+<td>authorize 過得去,<strong>換 token 時被拒</strong></td>
+</tr>
+<tr>
+<td>目前</td>
+<td><strong>authorize 當下即 400</strong> <code>invalid redirect_uri</code></td>
+<td>—</td>
+<td>連 authorize 都不接受了</td>
+</tr>
+</tbody>
+</table>
+<p>兩者都指向 <code>redirect_uri</code> 比對失敗。差別在於第一次時 client 端仍接受該 URI 進入授權流程、
+到 token 端點才不符,現在則在第一關就拒絕。</p>
+<p>⚠️ 同一時段(2026-08-10 晚間)貴方公告 gateway 變更曾造成兩次全平台停機,
+<code>/upload/</code> 在受影響清單內。我方無法判斷該次作業是否連帶調整了 Keycloak client 設定
+——<strong>僅陳述時間點吻合,不預設原因。</strong></p>
+<hr />
+<h2>4. 請協助確認(三項)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>事項</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>realm <code>sporton</code> 的 client <strong><code>upload-program</code></strong>,其 <strong>Valid Redirect URIs</strong> 是否<strong>逐字</strong>包含 §2 那一串?🔴 特別是<strong>結尾的斜線</strong> —— 若被登記成無斜線版本,即會產生目前的結果</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2026-08-10 晚間的 gateway 變更,是否連帶動到此 client 的設定(redirect URI / post-logout / secret)?</td>
+</tr>
+<tr>
+<td>3</td>
+<td>client secret 是否曾經輪替?若有,請依契約 §5.2 走安全管道交付。⚠️ <strong>不要回覆在本文件的往返或任何聊天訊息裡</strong> —— 它會進 git</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. 我方已完成的排除</h2>
+<ul>
+<li>程式碼未變更登入流程(git 歷史可查),<code>redirect_uri</code> 的推導邏輯有測試釘住;</li>
+<li>錯誤發生在 <strong>IdP 端</strong>,我方服務未收到該請求,故本地 log 無對應紀錄;</li>
+<li>我方 <code>app/oidc.py</code> 目前<strong>僅記錄 token 端點回應的 status code、未記錄 <code>error</code> 欄位</strong>,
+  這是我方的診斷缺口,已列為待辦(錯誤回應 body 僅含 <code>error</code> / <code>error_description</code>,不含 token,
+  補記錄不違反「log 不記完整 JWT」的紅線)。</li>
+</ul>
+<hr />
+<h2>6. 順帶回報:front-channel logout 端點已就緒</h2>
+<p>契約 §10 的 SLO 義務,我方端點已實作完成並有自動化測試:</p>
+<pre><code>https://catsapp.sporton.com.tw/upload/oidc/frontchannel-logout
+</code></pre>
+<p>規格:GET / 免認證 / 冪等 / 只清本服務 cookie / 回 <strong>204</strong>。
+我方 session 為 HttpOnly cookie 形態,故<strong>不主張任何豁免</strong>。</p>
+<p>貴方登錄 <code>frontchannel.logout.url</code> 後,我方可配合重跑契約 §10 的 A→B 復現步驟,
+並歡迎以 live 回讀驗證(比照貴方對 SENSE 承諾的第二層守門)。</p>
+<p><strong>此項不急,請優先處理 §4。</strong></p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-11 10:00</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:登入中斷故障通報。列出我方送出的 <code>redirect_uri</code>(結尾有斜線)、兩次症狀的時間線與 trace_id、三項請確認事項(逐字比對 / 8-10 gateway 變更是否連帶、secret 是否輪替);陳述時間吻合但<strong>不預設原因</strong>;附我方已完成的排除與自承的診斷缺口;順帶回報 front-channel logout 端點已就緒待登錄</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

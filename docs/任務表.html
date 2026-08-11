@@ -42,15 +42,15 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-11 11:40
-<strong>版本:</strong> v1.64</p>
+<strong>最後更新:</strong> 2026-08-11 22:35
+<strong>版本:</strong> v1.65</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-11 11:40)</h2>
+<h2>目前進度(2026-08-11 22:35)</h2>
 <p>任務 86 項:<strong>✅ 81 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>506 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
@@ -66,17 +66,17 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>app/version.py</code></td>
 <td><strong>0.2.1</strong></td>
-<td>T83 已改好(第八條 4:tag 前先改),<strong>待發</strong></td>
+<td>與最新 tag 一致</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
-<td><strong>v0.2.0</strong></td>
-<td>指向 <code>c504b1c</code>,不含 T81 / T82</td>
+<td><strong>v0.2.1</strong></td>
+<td>指向 <code>568014b</code>;CI 三 job 全綠、image 已推 GHCR</td>
 </tr>
 <tr>
 <td>VM 執行中</td>
-<td><strong>v0.2.0</strong></td>
-<td>換版後應顯示 0.2.1;v0.2.1 🟢 <strong>無 migration</strong></td>
+<td><strong>v0.2.1</strong></td>
+<td>✅ 2026-08-11 22:30 換版完成(哨兵以 <code>/help</code> 頁尾版本號驗證)</td>
 </tr>
 </tbody>
 </table>
@@ -989,6 +989,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.65</td>
+<td>2026-08-11 22:35</td>
+<td>Claude(換版實測回寫)</td>
+<td><strong>v0.2.1 已上線</strong>:VM 換版完成,三個版本號(程式碼 / tag / VM)首度一致;🐛 換版第一次失敗——<code>docker-compose.yml</code> 的 image tag <strong>沒改到</strong>(那一步是編輯檔案,被當成 shell 指令貼了),<code>pull</code> 拉的仍是 v0.2.0、容器顯示 <code>Running</code> 而非 <code>Started</code>;<strong>哨兵當場抓到</strong>(這正是 T68 版本號 + T81 搬到共用版型的價值:登入壞掉時仍能匿名驗版本)。換版指令改用 <code>sed -i</code> + <code>grep</code> 覆核,不再要求人工編輯</td>
 </tr>
 <tr>
 <td>v1.64</td>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 330" width="900" height="330"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="330" fill="#ffffff"/>
+
+  <!-- 五步 -->
+  <rect x="30" y="50" width="150" height="84" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="105" y="80" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">① 寫計畫</text>
+  <text x="105" y="102" font-size="12" fill="#6b7280" text-anchor="middle">驗收標準可測</text>
+  <text x="105" y="120" font-size="12" fill="#6b7280" text-anchor="middle">(第二條)</text>
+
+  <rect x="202" y="50" width="150" height="84" rx="10" fill="#fdf0ef" stroke="#b3372f" stroke-width="2"/>
+  <text x="277" y="80" font-size="15" font-weight="bold" fill="#b3372f" text-anchor="middle">② 寫紅測試</text>
+  <text x="277" y="102" font-size="12" fill="#6b7280" text-anchor="middle">實際執行</text>
+  <text x="277" y="120" font-size="12" fill="#6b7280" text-anchor="middle">記下紅的證據</text>
+
+  <rect x="374" y="50" width="150" height="84" rx="10" fill="#eaf6ef" stroke="#2f9e5b" stroke-width="2"/>
+  <text x="449" y="80" font-size="15" font-weight="bold" fill="#1f6b3f" text-anchor="middle">③ 實作至綠</text>
+  <text x="449" y="102" font-size="12" fill="#6b7280" text-anchor="middle">只改到目標綠</text>
+
+  <rect x="546" y="50" width="150" height="84" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="621" y="80" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">④ 全套+三件套</text>
+  <text x="621" y="102" font-size="12" fill="#6b7280" text-anchor="middle">pytest・ruff</text>
+  <text x="621" y="120" font-size="12" fill="#6b7280" text-anchor="middle">render --check</text>
+
+  <rect x="718" y="50" width="150" height="84" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="793" y="80" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">⑤ 補日誌</text>
+  <text x="793" y="102" font-size="12" fill="#6b7280" text-anchor="middle">紅→綠證據入檔</text>
+  <text x="793" y="120" font-size="12" fill="#6b7280" text-anchor="middle">(第六條)</text>
+
+  <!-- 箭頭 -->
+  <line x1="180" y1="92" x2="196" y2="92" stroke="#334" stroke-width="2"/><polygon points="202,92 192,87 192,97" fill="#334"/>
+  <line x1="352" y1="92" x2="368" y2="92" stroke="#334" stroke-width="2"/><polygon points="374,92 364,87 364,97" fill="#334"/>
+  <line x1="524" y1="92" x2="540" y2="92" stroke="#334" stroke-width="2"/><polygon points="546,92 536,87 536,97" fill="#334"/>
+  <line x1="696" y1="92" x2="712" y2="92" stroke="#334" stroke-width="2"/><polygon points="718,92 708,87 708,97" fill="#334"/>
+
+  <!-- 轉紅迴圈:④ 退回 ③ -->
+  <path d="M 621 134 L 621 168 L 449 168 L 449 146" fill="none" stroke="#12228f" stroke-width="1.8" stroke-dasharray="5 4"/>
+  <polygon points="449,140 444,150 454,150" fill="#12228f"/>
+  <text x="535" y="188" font-size="12.5" fill="#6b7280" text-anchor="middle">既有測試轉紅是常態 → 逐條歸類;改測試要在 docstring 記明為什麼(T81 一次 23 條)</text>
+
+  <!-- 護欄說明 -->
+  <rect x="110" y="222" width="680" height="66" rx="10" fill="#f7f8fc" stroke="#9aa3c0" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="450" y="248" font-size="13" fill="#334" text-anchor="middle">② 裡「紅階段就綠」的那幾條 = 護欄:釘住不該壞的東西(T81 非瀏覽器 200、T86 已發布無上傳入口)</text>
+  <text x="450" y="272" font-size="13" fill="#334" text-anchor="middle">護欄防的是實作做過頭,不證明功能存在(T87)</text>
+  <line x1="277" y1="134" x2="277" y2="222" stroke="#9aa3c0" stroke-width="1.2" stroke-dasharray="3 4"/>
+</svg>

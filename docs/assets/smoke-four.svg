@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" width="900" height="320"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="320" fill="#ffffff"/>
+
+  <!-- 1 對外路徑 -->
+  <rect x="30" y="50" width="196" height="120" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <circle cx="56" cy="76" r="14" fill="#12228f"/><text x="56" y="81" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="136" y="82" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">對外路徑</text>
+  <text x="128" y="112" font-size="12.5" fill="#334" text-anchor="middle">curl 經 gateway 打 /upload/</text>
+  <text x="128" y="134" font-size="12" fill="#6b7280" text-anchor="middle">只驗容器內 = 驗到別的東西</text>
+
+  <!-- 2 版本哨兵 -->
+  <rect x="248" y="50" width="196" height="120" rx="10" fill="#eaf6ef" stroke="#2f9e5b" stroke-width="2.5"/>
+  <circle cx="274" cy="76" r="14" fill="#2f9e5b"/><text x="274" y="81" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="354" y="82" font-size="15" font-weight="bold" fill="#1f6b3f" text-anchor="middle">版本哨兵</text>
+  <text x="346" y="112" font-size="12.5" fill="#334" text-anchor="middle">/help 頁尾的 vX.Y.Z</text>
+  <text x="346" y="134" font-size="12" fill="#6b7280" text-anchor="middle">匿名可驗,登入壞也能驗</text>
+  <text x="346" y="192" font-size="12" fill="#1f6b3f" text-anchor="middle">2026-08-11 的假換版就是它抓到的</text>
+  <line x1="346" y1="170" x2="346" y2="178" stroke="#2f9e5b" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+  <!-- 3 /ready -->
+  <rect x="466" y="50" width="196" height="120" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <circle cx="492" cy="76" r="14" fill="#12228f"/><text x="492" y="81" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="572" y="82" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">容器內 /ready</text>
+  <text x="564" y="112" font-size="12.5" fill="#334" text-anchor="middle">DB・MinIO・JWKS 皆就緒</text>
+  <text x="564" y="134" font-size="12" fill="#6b7280" text-anchor="middle">容器重建過就要重驗</text>
+
+  <!-- 4 既有系統 -->
+  <rect x="684" y="50" width="196" height="120" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <circle cx="710" cy="76" r="14" fill="#12228f"/><text x="710" y="81" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="790" y="82" font-size="15" font-weight="bold" fill="#12228f" text-anchor="middle">既有系統零影響</text>
+  <text x="782" y="112" font-size="12.5" fill="#334" text-anchor="middle">/・/plm/・/TMP_GEN/</text>
+  <text x="782" y="134" font-size="12.5" fill="#334" text-anchor="middle">/core/health 全 200</text>
+
+  <!-- 底部規則 -->
+  <rect x="30" y="228" width="850" height="62" rx="10" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="455" y="254" font-size="14" font-weight="bold" fill="#12228f" text-anchor="middle">四組全對才算換版完成(runbook §A.4);gateway reload 之後驗的才算數</text>
+  <text x="455" y="278" font-size="12.5" fill="#334" text-anchor="middle">需要登入才能驗的點,登入不可用期間要明列「未驗」——「沒驗到」不得記成「驗過了」</text>
+</svg>

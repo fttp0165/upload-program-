@@ -44,6 +44,27 @@ def make_pkce() -> tuple[str, str]:
     return verifier, challenge
 
 
+def _error_code(resp: httpx.Response) -> str:
+    """從 token 端點的錯誤回應取出 `error` 碼;取不到回空字串。
+
+    🔴 **只取 `error`,不取 `error_description`。** 前者是列舉值
+    (`invalid_grant` / `invalid_client` / …),內容可預期;後者是自由字串,
+    由 IdP 決定內容,我方無法保證裡面不會出現使用者名稱、email 或請求片段。
+    診斷需要的是前者——知道是 `invalid_grant` 就知道往哪查了;
+    後者的邊際價值遠低於「log 不記個資」這條紅線的風險。
+
+    🔴 **解析失敗要安靜降級。** IdP 或 gateway 可能回 HTML 錯誤頁,
+    記 log 這件事本身不能變成新的例外(那會讓真正的錯誤被蓋掉——T50 踩過)。
+
+    參數:resp 非 200 的回應。回傳:錯誤碼或空字串。副作用:無。
+    """
+    try:
+        value = resp.json().get("error", "")
+    except (ValueError, AttributeError):
+        return ""
+    return value if isinstance(value, str) else ""
+
+
 class OidcClient:
     """Discovery + 授權碼交換 + token 驗證。"""
 
@@ -145,8 +166,17 @@ class OidcClient:
         async with httpx.AsyncClient(timeout=self._settings.oidc_http_timeout_seconds) as client:
             resp = await client.post(discovery.token_endpoint, data=data)
         if resp.status_code != 200:
-            # 不把 IdP 回應原文吐給呼叫端,也不記進 log(可能含 token)。
-            log.warning("授權碼交換失敗", extra={"status": resp.status_code})
+            # 🔴 不把 IdP 回應原文吐給呼叫端——錯誤碼是**維運資訊**,不是給瀏覽器看的
+            #    (洩漏 client 設定細節無益)。使用者看到的訊息維持不變。
+            # T87:但 `error` 要記進 log。原本這裡寫「不記(可能含 token)」是過度保守:
+            #    token 端點的**錯誤**回應依 RFC 6749 §5.2 只有 error / error_description /
+            #    error_uri,不會有 token(有 token 的是 200 那條路徑,而它本來就不記)。
+            #    少了這個欄位,invalid_grant 與 invalid_client 在 log 裡長得一模一樣——
+            #    兩次登入故障的排查都因此只能靠猜。
+            log.warning(
+                "授權碼交換失敗",
+                extra={"status": resp.status_code, "oidc_error": _error_code(resp)},
+            )
             raise unauthorized("授權碼交換失敗,請重新登入。")
         return resp.json()
 
@@ -161,6 +191,11 @@ class OidcClient:
         async with httpx.AsyncClient(timeout=self._settings.oidc_http_timeout_seconds) as client:
             resp = await client.post(discovery.token_endpoint, data=data)
         if resp.status_code != 200:
+            # T87:續期原本完全沒有 log——失敗時同樣查無可查。
+            log.warning(
+                "續期失敗",
+                extra={"status": resp.status_code, "oidc_error": _error_code(resp)},
+            )
             raise unauthorized("session 已過期,請重新登入。")
         return resp.json()
 

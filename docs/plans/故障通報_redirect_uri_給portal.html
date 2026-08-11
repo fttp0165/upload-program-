@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>故障通報:upload-program 登入中斷(Keycloak 回 <code>invalid redirect_uri</code>)</h1>
 <p><strong>建立日期:</strong> 2026-08-11 10:00
-<strong>最後更新:</strong> 2026-08-11 10:00
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-08-11 22:45
+<strong>版本:</strong> v1.1
 <strong>受文方:</strong> cats-portal(Platform)
 <strong>發文方:</strong> upload-program(負責人 Benny)
 <strong>嚴重度:</strong> 🔴 服務不可用 —— <strong>全體使用者無法登入</strong></p>
@@ -100,7 +100,24 @@ summary { cursor:pointer; color:#12228f; }
 <code>/upload/</code> 在受影響清單內。我方無法判斷該次作業是否連帶調整了 Keycloak client 設定
 ——<strong>僅陳述時間點吻合,不預設原因。</strong></p>
 <hr />
-<h2>4. 請協助確認(三項)</h2>
+<h2>3.1 🎯 新增證據:client 憑證確定沒問題(2026-08-11 22:31)</h2>
+<p>我方於 22:30 上線 v0.2.1,該版開始記錄 IdP 回傳的 <code>error</code> 碼。上線一分鐘後取得:</p>
+<pre><code class="language-json">{&quot;message&quot;: &quot;續期失敗&quot;, &quot;status&quot;: 400, &quot;oidc_error&quot;: &quot;invalid_grant&quot;,
+ &quot;trace_id&quot;: &quot;2efd2537-ec6d-4f65-8199-46703c4661cd&quot;}
+</code></pre>
+<p>這是<strong>續期</strong>(refresh_token grant)失敗,本身是預期行為(舊 session 的 refresh token 已失效)。
+但它對本案有決定性意義:</p>
+<blockquote>
+<p>confidential client 打 token 端點時,IdP <strong>先驗 client 憑證</strong>。
+client_id / secret 有誤會回 <strong><code>invalid_client</code></strong>;我方拿到的是 <strong><code>invalid_grant</code></strong>,
+代表 <strong>client 憑證通過驗證</strong>,被拒的只是 grant 本身。</p>
+</blockquote>
+<p>🎯 <strong>因此 <code>client_id</code> 與 <code>client_secret</code> 確定是對的</strong>,§4 第 3 項可以排除。
+<strong>請集中查 Valid Redirect URIs 清單。</strong></p>
+<p>補充:同一時間 <code>/ready</code> 回 200,代表我方容器<strong>取得 JWKS 正常</strong> ——
+與 IdP 之間的網路、DNS、憑證鏈都通。本案純粹是 client 設定的比對問題。</p>
+<hr />
+<h2>4. 請協助確認(§3.1 之後縮減為兩項)</h2>
 <table>
 <thead>
 <tr>
@@ -111,15 +128,15 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td>1</td>
-<td>realm <code>sporton</code> 的 client <strong><code>upload-program</code></strong>,其 <strong>Valid Redirect URIs</strong> 是否<strong>逐字</strong>包含 §2 那一串?🔴 特別是<strong>結尾的斜線</strong> —— 若被登記成無斜線版本,即會產生目前的結果</td>
+<td>🔴 <strong>主要嫌疑</strong>:realm <code>sporton</code> 的 client <strong><code>upload-program</code></strong>,其 <strong>Valid Redirect URIs</strong> 是否<strong>逐字</strong>包含 §2 那一串?特別是<strong>結尾的斜線</strong> —— 若被登記成無斜線版本,即會產生目前的結果</td>
 </tr>
 <tr>
 <td>2</td>
-<td>2026-08-10 晚間的 gateway 變更,是否連帶動到此 client 的設定(redirect URI / post-logout / secret)?</td>
+<td>2026-08-10 晚間的 gateway 變更,是否連帶動到此 client 的 redirect URI / post-logout 設定?</td>
 </tr>
 <tr>
-<td>3</td>
-<td>client secret 是否曾經輪替?若有,請依契約 §5.2 走安全管道交付。⚠️ <strong>不要回覆在本文件的往返或任何聊天訊息裡</strong> —— 它會進 git</td>
+<td>~~3~~</td>
+<td>~~client secret 是否曾經輪替~~ —— <strong>已由 §3.1 排除</strong>,不必查。若日後仍需交付 secret,請依契約 §5.2 走安全管道;⚠️ 不要回覆在本文件的往返或任何聊天訊息裡(它會進 git)</td>
 </tr>
 </tbody>
 </table>
@@ -128,9 +145,9 @@ summary { cursor:pointer; color:#12228f; }
 <ul>
 <li>程式碼未變更登入流程(git 歷史可查),<code>redirect_uri</code> 的推導邏輯有測試釘住;</li>
 <li>錯誤發生在 <strong>IdP 端</strong>,我方服務未收到該請求,故本地 log 無對應紀錄;</li>
-<li>我方 <code>app/oidc.py</code> 目前<strong>僅記錄 token 端點回應的 status code、未記錄 <code>error</code> 欄位</strong>,
-  這是我方的診斷缺口,已列為待辦(錯誤回應 body 僅含 <code>error</code> / <code>error_description</code>,不含 token,
-  補記錄不違反「log 不記完整 JWT」的紅線)。</li>
+<li>~~我方僅記錄 status code、未記錄 <code>error</code> 欄位~~ <strong>已於 2026-08-11 補上(v0.2.1)</strong>,
+  §3.1 的證據即由此而來。只記 <code>error</code>(列舉值),不記 <code>error_description</code>(自由字串),
+  以免 IdP 的描述文字夾帶個資。</li>
 </ul>
 <hr />
 <h2>6. 順帶回報:front-channel logout 端點已就緒</h2>
@@ -154,6 +171,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-11 22:45</td>
+<td>Claude(v0.2.1 上線後回寫)</td>
+<td>新增 §3.1:v0.2.1 開始記錄 IdP 的 <code>error</code> 碼,取得 <code>invalid_grant</code>(而非 <code>invalid_client</code>)——<strong>證明 client 憑證通過驗證</strong>,secret 一項可排除,請集中查 Valid Redirect URIs;並補 <code>/ready</code> 200 證明 JWKS 取得正常(網路 / DNS / 憑證鏈皆通)。§4 由三項縮為兩項;§5 的自承缺口改為已修</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-08-11 10:00</td>

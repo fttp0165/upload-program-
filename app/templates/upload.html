@@ -36,31 +36,48 @@
   {% if release.status.value == 'published' %}
     <p class="notice">此版本**已發布**,不可再變更檔案。要調整請建立新版本。</p>
   {% else %}
-    <section id="uploader"
-             data-upload-base="{{ upload_base }}"
-             data-max-bytes="{{ max_artifact_bytes }}">
-      <h2>上傳檔案</h2>
-      <div class="stack-form">
-        <label>
-          <span>檔案</span>
-          <input type="file" id="file-input">
-        </label>
-        <label>
-          <span>類型</span>
-          <select id="kind-input" name="kind">
-            <option value="binary">binary —— 執行檔 / 安裝包</option>
-            <option value="source">source —— 原始碼壓縮檔</option>
-            <option value="doc">doc —— 程式文件</option>
-          </select>
-        </label>
-        <div class="form-actions">
-          <button type="button" id="upload-button" class="btn">開始上傳</button>
-        </div>
-      </div>
+    {#
+      T86:三格卡片,一格一類。
 
-      <progress id="upload-progress" value="0" max="100" hidden>0%</progress>
-      <p id="upload-status" class="muted" role="status" aria-live="polite"></p>
-    </section>
+      為什麼不是「一個檔案輸入 + 類型下拉」(原設計):T65 規定每一版必須三類齊備,
+      但下拉有預設值,**不選就是錯的那一類**(Benny 的截圖正是 files.zip 配 doc);
+      而且「還缺什麼」寫在頁面最底,離「要在哪裡補」隔了整頁。
+      改成一格一類之後,需求本身就是介面。
+
+      🔴 卡片由 `REQUIRED_KINDS` 產生,模板**不另寫一份清單**——
+         哪天加一類,卡片與「還缺⋯」那句話才不會各說各話。
+      🔴 這只是讓人少選錯。伺服器端的 magic bytes 與 kind 比對一步不減——
+         前端的檢查永遠只是體驗,不是防線。
+    #}
+    <div id="uploader"
+         data-upload-base="{{ upload_base }}"
+         data-max-bytes="{{ max_artifact_bytes }}">
+      <h2>上傳檔案</h2>
+      <div class="upload-cards">
+        {% for item, existing in upload_cards %}
+          <section class="upload-card{% if existing %} upload-card-done{% endif %}" data-kind="{{ item.kind.value }}">
+            <h3>{{ item.title }}</h3>
+            <p class="muted upload-card-hint">{{ item.hint }}</p>
+            {% if existing %}
+              <p class="upload-card-state"><strong>✓ {{ existing.filename }}</strong></p>
+            {% else %}
+              <p class="upload-card-state muted">尚缺</p>
+            {% endif %}
+            <input type="file" class="upload-file">
+            <div class="form-actions">
+              <button type="button" class="btn upload-start">
+                {% if existing %}換一個檔案{% else %}上傳{% endif %}
+              </button>
+              {# 取消鈕平時隱藏,上傳中才出現。沒有它,送出後畫面上就沒有任何
+                 可按的東西——選錯檔、選錯格子都只能重新整理整頁。 #}
+              <button type="button" class="btn btn-quiet upload-cancel" hidden>取消</button>
+            </div>
+            <progress class="upload-progress" value="0" max="100" hidden>0%</progress>
+            <p class="muted upload-status" role="status" aria-live="polite"></p>
+          </section>
+        {% endfor %}
+      </div>
+    </div>
   {% endif %}
 
   <section class="artifact-section">

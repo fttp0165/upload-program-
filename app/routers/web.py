@@ -55,7 +55,12 @@ from ..security import (
 )
 from ..templating import render
 from ..web_urls import web_url
-from .releases import latest_published_release, load_release, missing_required_kinds
+from .releases import (
+    REQUIRED_KINDS,
+    latest_published_release,
+    load_release,
+    missing_required_kinds,
+)
 
 router = APIRouter(include_in_schema=False, tags=["web"])
 log = logging.getLogger(__name__)
@@ -597,6 +602,22 @@ async def upload_page(
             # JS 不自己拼路徑(它不知道前綴是什麼)。
             upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
             max_artifact_bytes=settings.max_artifact_bytes,
+            # T86:三格卡片。每格配上「這一類目前已經有哪個檔」——
+            # 只認 ready,傳到一半的不算數(與 missing_required_kinds 同一條規則)。
+            upload_cards=[
+                (
+                    item,
+                    next(
+                        (
+                            a
+                            for a in release.artifacts
+                            if a.kind is item.kind and a.upload_status is UploadStatus.ready
+                        ),
+                        None,
+                    ),
+                )
+                for item in REQUIRED_KINDS
+            ],
             # T65:三類齊備規則——模板據此畫檢查表並停用發布鈕
             missing_kinds=missing_required_kinds(release),
         )

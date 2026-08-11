@@ -4,8 +4,15 @@
   🔴 這一頁顯示的 `target_label` 是使用者取的 slug / 檔名,屬**使用者可控內容**,
   靠 autoescape 逸出,禁用 |safe。
 
-  🔴 「操作者」欄只有 `actor_id`。與 admin_users.html 同一個理由:業務庫只存 sub,
-  稽核表更只存本地 user id——頁面上直接寫明,免得有人以為是壞掉或想去補個姓名欄位。
+  T84:「操作者」與「目標(user)」除了 id 之外**再顯示名稱**(來源 `display_name_cache`,
+  T59 / 契約 §4.2a L1)。原本這裡寫的是「業務庫只存 sub……免得有人想去補個姓名欄位」
+  ——那段寫於 T59 之前,當時確實沒有任何名字可用;前提已變,依第二條 5 回寫。
+
+  🔴 **UUID 不因為有名字就拿掉**:稽核是事後追人用的,id 才是身分事實,
+  名字只是登入當下的快照(改名後、下次登入前會顯示舊名)。
+  🔴 名字**只出現在這一頁**。`GET /v1/admin/audit` 一個名字欄位都不加——
+  §4.2a L1 的例外只涵蓋「管理後台顯示」,API 帶名字等於開一條整批匯出姓名的路。
+  🔴 名字來自 IdP 的 claim,非我方可控字串,靠 autoescape 逸出,禁用 |safe。
 
   篩選連結由路由端的 `_audit_url()` 算好(URL 編碼不是 autoescape 的職責)。
 #}
@@ -52,9 +59,17 @@
         </div>
         <dl class="artifact-meta">
           <dt>操作者</dt>
-          <dd><code>{{ event.actor_id or '(系統)' }}</code></dd>
+          <dd>
+            {% if names.get(event.actor_id) %}<strong>{{ names[event.actor_id] }}</strong>{% endif %}
+            <code>{{ event.actor_id or '(系統)' }}</code>
+          </dd>
           <dt>目標</dt>
-          <dd><code>{{ event.target_type }} {{ event.target_id or '—' }}</code></dd>
+          <dd>
+            {% if event.target_type == 'user' and names.get(event.target_id) %}
+              <strong>{{ names[event.target_id] }}</strong>
+            {% endif %}
+            <code>{{ event.target_type }} {{ event.target_id or '—' }}</code>
+          </dd>
           {% if event.trace_id %}
             <dt>trace_id</dt>
             <dd><code>{{ event.trace_id }}</code></dd>

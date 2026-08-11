@@ -828,3 +828,48 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 .issue-figure { margin: .8rem 0; }
 .issue-figure figcaption { font-size: .85rem; margin-top: .3rem; }
 .issue-attach { margin: 1.2rem 0; }
+
+/* T86:上傳三格卡片(說明 / 程式碼 / 執行檔)。
+   沿用 .project 的卡片語彙(圓角、陰影、頂部漸層線),不另創一套視覺。
+   auto-fit 讓窄螢幕自動疊成一欄——內部工具以桌面為主,但不該在筆電上爆版。 */
+.upload-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.1rem;
+  margin-top: 1rem;
+}
+
+.upload-card {
+  position: relative;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  padding: 1.2rem 1.3rem 1.1rem;
+}
+.upload-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--grad);
+}
+/* 已經有檔案的那一格改用綠色頂線:一眼看得出「這格齊了」。 */
+.upload-card-done::before { background: var(--green); }
+
+.upload-card h3 { margin: .2rem 0 .3rem; font-size: 1.05rem; }
+.upload-card-hint { margin: 0 0 .6rem; font-size: .85rem; }
+.upload-card-state { margin: 0 0 .7rem; font-size: .9rem; }
+.upload-card .upload-file { display: block; width: 100%; margin-bottom: .7rem; }
+.upload-card .form-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.upload-card .upload-progress { width: 100%; margin-top: .7rem; }
+.upload-card .upload-status { margin: .5rem 0 0; font-size: .85rem; }
+
+/* 取消是次要動作:看得到、按得到,但不跟「上傳」搶視線。 */
+.btn-quiet {
+  background: transparent;
+  color: var(--fg-muted);
+  box-shadow: none;
+  border: 1px solid var(--line);
+}
+.btn-quiet:hover { background: #f2f4f8; color: var(--ink); box-shadow: none; }

@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import problems
 from ..audit import AuditAction, record
@@ -54,7 +55,12 @@ from ..security import (
 )
 from ..templating import render
 from ..web_urls import web_url
-from .releases import latest_published_release, load_release, missing_required_kinds
+from .releases import (
+    REQUIRED_KINDS,
+    latest_published_release,
+    load_release,
+    missing_required_kinds,
+)
 
 router = APIRouter(include_in_schema=False, tags=["web"])
 log = logging.getLogger(__name__)
@@ -596,6 +602,22 @@ async def upload_page(
             # JS 不自己拼路徑(它不知道前綴是什麼)。
             upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
             max_artifact_bytes=settings.max_artifact_bytes,
+            # T86:三格卡片。每格配上「這一類目前已經有哪個檔」——
+            # 只認 ready,傳到一半的不算數(與 missing_required_kinds 同一條規則)。
+            upload_cards=[
+                (
+                    item,
+                    next(
+                        (
+                            a
+                            for a in release.artifacts
+                            if a.kind is item.kind and a.upload_status is UploadStatus.ready
+                        ),
+                        None,
+                    ),
+                )
+                for item in REQUIRED_KINDS
+            ],
             # T65:三類齊備規則——模板據此畫檢查表並停用發布鈕
             missing_kinds=missing_required_kinds(release),
         )
@@ -835,6 +857,27 @@ async def admin_disable(
     return _redirect(request, "/admin/users")
 
 
+async def _display_names(session: AsyncSession, ids: set) -> dict:
+    """批次取顯示名稱(T84)。回傳 {user_id: 名稱};查不到或沒有快取的**不放進字典**。
+
+    為什麼「查不到就不放」而不是放 None:模板端一律 `names.get(id) or id`,
+    沒有名字就退回 UUID。差別在於——稽核頁的欄位**不得空白**,那會讓人以為紀錄壞了。
+    名字空掉是常態不是例外:`name` claim 由 firstName + lastName 推導,兩者皆空即為 NULL
+    (`models.py` 已註明這是會真的走到的路徑);目標使用者也可能已被刪除
+    (`target_id` 刻意不是外鍵,「查不回去也無妨」)。
+
+    參數:session、ids 使用者 id 集合。回傳:dict。副作用:無(唯讀,固定一次查詢)。
+    """
+    if not ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(User.id, User.display_name_cache).where(User.id.in_(ids))
+        )
+    ).all()
+    return {uid: name for uid, name in rows if name}
+
+
 @router.get("/admin/audit", summary="管理後台:稽核紀錄")
 async def admin_audit_page(
     request: Request, session: DbSession, identity: OptionalUser
@@ -868,6 +911,20 @@ async def admin_audit_page(
         )
     ).scalars().all()
 
+    # T84:把本頁會用到的顯示名稱一次撈齊。
+    #
+    # 🔴 只在這裡組,**不進 schema、不進 API**——契約 §4.2a L1 的例外只涵蓋
+    #    「管理後台顯示」;`AuditEventOut` 的 docstring 也寫明「稽核不是繞過個資紅線的
+    #    後門」。API 一旦帶名字,拿得到 admin token 的程式就能整批匯出姓名對照表。
+    #
+    # 🔴 **一次 IN 查完**,不是每列查一次:稽核頁一次 20 列,逐列查就是 N+1,
+    #    而且會隨分頁大小惡化(設計文件《管理員後台與數據面板》§2:查詢數固定)。
+    #    `target_id` 只有 `target_type == "user"` 時才是使用者 id——其他型別的 id
+    #    丟進來查不但無意義,還會誤把剛好撞號的東西當成人。
+    name_ids = {e.actor_id for e in rows if e.actor_id}
+    name_ids |= {e.target_id for e in rows if e.target_id and e.target_type == "user"}
+    names = await _display_names(session, name_ids)
+
     settings = request.app.state.settings
     return HTMLResponse(
         render(
@@ -875,6 +932,7 @@ async def admin_audit_page(
             "admin_audit.html",
             identity=identity,
             events=rows,
+            names=names,
             total=total,
             offset=offset,
             action=action,

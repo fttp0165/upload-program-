@@ -1,6 +1,7 @@
 """版本(release):一次發布 = 一組檔案。draft 可改可刪,published 定版。"""
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -174,21 +175,37 @@ async def update_release(
 # T65:發布的三類齊備規則(Benny 2026-07-31 裁示)。
 # 每一版必須是「可用的交付」:更新文件、執行檔、原始碼包各至少一個——
 # 缺任何一類的版本對使用者都是半成品(有檔沒文件、有文件沒程式)。
-_REQUIRED_KINDS: dict[ArtifactKind, str] = {
-    ArtifactKind.doc: "更新文件(doc)",
-    ArtifactKind.binary: "執行檔(binary)",
-    ArtifactKind.source: "原始碼包(source)",
-}
+#
+# T86:同一份資料現在有兩個用途——「還缺什麼」那句話,以及上傳頁的三格卡片。
+# 合成一個結構而不是兩張表:分成兩份的話,哪天加一類就會出現「卡片有、缺項沒有」
+# 這種只在特定情境才看得出來的不一致。
+# 🔴 **順序有意義**:卡片與缺項訊息都照這裡的順序,兩處念起來才一樣
+#    (Benny 2026-08-05 指定:說明 → 程式碼 → 執行檔)。
+@dataclass(frozen=True)
+class RequiredKind:
+    """一個必備類別:技術值 + 缺項訊息用的長標籤 + 卡片用的短標題與說明。"""
+
+    kind: ArtifactKind
+    label: str
+    title: str
+    hint: str
+
+
+REQUIRED_KINDS: tuple[RequiredKind, ...] = (
+    RequiredKind(ArtifactKind.doc, "更新文件(doc)", "說明", "使用說明、更新內容(PDF / Markdown / 文字檔)"),
+    RequiredKind(ArtifactKind.source, "原始碼包(source)", "程式碼", "原始碼壓縮檔(zip / tar.gz)"),
+    RequiredKind(ArtifactKind.binary, "執行檔(binary)", "執行檔", "可以直接跑的檔案或安裝包"),
+)
 
 
 def missing_required_kinds(release: Release) -> list[str]:
-    """回傳缺少的類別中文標籤(依 doc→binary→source 固定順序);齊了回空 list。
+    """回傳缺少的類別中文標籤(依 `REQUIRED_KINDS` 的固定順序);齊了回空 list。
 
     只算 upload_status=ready 的檔案——上傳到一半的不算數。
     API 與網頁共用這一條,規則只存在一份。
     """
     present = {a.kind for a in release.artifacts if a.upload_status is UploadStatus.ready}
-    return [label for kind, label in _REQUIRED_KINDS.items() if kind not in present]
+    return [item.label for item in REQUIRED_KINDS if item.kind not in present]
 
 
 @router.post("/releases/{release_id}/publish", response_model=ReleaseOut, summary="發布版本")

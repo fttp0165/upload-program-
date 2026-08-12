@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回覆 cats-portal:§6 時序更正與 §6.5 三問的答案</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/回覆_portal_session時序.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>回覆 cats-portal:§6 時序更正與 §6.5 三問的答案</h1>
+<p><strong>建立日期:</strong> 2026-08-12 11:40
+<strong>最後更新:</strong> 2026-08-12 11:40
+<strong>版本:</strong> v1.0
+<strong>回覆對象:</strong> cats-portal《回覆 upload-program——登入中斷》<strong>v2.0</strong>(2026-08-12 10:30)
+<strong>From:</strong> upload-program 維運
+<strong>To:</strong> cats-portal 維運</p>
+<blockquote>
+<p>先致意:v2.0 的查證品質很高——用實際流量而不是推測,並且<strong>撤回自己 v1.0 的
+錯誤判定、保留原文留軌跡</strong>。我方照做:本函也會更正我方通報 v1.0 的一個錯
+(DevTools 截錄縮掉了 <code>redirect_uri</code>,§6.1 說得對)。
+另請留意:貴方回的是我方通報 <strong>v1.0</strong>;我方 <strong>v1.1</strong>(08-11 22:45)已含
+§3.1 的 <code>invalid_grant</code> 證據——與貴方 §0 ③ 的結論相同,雙方獨立到達同一點。</p>
+</blockquote>
+<hr />
+<h2>1. 🔴 §6.2 的時序,有一個關鍵誤讀</h2>
+<blockquote>
+<p>「剛完成授權碼交換的那一刻,它拿一張已失效的 refresh token 去換。」</p>
+</blockquote>
+<p><strong>不是 callback 之後——是同一秒裡「之前」的那個請求。</strong>
+把貴方 §6 的 gateway log 逐行對回我方程式路徑:</p>
+<table>
+<thead>
+<tr>
+<th>gateway 行(08:18:21)</th>
+<th>我方程式路徑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /upload/</code> → <strong>302</strong></td>
+<td>瀏覽器帶著<strong>上一次(已過期)的 session cookie</strong> 進站。<code>_session_token</code> 驗 access token 過期 → 拿 cookie 裡的舊 refresh token 問 IdP → <strong>這就是那筆 <code>REFRESH_TOKEN_ERROR / Token is not active</code></strong> → 視為未登入 → 依 v0.2.1 的入口導流送去登入</td>
+</tr>
+<tr>
+<td><code>GET /upload/auth/login</code> → 302</td>
+<td>發起 Authorization Code + PKCE</td>
+</tr>
+<tr>
+<td>authorize → <strong>302</strong></td>
+<td>IdP 有 SSO session,免畫面直接發 code</td>
+</tr>
+<tr>
+<td>callback → 302</td>
+<td>授權碼交換(<code>CODE_TO_TOKEN</code>);<strong>新 session cookie 以同名同 path 覆蓋舊的</strong></td>
+</tr>
+<tr>
+<td><code>GET /upload/</code> → <strong>200</strong></td>
+<td>新 cookie、新 access token,正常進站</td>
+</tr>
+</tbody>
+</table>
+<p>整條鏈在同一秒內走完(因為 IdP 有 SSO session,三個 302 都是瞬時的),
+所以「refresh 失敗」與「授權碼交換」落在同一秒——但<strong>因果順序是前者在先</strong>。</p>
+<p><strong>我方程式中不存在「callback 之後主動 refresh」的路徑</strong>:refresh 只發生在
+<code>_session_token</code>(每個請求讀 cookie、發現 access 過期時),callback 流程
+從頭到尾不會呼叫它。</p>
+<p>由此,<strong>9 筆 / 120 小時的 <code>Token is not active</code> 有一個無害的解釋</strong>:
+每一筆是「某個舊 session 過期後的第一次回訪」——舊 refresh token 已過
+IdP 的 idle 期,失敗一次、使用者被送去(通常是無感的)重新登入、new cookie
+覆蓋。這是設計行為:我方刻意<strong>真的去問 IdP</strong> 而不是自行延長,正是為了讓
+「IdP 端收權後既發 token 最長只活 5 分鐘」成立。</p>
+<h2>2. §6.5 三問的正面回答</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問</th>
+<th>答</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>callback 之後為何立刻 refresh?</td>
+<td><strong>沒有這件事</strong>——見 §1,事件屬於 authorize 之前的進站請求</td>
+</tr>
+<tr>
+<td>2</td>
+<td>新 refresh token 有沒有取代舊的?</td>
+<td><strong>有。</strong> 續期結果(含輪替後的 refresh token)由 <code>SessionRenewalMiddleware</code> 在回應階段寫回 cookie;登入時 <code>set_session</code> 同名同 path 覆蓋。此路徑有自動化測試(<code>test_session_refresh.py</code>)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>oidc.py</code> 補記 <code>error</code>?</td>
+<td><strong>已於 v0.2.1 上線</strong>(2026-08-11 22:30,貴方重現前約 10 小時)。我方通報 v1.1 §3.1 那筆 <code>{"oidc_error": "invalid_grant"}</code> 就是新欄位的產物——只記 <code>error</code>(列舉值),不記 <code>error_description</code>(自由字串可能夾帶個資)</td>
+</tr>
+</tbody>
+</table>
+<h2>3. 🔴 真正還沒解釋的:08:18:44 的踢回</h2>
+<p>這一項我方<strong>推不掉也推不出</strong>:新 cookie 的 access token 有效 300 秒,
+:44(+23s)理應仍有效。誠實列出三種可能與各自需要的資料:</p>
+<table>
+<thead>
+<tr>
+<th>可能</th>
+<th>誰能提供什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) :44 我方有嘗試續期且失敗</td>
+<td><strong>我方</strong>:v0.2.1 log 已含 <code>oidc_error</code> + trace_id,將撈 08:18(UTC)窗口比對;<strong>貴方</strong>:Keycloak 事件在 :44 有無任何 token 端點事件?</td>
+</tr>
+<tr>
+<td>(b) :44 cookie 有送達但<strong>無法解析</strong></td>
+<td>🔴 這條路在 v0.2.1 <strong>仍是靜默的</strong>(壞簽章直接視為未登入、不留痕)。<strong>已補</strong>:下一版起「cookie 存在但讀不動」會記 warning(只記長度,不記內容——cookie 內含 token)。若 :44 是這型,目前雙方都看不見</td>
+</tr>
+<tr>
+<td>(c) :44 根本沒帶 cookie(另一分頁/手動登出/與其他 client 交錯)</td>
+<td><strong>貴方</strong>:該行的毫秒序、UA / 來源 IP 是否與 :21 同一 client?:44 之後流程是否又<strong>靜默完成</strong>(IdP session 仍在)?若是,使用者體感只是「閃一下」,與(a)合併即為完整圖像</td>
+</tr>
+</tbody>
+</table>
+<p>我方待辦(將主動執行並回報):撈 08-12 08:18 UTC 窗口的容器 log;
+之後與貴方核對毫秒序。</p>
+<h2>4. 貴方 §1.3 / §5 的執行:請照原計畫做</h2>
+<p>front-channel logout 的登記(旗標 + URL 成對)與根因無關、本來就要做——
+<strong>請執行</strong>。套用後我方將依契約 §10 重跑 A→B 復現,並歡迎 live 回讀。
+<code>client-upload-program.sh</code> 不輪替 secret 的確認收到,謝謝。</p>
+<h2>5. 我方通報 v1.0 的更正(對等回報)</h2>
+<ul>
+<li>§1 的 DevTools 截錄確實把 <code>redirect_uri</code> 縮掉了——貴方 §6.1 用 gateway
+  原始值補上了雙方都缺的那個觀測,我方通報的「主要嫌疑」判定<strong>撤回</strong>。</li>
+<li>貴方「監控仍吃 301、不會替你們發現問題」的提醒收到;我方已有自己的
+  換版冒煙腳本(逐項檢查對外路徑/版本哨兵/標頭),不依賴貴方告警。</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-12 11:40</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:§6.2 時序更正(refresh 事件屬 authorize 之前的進站請求,附逐行對照;我方無 callback 後 refresh 的路徑);§6.5 三問正面回答(1 無此事、2 有且有測試、3 已於 v0.2.1 上線);:44 踢回誠實列三種可能與雙方各需提供的資料,並自承(b)型在 v0.2.1 仍靜默、已補觀測;撤回我方 v1.0 的主要嫌疑判定</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

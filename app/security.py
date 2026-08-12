@@ -6,6 +6,7 @@
 - 派角色只在本服務後台,不碰 Keycloak(§4.4)
 """
 
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -67,6 +68,8 @@ def _bearer_token(request: Request) -> str | None:
 
 
 # 續期後的新 session 暫存在這個 request.state 欄位,由中介層在回應產生後寫成 cookie。
+log = logging.getLogger(__name__)
+
 RENEWED_SESSION_ATTR = "renewed_session"
 
 
@@ -90,8 +93,16 @@ async def _session_token(request: Request) -> str | None:
     """
     codec = request.app.state.cookies
     settings: Settings = request.app.state.settings
-    data: SessionData | None = codec.read_session(request.cookies.get(settings.session_cookie_name))
+    raw = request.cookies.get(settings.session_cookie_name)
+    data: SessionData | None = codec.read_session(raw)
     if data is None or not data.access_token:
+        # T92:cookie **存在但讀不動**(壞簽章/內容毀)要留痕——portal 現場重現裡
+        # 「登入成功 23 秒後被踢回」若走的是這條路,原本 log 一片空白,事後無從
+        # 分辨「沒帶 cookie」與「帶了但無法解析」。
+        # 🔴 只記長度不記內容:session cookie 內含 access/refresh token,
+        #    記原文等於把 token 寫進 log。cookie 不存在時**不記**(匿名是常態)。
+        if raw:
+            log.warning("session cookie 無法解析,視為未登入", extra={"cookie_len": len(raw)})
         return None
 
     oidc: OidcClient = request.app.state.oidc

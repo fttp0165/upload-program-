@@ -51,6 +51,7 @@ TARGETS = [
     "plans/設計_問題回報系統.md",
     "plans/施工計畫書_問題回報系統.md",
     "plans/故障通報_redirect_uri_給portal.md",
+    "plans/回覆_portal_session時序.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

@@ -1,10 +1,12 @@
 # 故障通報:upload-program 登入中斷(Keycloak 回 `invalid redirect_uri`)
 
+**專案:** upload-program
+**發文專案:** upload-program
+**受文專案:** cats-portal
+**發文時間:** 2026-08-11 10:00
 **建立日期:** 2026-08-11 10:00
-**最後更新:** 2026-08-11 22:45
-**版本:** v1.1
-**受文方:** cats-portal(Platform)
-**發文方:** upload-program(負責人 Benny)
+**最後更新:** 2026-08-12 17:20
+**版本:** v1.2
 **嚴重度:** 🔴 服務不可用 —— **全體使用者無法登入**
 
 ---
@@ -49,6 +51,7 @@ https://catsapp.sporton.com.tw/upload/oidc/callback/
 
 | 時間 | 症狀 | 我方 trace_id | 研判 |
 |---|---|---|---|
+| v1.2 | 2026-08-12 17:20 | Claude(T93 第九條) | 依憲法第九條補上抬頭四欄(專案 / 發文專案 / 受文專案 / 發文時間);內容未變動 |
 | 稍早 | 登入走完 IdP 後,**在 callback 端 401**「授權碼交換失敗」 | `5983122e-8d48-4c62-9ab6-e2804188b529` | authorize 過得去,**換 token 時被拒** |
 | 目前 | **authorize 當下即 400** `invalid redirect_uri` | — | 連 authorize 都不接受了 |
 

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨專案文件索引</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/跨專案文件索引.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>跨專案文件索引</h1>
+<p><strong>專案:</strong> upload-program
+<strong>建立日期:</strong> 2026-08-12 17:20
+<strong>最後更新:</strong> 2026-08-12 17:20
+<strong>版本:</strong> v1.0</p>
+<blockquote>
+<p>依憲法<strong>第九條 5</strong>:每份跨專案文件都要登記在這裡。
+這一頁回答四個問題——<strong>發過什麼、給誰、什麼時候、對方回了沒</strong>。</p>
+<p>本索引同時是<strong>新舊命名之間的橋</strong>:第九條只對生效後新建的文件有強制力,
+既有 8 份維持原檔名(它們被開發日誌引用 40+ 處,回頭改名等於用新規則竄改舊歷史),
+缺的 metadata 由本表補齊。</p>
+</blockquote>
+<hr />
+<h2>1. 我方發出(upload-program → cats-portal)</h2>
+<p>依發文時間排序,新的在下。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>發文時間</th>
+<th>類別</th>
+<th>文件</th>
+<th>對方回覆狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2026-07-28 03:28</td>
+<td>申請</td>
+<td><a href="SSO接入申請_給portal.md">SSO 接入申請書</a></td>
+<td>✅ 已受理,client 建立完成</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2026-07-28 04:05</td>
+<td>交付</td>
+<td><a href="待portal提供資訊.md">待 portal 提供的資訊(表單)</a></td>
+<td>✅ A/B/E 段已回填</td>
+</tr>
+<tr>
+<td>3</td>
+<td>2026-07-29 03:20</td>
+<td>回覆</td>
+<td><a href="回覆_portal施工單.md">回覆:portal SSO 接入施工單</a></td>
+<td>✅ 已收,secret 交付完成</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2026-07-29 10:00</td>
+<td>同步</td>
+<td><a href="狀況同步_給portal_20260729上線.md">狀況同步:upload-program 已上線</a></td>
+<td>✅ 已收</td>
+</tr>
+<tr>
+<td>5</td>
+<td>2026-07-29 15:00</td>
+<td>申請</td>
+<td><a href="申請_姓名快取特例_給portal.md">顯示名稱快取之契約具名特例</a></td>
+<td>✅ <strong>已核准</strong>(§4.2a L1)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2026-07-31 21:40</td>
+<td>申請</td>
+<td><a href="申請_AdminAPI即時查詢_給portal.md">以 Admin REST API 即時查詢顯示名稱</a></td>
+<td>⏳ <strong>待裁示</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>2026-07-31 22:50</td>
+<td>聲明</td>
+<td><a href="聲明_SLO_session形態_給portal.md">session 形態與 front-channel logout 端點</a></td>
+<td>⏳ <strong>待登記</strong>(旗標 + URL 成對)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>2026-08-11 10:00</td>
+<td>通報</td>
+<td><a href="故障通報_redirect_uri_給portal.md">登入中斷(Keycloak 回 <code>invalid redirect_uri</code>)</a></td>
+<td>✅ 已回覆 v2.0(撤回原判定)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>2026-08-12 11:40</td>
+<td>回覆</td>
+<td><a href="upload-program_致_cats-portal_回覆_session時序_20260812-1140.md">§6 時序更正與 §6.5 三問的答案</a></td>
+<td>⏳ <strong>待送出</strong>;首份採第九條新命名</td>
+</tr>
+</tbody>
+</table>
+<h2>2. 對方發來(cats-portal → upload-program)</h2>
+<p>尚未在本 repo 落地保存。第九條 4 規定收到的他方文件原樣存 <code>docs/plans/inbox/</code>——
+這條<strong>自本索引起生效</strong>,先前收到的兩封(SSO 施工單、登入中斷回覆 v1.0/v2.0)
+當時以聊天附件形式處理,未進版控。</p>
+<table>
+<thead>
+<tr>
+<th>收到時間</th>
+<th>來源</th>
+<th>主旨</th>
+<th>目前所在</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-08-12 10:30</td>
+<td>cats-portal</td>
+<td>《回覆 upload-program——登入中斷》v2.0</td>
+<td>⚠️ 僅聊天附件,未落地</td>
+</tr>
+</tbody>
+</table>
+<p><strong>後續建議:</strong> 下次收到他方文件時依第九條 4 存入 <code>docs/plans/inbox/</code>;
+上表兩封若日後取得原檔,補存並回填本表。</p>
+<hr />
+<h2>3. 目前卡在對方的事項(從上表擠出來的行動清單)</h2>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>來源文件</th>
+<th>我方狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admin API service account 裁示</td>
+<td>#6</td>
+<td>程式與資料庫皆未動,等裁示後才決定是否移除落地快取</td>
+</tr>
+<tr>
+<td>front-channel logout 登記</td>
+<td>#7</td>
+<td>端點已實作(T74),等對方登記後依契約 §10 重跑 A→B 復現</td>
+</tr>
+<tr>
+<td>08:18:44 踢回的毫秒序 / UA / 來源 IP</td>
+<td>#9</td>
+<td>我方已排除「續期失敗」一路,剩兩種可能待對方資料收斂</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-12 17:20</td>
+<td>Claude(T93 第九條)</td>
+<td>初版:登記 9 份對外文件(發文時間、類別、回覆狀態)、對方來文現況與落地缺口、卡在對方的三項行動</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

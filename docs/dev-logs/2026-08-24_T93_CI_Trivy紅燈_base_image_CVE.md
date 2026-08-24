@@ -1,8 +1,8 @@
 # T93:CI Trivy 紅燈——base image 的 util-linux CVE
 
 **建立日期:** 2026-08-24 14:35
-**最後更新:** 2026-08-24 14:35
-**版本:** v1.0
+**最後更新:** 2026-08-24 15:05
+**版本:** v1.1
 **任務編號:** T93
 
 ---
@@ -81,4 +81,63 @@ CI 的建置環境**無法在本機重現**:這個容器裡沒有 docker daemon
 
 ## 結果
 
-(施工後補)
+### 三輪 CI 換來的三個事實
+
+| 嘗試 | 結果 |
+|---|---|
+| ① CI build 加 `--pull` | ❌ **仍紅**。拿到的 base image digest 沒變 |
+| ② 診斷步驟(base image 資訊 + apt 可達性) | base created **2026-07-14**、digest `sha256:57cd7c3a…`、**`apt` = APT_OK** |
+| ③ runtime 階段指定套件升級 | 見下(本次提交) |
+
+```
+base image created : 2026-07-14T02:11:29Z
+base image digest  : python@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+apt 套件庫         : APT_OK
+Trivy              : Total 36 (HIGH: 36) —— 全部 src:util-linux,Installed 2.41-5 → Fixed 2.41.5-0+deb13u1
+```
+
+### 🔴 計畫錯在哪(第二條 5 回寫)
+
+計畫段把「Dockerfile 加 `apt-get upgrade`」列為**行不通**,理由是 Dockerfile 檔頭
+2026-07-30 的紀錄「VM 連不到 apt 套件庫」。
+
+**那則紀錄已經過期** —— 2026-08-24 在 CI 上實測回 `APT_OK`。
+所以真正該做的第一件事不是 `--pull`,而是**先驗證那個前提還成不成立**。
+
+⚠ 這件事本身就是教訓:**檔頭那行註解讓一整條正確的修法被我先排除掉了。**
+註解記的是「當時的環境」,而環境會變;下次看到「某條路不通」的紀錄,
+先問它是哪一天寫的、以及有沒有便宜的方法當場重驗。
+Dockerfile 檔頭已加上 2026-08-24 的更正,不讓下一個人再被同一句話擋一次。
+
+### 做法(本次提交)
+
+runtime 階段(`USER app` 之前)升級 Trivy 表列的**八個 util-linux 系列套件**:
+
+```dockerfile
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+       util-linux mount login bsdutils \
+       libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && dpkg-query -W -f='util-linux 升級後版本:${Version}\n' util-linux
+```
+
+- **寫死清單而不是 `apt-get upgrade`**:這八個就是 Trivy 表的全部,明列讓「這次修了什麼」
+  在 diff 上看得見;`upgrade` 會把不相關的套件一起動,出問題時分不出是誰。
+- `--pull` **保留**(build 與 publish 兩個 job 都加):它本身是對的,只是不夠。
+- 診斷步驟**已移除**(事實留在本篇與 Dockerfile 註解裡)。
+- 🔴 掃描門檻**一字未改**:仍 `--severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed`。
+
+### 對現有資料的實際影響
+
+🟢 **不動。** 不碰程式、不碰 Python 相依、不碰資料。image 會大幾 MB。
+
+### 遺留問題與後續建議
+
+1. **這是打補丁,不是根治。** 上游 `python:3.12-slim` 一旦重建,這一段就變成多餘
+   (但無害)。真正的根治是 base image 鎖 digest + 定期升 digest 的例行工作,
+   或改用會自動跟上安全更新的建置方式。
+2. 下一次「別的來源」的 CVE 還是要再加一行 —— 那時值得考慮改成
+   `apt-get upgrade` + 明確記錄理由,而不是清單越長。
+3. 🔴 **CI 綠燈才算完成**:這個環境沒有 docker daemon 也沒有 Trivy,
+   我在本機無法驗證這段 `RUN`;證據只能是 CI 那一格。

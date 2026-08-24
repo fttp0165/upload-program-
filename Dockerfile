@@ -14,6 +14,9 @@ ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 # VM self-hosted 後,apt 套件庫從該網路不可達,這步直接炸(run #85)。
 # 拿掉 apt,並以 --only-binary=:all: 把「全程用 wheel、不需編譯器」變成強制:
 # 哪天有相依只出 sdist,會在這裡大聲失敗,而不是默默要求 gcc。
+# ⚠ 2026-08-24 更正(T93):「apt 套件庫不可達」**這件事已經不成立**——CI 上實測
+#   回 `APT_OK`。builder 這裡仍然不裝 apt 套件(理由改為「不需要編譯器」這一條本身,
+#   它與網路可達性無關),但 runtime 階段自此**會**用 apt 升級 OS 套件(見下)。
 WORKDIR /build
 COPY requirements.txt .
 RUN python -m venv /opt/venv \
@@ -28,6 +31,32 @@ ENV PYTHONUNBUFFERED=1 \
 
 # 🔴 non-root:UID 1000
 RUN useradd -m -u 1000 app
+
+# 🔴 T93(2026-08-24):升級 base image 帶來的 util-linux 系列套件。
+#
+# 為什麼要在這裡動 apt,而檔頭寫著「apt 不可達」:
+# **那則紀錄已經過期。** 2026-08-24 在 CI 上實測(診斷步驟,見 dev-log T93)得到
+# `APT_OK` —— 網路條件與 2026-07-30 run #85 當時不同了。憲法第二條 5:發現計畫與
+# 現實不符要回寫,不是繼續照著錯的前提做決定。
+#
+# 為什麼非升級不可:Trivy(`--severity HIGH,CRITICAL --ignore-unfixed`)在
+# base image `python:3.12-slim`(建立於 **2026-07-14**,`--pull` 後仍是同一個 digest
+# → 上游未重建)裡抓到 **36 條 HIGH,全部來自 src:util-linux**:
+#   CVE-2026-53612/53613 mount 的 TOCTOU、53614 SUID mount 繞過 nosuid/noexec、
+#   53615 libblkid 整數溢位。Installed 2.41-5 → Debian 修版 2.41.5-0+deb13u1。
+# 🔴 **不用 `.trivyignore` 換綠燈**(T82 立下的界線:本服務散布可執行檔,
+#    調鬆掃描是拿紅線換方便),也不等上游重建(那會讓這批改動無限期不能上線)。
+#
+# 套件清單為什麼寫死而不是 `apt-get upgrade`:這八個就是 Trivy 表列出的全部,
+# 明列讓「這次修了什麼」在 diff 上看得見;`upgrade` 會把不相關的套件一起動,
+# 出問題時分不出是誰。日後其他來源的 CVE 就再開一個任務、再加一行。
+# 🔴 在 `USER app` **之前**(apt 需要 root),裝完刪 lists 不留快取。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+       util-linux mount login bsdutils \
+       libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && dpkg-query -W -f='util-linux 升級後版本:${Version}\n' util-linux
 
 COPY --from=builder /opt/venv /opt/venv
 

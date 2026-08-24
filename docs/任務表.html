@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-24 15:40
-<strong>版本:</strong> v1.71</p>
+<strong>最後更新:</strong> 2026-08-24 15:45
+<strong>版本:</strong> v1.72</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-24 15:40)</h2>
-<p>任務 91 項:<strong>✅ 86 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-24 15:45)</h2>
+<p>任務 92 項:<strong>✅ 87 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -65,18 +65,18 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td><code>app/version.py</code></td>
-<td><strong>0.2.1</strong></td>
-<td>T83 已改好(第八條 4:tag 前先改),<strong>待發</strong></td>
+<td><strong>0.2.2</strong></td>
+<td>T94 已改好(第八條 4:tag 前先改),<strong>待發</strong></td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
-<td><strong>v0.2.0</strong></td>
-<td>指向 <code>c504b1c</code>;v0.2.1 發版中(T93 已解,Trivy 兩個 run 全綠)</td>
+<td><strong>v0.2.1</strong></td>
+<td>指向 <code>568014b</code>(T87/T88)。⚠ 本表先前寫「v0.2.0、v0.2.1 待發」是<strong>過期記載</strong>,並據此把發版規劃到已用過的版號(見 T94)</td>
 </tr>
 <tr>
 <td>VM 執行中</td>
-<td><strong>v0.2.0</strong></td>
-<td>換版後應顯示 0.2.1;v0.2.1 🟢 <strong>無 migration</strong></td>
+<td><strong>v0.2.1</strong></td>
+<td>2026-08-24 15:34 換版(T87/T88,<strong>不含 T89–T93</strong>);待 v0.2.2 image 推出後再換 🟢 無 migration</td>
 </tr>
 </tbody>
 </table>
@@ -620,6 +620,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>PR #28 的 CI:測試/lint 綠(527),<strong>Build image + Trivy 紅</strong>——<code>util-linux</code> / <code>mount</code> / <code>login</code> / <code>bsdutils</code> 的 CVE-2026-53612~53615(TOCTOU、SUID mount 繞過 nosuid、libblkid 整數溢位);🔴 <strong>與本批改動無關</strong>:PR 沒動 <code>Dockerfile</code> 也沒動 <code>requirements*.txt</code>,而<strong>上一次 main 的 CI 是綠的</strong>(08-11 run #173),期間 Debian 公布了這四支 —— 環境漂移,與 T82 同型;Trivy 帶 <code>--ignore-unfixed</code>,<strong>能被列出就代表 Debian 已有修版</strong>;🔴 <strong>兩條看似顯然的修法在本專案行不通</strong>:①Dockerfile 加 <code>apt-get upgrade</code> —— <strong>VM 連不到 apt 套件庫</strong>(2026-07-30 run #85 就是為此把 builder 的 apt 整段拿掉,Dockerfile 檔頭有紀錄),加回去等於在同一個地方再炸一次;②<code>.trivyignore</code> —— T82 已明文拒絕(散布可執行檔的服務,調鬆掃描是拿紅線換方便);故先做最便宜的一步:CI build 加 <strong><code>--pull</code></strong> —— runner 是<strong>同一台 VM</strong>、本機層快取長期存在,沒有 <code>--pull</code> 的話 <code>FROM python:3.12-slim</code> 會一直用第一次拉下來的那份,而 base image 走 dockerd 的 registry mirror,那條路是通的;<strong>掃描門檻一字未改</strong>;⚠ 若 <code>--pull</code> 後仍紅代表上游未重建 → 選項依序:等上游重建(期間不發版)/ 換已含修版的 base tag(另開任務)/ Benny 明示逐 CVE 帶到期日的一次性例外;<strong>不寫新測試</strong>(第三條 4):這個環境沒有 docker daemon 也沒有 Trivy,<strong>驗證只能在 CI 上發生</strong>,不是我宣稱它會過。<strong>狀態 🔵:CI 轉綠才轉 ✅</strong></td>
 </tr>
 <tr>
+<td>T94</td>
+<td>發版前置:<code>APP_VERSION</code> → 0.2.2</td>
+<td>✅</td>
+<td>🟢</td>
+<td>🔴 <strong>這批不能用 v0.2.1——它早就發布過了</strong>(tag 指向 <code>568014b</code>,即 T87/T88 合併後的 main);第八條 5 同版不重發,故走 <strong>v0.2.2</strong>,並依第八條 4 在打 tag 前隨 PR 改好常數;⚠ <strong>本表的「三個版本號」表寫「最新 tag = v0.2.0、v0.2.1 待發」是過期記載</strong>,發版規劃照它做,結果 VM 在 15:34 換到的 <code>v0.2.1</code> 是 T87/T88 那一版、<strong>不含 T89–T93</strong>(沒造成故障,但「照著文件做卻部署了不是預期內容的版本」正是第七條存在的理由),已依第二條 5 回寫該表;<strong>不寫新測試</strong>(第三條 4,同 T83):既有版本號測試全部讀同一常數,再抄一遍字面值抓不到任何錯;遺留建議:CI 加守門比對 <code>APP_VERSION</code> 與 GitHub 最新 tag(常數不得 ≤ 已發布最新 tag),另立任務不夾在發版裡做</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -947,6 +954,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.72</td>
+<td>2026-08-24 15:45</td>
+<td>Claude(發版前置)</td>
+<td><strong>T94:<code>APP_VERSION</code> → 0.2.2</strong>,並更正本表過期的版本號記載。🔴 <code>v0.2.1</code> <strong>早就發布過</strong>(指向 <code>568014b</code>),而本表寫「最新 tag = v0.2.0、v0.2.1 待發」——發版照它規劃,導致 VM 在 15:34 換到的 v0.2.1 是 T87/T88 那一版、不含 T89–T93。沒造成故障,但這正是第七條要防的事:<strong>過期文件看起來很權威</strong>。依第八條 5(同版不重發)本批走 v0.2.2</td>
+</tr>
 <tr>
 <td>v1.71</td>
 <td>2026-08-24 15:40</td>

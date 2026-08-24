@@ -87,3 +87,32 @@ async def test_品牌與專案總覽仍指向帶前綴的首頁(client, app, oid
     assert re.search(rf'class="side-link[^"]*"\s+href="{PREFIX}/"', resp.text), (
         "側欄「專案總覽」應指向帶前綴的首頁"
     )
+
+
+# --- T89:側欄的入口連結在最下面 -------------------------------------------
+
+
+def _side_links(html: str) -> list[str]:
+    """側欄連結的 class 屬性,依出現順序。"""
+    return re.findall(r'class="(side-link[^"]*)"', html)
+
+
+async def test_側欄入口連結排在所有站內連結之後(client, app, oidc):
+    """T89:Benny 回報「把回到入口連結放到最下面」。
+
+    🔴 T67 原本放最上方,理由是「離場動作與站內走動是不同層級」——層級判斷沒錯,
+    方向錯了:第一眼該看到的是「在這個 App 裡能做什麼」,不是「怎麼離開」。
+    """
+    await make_user(app, "sub-exit-order")
+    resp = await client.get("/", headers={**BROWSER, **auth(oidc.issue("sub-exit-order"))})
+    classes = _side_links(resp.text)
+    assert any("side-exit" in c for c in classes), "側欄應有入口連結"
+    assert "side-exit" in classes[-1], f"入口連結應是側欄最後一項,實得順序:{classes}"
+
+
+async def test_管理員側欄的入口連結也在管理段之後(client, app, oidc):
+    """管理段是側欄最長的一段;放在它之前就不是「最下面」。"""
+    await make_user(app, "sub-exit-admin", admin=True)
+    resp = await client.get("/", headers={**BROWSER, **auth(oidc.issue("sub-exit-admin"))})
+    body = resp.text
+    assert body.index("稽核紀錄") < body.index("side-exit"), "入口連結應排在稽核紀錄之後"

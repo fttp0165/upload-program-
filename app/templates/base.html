@@ -130,14 +130,6 @@
       <div class="side-sub">{{ site_name }}</div>
     </div>
 
-    {# T67:回到平台入口放在最上方——它是「離開這個 App」的動作,
-       與底下那些「在這個 App 裡面走動」的連結是不同層級,所以獨立一段。
-       🔴 href 用 portal_url,不經過 url()(理由見頂列同一條)。 #}
-    <a class="side-link side-exit" href="{{ portal_url }}">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5H13a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1H9.5"/><path d="M6.5 5.5 3 8l3.5 2.5"/><path d="M3 8h7"/></svg>
-      回到平台入口
-    </a>
-
     <a class="side-link{% if current_path == '/' %} active{% endif %}" href="{{ url('/') }}">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 4h4l1.5 2h7.5v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>
       專案總覽
@@ -174,6 +166,18 @@
         稽核紀錄
       </a>
     {% endif %}
+
+    {# T67 → T89:回到平台入口移到側欄**最下面**(Benny 2026-08-24 回報)。
+       T67 原本放最上方,理由是「離場動作與站內走動是不同層級」——層級判斷沒錯,
+       方向錯了:同一份理由更支持放最後,第一眼該看到的是「在這個 App 裡能做什麼」,
+       不是「怎麼離開」;把離場動作擺在視線起點,等於每次進站都先被問要不要走。
+       🔴 貼底靠 `.side-exit { margin-top: auto }`(側欄是 flex column),
+          **不是**塞空白元素——項目數會隨管理權限變,固定間距一定有一種身分看起來是壞的。
+       🔴 href 用 portal_url,不經過 url()(理由見頂列同一條)。 #}
+    <a class="side-link side-exit" href="{{ portal_url }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5H13a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1H9.5"/><path d="M6.5 5.5 3 8l3.5 2.5"/><path d="M3 8h7"/></svg>
+      回到平台入口
+    </a>
   </aside>
 {% endif %}
 

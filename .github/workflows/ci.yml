@@ -112,8 +112,12 @@ jobs:
       # 🔴 修法**不能**是 Dockerfile 加 `apt-get upgrade`:VM 連不到 apt 套件庫
       # (2026-07-30 run #85 就是為此把 builder 的 apt 整段拿掉);base image 則走
       # dockerd 的 registry mirror,那條路是通的。
+      # 🔴 `--no-cache` 是 T93 第四輪加的(**暫時**,確認修法生效後改回):
+      # `--pull` 只更新 base image,**不影響我們自己那層 `RUN apt-get`**。
+      # runner 是同一台 VM、層快取長期存在,所以那層很可能一直回放
+      # 「什麼都沒升級」的那次結果 —— 而它不會報錯,由 Trivy 在下一步才告發。
       - name: Build image(dockerd 內建 builder,先只建到本機)
-        run: docker build --pull -t upload-program:ci .
+        run: docker build --pull --no-cache -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |
@@ -183,23 +187,6 @@ jobs:
             --format table --exit-code 1 \
             --severity HIGH,CRITICAL --ignore-unfixed \
             upload-program:ci
-
-      # T93 診斷第二輪(**暫時**):apt 升級沒生效,要分清是「候選版本就是舊的」
-      # 還是「層被快取」。前者要改套件來源,後者要改建置方式——修法完全不同,
-      # 所以取事實,不猜。🔴 全部 `|| true`,不改變 CI 成敗;`if: always()` 讓它
-      # 在 Trivy 紅之後仍然執行(紅的時候才最需要這些數字)。
-      - name: 診斷 2:實際安裝版本與 apt 候選版本(T93,不擋 CI)
-        if: always()
-        run: |
-          set +e
-          echo "--- 建好的 image 裡實際裝的版本 ---"
-          docker run --rm --entrypoint dpkg-query upload-program:ci -W -f='util-linux=${Version}\n' util-linux
-          echo "--- base image 的 apt 來源與候選版本 ---"
-          docker run --rm --entrypoint sh python:3.12-slim -c '
-            cat /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null;
-            apt-get update >/dev/null 2>&1;
-            apt-cache policy util-linux'
-          true
 
   # ---------------------------------------------------------------- 發布
   publish:

@@ -51,12 +51,23 @@ RUN useradd -m -u 1000 app
 # 明列讓「這次修了什麼」在 diff 上看得見;`upgrade` 會把不相關的套件一起動,
 # 出問題時分不出是誰。日後其他來源的 CVE 就再開一個任務、再加一行。
 # 🔴 在 `USER app` **之前**(apt 需要 root),裝完刪 lists 不留快取。
+#
+# 🔴 **升級必須當場驗證,不能只相信 apt 的離開碼**(2026-08-24 第四輪的教訓):
+# 實測 `apt-get` 回 0、build 一路過關,而 image 裡仍是舊版 2.41-5
+# ——**它靜靜地什麼都沒做**,然後由 Trivy 在下一步才告發,看起來像掃描的問題。
+# 下面的 `case` 把「沒升級」變成**建置當場失敗**並印出實際版本;
+# 少了它,同一個無聲失敗會在下一次有人改動這附近時再發生一次。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends --only-upgrade \
        util-linux mount login bsdutils \
        libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 \
     && rm -rf /var/lib/apt/lists/* \
-    && dpkg-query -W -f='util-linux 升級後版本:${Version}\n' util-linux
+    && INSTALLED=$(dpkg-query -W -f='${Version}' util-linux) \
+    && echo "util-linux 升級後版本:${INSTALLED}" \
+    && case "${INSTALLED}" in \
+         2.41.5-0+deb13u1*|2.41.5*|2.42*) : ;; \
+         *) echo "::error::util-linux 仍是 ${INSTALLED},未升級到修版(CVE-2026-53612~53615)"; exit 1 ;; \
+       esac
 
 COPY --from=builder /opt/venv /opt/venv
 

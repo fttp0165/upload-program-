@@ -115,6 +115,32 @@ jobs:
       - name: Build image(dockerd 內建 builder,先只建到本機)
         run: docker build --pull -t upload-program:ci .
 
+      # T93 診斷(**暫時步驟**,問題定調後移除):Trivy 2026-08-24 因 base image 的
+      # util-linux CVE-2026-53612~53615 紅燈,而 Debian 已有修版(2.41.5-0+deb13u1)。
+      # 要知道該往哪修,必須先分清三件事,所以這裡取事實而不是猜:
+      #   ①base image 建立時間 → 是「上游還沒重建」還是「鏡像給了舊 manifest」
+      #   ②image 內 util-linux 實際版本 → 對照 Trivy 的 Installed Version
+      #   ③apt 套件庫可達性 → Dockerfile 檔頭那句「apt 不可達」是 2026-07-30 的紀錄,
+      #     不能只憑一則舊註解就放棄「升級 OS 套件」這整條修法
+      # 🔴 全部 `|| true`:診斷不得改變 CI 的成敗判斷。
+      - name: 診斷:base image 與 apt 可達性(T93,不擋 CI)
+        run: |
+          set +e
+          echo "### T93 診斷" >> "$GITHUB_STEP_SUMMARY"
+          CREATED=$(docker image inspect python:3.12-slim --format '{{.Created}}' 2>/dev/null)
+          DIGEST=$(docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}' 2>/dev/null)
+          echo "base image created: ${CREATED}"
+          echo "base image digest : ${DIGEST}"
+          echo "- base created: ${CREATED}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- base digest : ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          VER=$(docker run --rm python:3.12-slim sh -c 'dpkg-query -W -f=${Version} util-linux' 2>/dev/null)
+          echo "util-linux in base: ${VER}(Debian 修版為 2.41.5-0+deb13u1)"
+          echo "- util-linux: ${VER}" >> "$GITHUB_STEP_SUMMARY"
+          APT=$(docker run --rm python:3.12-slim sh -c 'timeout 45 apt-get update >/dev/null 2>&1 && echo APT_OK || echo APT_UNREACHABLE' 2>/dev/null)
+          echo "apt 套件庫:${APT}"
+          echo "- apt: ${APT}" >> "$GITHUB_STEP_SUMMARY"
+          true
+
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |
           BYTES=$(docker image inspect upload-program:ci --format '{{.Size}}')

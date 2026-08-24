@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-11 11:40
-<strong>版本:</strong> v1.64</p>
+<strong>最後更新:</strong> 2026-08-24 11:55
+<strong>版本:</strong> v1.65</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-11 11:40)</h2>
-<p>任務 86 項:<strong>✅ 81 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>506 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-24 11:55)</h2>
+<p>任務 89 項:<strong>✅ 84 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>519 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -585,6 +585,27 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-08-02 明日待辦第 1 項(當時就寫明「發版前,不是發版後」)結案:§B 不可逆回滾清單補 <code>0007_issues</code> / <code>0008_issue_attachments</code>——🔴 與既有兩列<strong>性質不同</strong>(<code>0004</code> 下載數、<code>0005</code> 稽核失去的是系統紀錄;這兩支失去的是<strong>使用者親手寫的內容</strong>,無補救管道),故加註退版前須備份<strong>並當場驗讀得回來</strong>;§C.2 cron 補 <code>purge_issues.py</code> 並明寫 ⚠️ 旗標是 <code>--yes</code> <strong>不是</strong> <code>purge_audit</code> 的 <code>--apply</code>——抄錯會每天空跑而且<strong>不會有任何錯誤訊息</strong>(預設 dry-run 正常結束、正常寫 log);runbook v1.6 → <strong>v1.7</strong>;純文件,依第三條 4 不寫新測試</td>
 </tr>
 <tr>
+<td>T89</td>
+<td>側欄「回到平台入口」移到最下面</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測回報(附側欄截圖):「把回到入口連結放到最下面」;T67 原本放<strong>最上方</strong>,理由是「離場動作與站內走動是不同層級」——<strong>層級判斷沒錯,方向錯了</strong>:同一份理由更支持放最後,第一眼該看到的是「在這個 App 裡能做什麼」,不是「怎麼離開」,把離場動作擺在視線起點等於每次進站都先被問要不要走;貼底用 <code>.side-exit { margin-top: auto }</code>(側欄本來就是 flex column)<strong>而不是塞空白元素</strong>——項目數隨管理權限而變,固定間距一定有一種身分看起來是壞的;🔴 <strong>頂列(漢堡選單)刻意不動</strong>:窄螢幕清單最後是使用者下拉與登入/登出,把離場連結插到登出後面會讓兩個「離開」互相干擾;T67 的模板註解依第二條 5 回寫(原文寫「放在最上方」,自本任務起不成立);<strong>2 條紅→綠,全套 508</strong></td>
+</tr>
+<tr>
+<td>T90</td>
+<td>建立版本頁顯示歷史版本號</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測回報(附截圖):版本號欄位只有 placeholder <code>v1.0.0</code> 與「不強制 SemVer」,<strong>要填的人手上沒有前一版是什麼</strong>;🔴 這不只是方便——版本號有 UNIQUE 約束,撞號要送出之後才看得到錯誤,而正確值就是「上一版的下一個」;查詢共用 <code>queries.query_releases()</code>(與版本歷史頁、API 同一份排序,分岔的後果是同一專案在兩頁「最新版」不一樣而兩邊都不報錯),<code>include_drafts=True</code> 且<strong>草稿必須標示</strong>(不標的話會看到版本號已存在卻找不到它發布在哪);🐛 <strong>既有測試當場抓到 MissingGreenlet(本 repo 第四次同型)</strong>——撞號那條路徑先 <code>rollback()</code>,rollback 讓先前查出來的 ORM 物件全部過期,模板一讀就炸;修法是把清單查詢搬進 <code>_back()</code> 內(rollback 之後才查),而不是在失敗頁把清單省掉——<strong>填錯的那一次最需要它</strong>;測試以區塊而非整頁比對(整頁搜尋會撞到 placeholder <code>v1.0.0</code>,那種綠燈比紅燈危險)、並釘住不列別的專案的版本號;<strong>5 條紅→綠,全套 513</strong></td>
+</tr>
+<tr>
+<td>T91</td>
+<td>使用教學頁加上頁面圖(視覺化教學)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「教學加上 頁面圖 的 svg 檔 視覺化教學」;現況七步全是文字,而使用者卡住的地方通常是<strong>空間問題</strong>(「建立版本的按鈕在哪一頁」、「三個上傳格子是同一頁還是三頁」),文字回答不了空間問題;三張內嵌 SVG:①快速上手七步流程(標出唯一的閘門「三類齊備才亮起發布」)②<strong>頁面圖</strong>——側欄 + 首頁/專案頁/上傳頁三畫面與該按的位置(含 T89 之後移到最下面的入口連結)③三類齊備與發布鈕的狀態關係;🔴 <strong>內嵌 SVG,不用 <code>&lt;img&gt;</code> 也不用 data: URI</strong>(CSP <code>default-src 'self'</code> 擋 data:,內嵌是標記不是資源載入,離線可開)、🔴 顏色寫死十六進位對齊設計 token(presentation attribute 不吃 <code>var()</code>,而 <code>style="…"</code> 是 inline style 被 CSP 擋)、🔴 SVG 內不得有 <code>&lt;script&gt;</code>/<code>onload</code>(自家頁面比上傳檔更不該有可執行內容);🔴 <strong>圖裡的七步與 <code>help-steps</code> 清單以測試對釘</strong>——改一邊沒改另一邊會紅,<strong>圖與文字互相矛盾比沒有圖更糟</strong>;圖放獨立模板 include(三張圖的座標會把教學文字擠到看不見);<strong>6 條紅→綠,全套 519</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -912,6 +933,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.65</td>
+<td>2026-08-24 11:55</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T89 側欄入口連結移到最下面 + T90 建立版本頁顯示歷史版本號 + T91 教學頁三張視覺化 SVG</strong>(13 條紅→綠,全套 <strong>519</strong>):T89 回寫 T67「放最上方」的理由(層級判斷沒錯、方向錯了);T90 過程被既有測試抓到 <strong>MissingGreenlet 第四次同型</strong>(rollback 後才能查清單),修法是搬查詢而不是在失敗頁省掉清單;T91 圖與文字步驟以測試對釘,避免圖說謊</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-07-25 15:53</td>

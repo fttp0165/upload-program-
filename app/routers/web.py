@@ -484,6 +484,27 @@ async def _require_web_user(request: Request, identity, next_path: str):
     return None
 
 
+# T90:建立版本表單要看得到「這個專案已經有哪些版本號」。
+# 🔴 版本號有 UNIQUE 約束,撞號要送出之後才看得到錯誤,而正確值就是「上一版的下一個」
+#    ——那個資訊本來就該在輸入框旁邊,不該逼人離開這一頁去查歷史。
+_VERSION_HINT_LIMIT = 5
+
+
+async def _recent_versions(session, project) -> tuple[int, list[Release]]:
+    """這個專案最近的幾個版本(給建立版本表單當提示)。
+
+    參數:session、project。回傳:`(版本總數, 最近幾筆 Release)`。副作用:無(唯讀)。
+
+    include_drafts=True 的理由:能進到這一頁的人至少是 maintainer,草稿是他自己的
+    工作區;**模板必須把草稿標示出來**,否則會看到版本號已存在卻找不到它發布在哪。
+    排序與版本歷史頁、API 共用 `query_releases()`,不另寫一份(分岔的後果是同一個
+    專案在兩個頁面上「最新版」不一樣,而兩邊都不會報錯)。
+    """
+    return await query_releases(
+        session, project, include_drafts=True, limit=_VERSION_HINT_LIMIT, offset=0
+    )
+
+
 @router.get("/projects/{slug}/releases/new", summary="建立版本(表單)")
 async def new_release_form(
     slug: str, request: Request, session: DbSession, identity: OptionalUser
@@ -505,8 +526,18 @@ async def new_release_form(
     project = await get_project(session, slug)
     # 🔴 權限與 API 同一套:private 非成員 404、成員但權限不足 403。
     await require_project_role(session, project, identity, ProjectRole.maintainer)
+    version_total, recent = await _recent_versions(session, project)
     return HTMLResponse(
-        render(request, "release_new.html", identity=identity, project=project, form={}, error=None)
+        render(
+            request,
+            "release_new.html",
+            identity=identity,
+            project=project,
+            form={},
+            error=None,
+            version_total=version_total,
+            recent_releases=recent,
+        )
     )
 
 
@@ -526,7 +557,15 @@ async def create_release_form(
 
     form = {"version": version, "notes": notes}
 
-    def _back(message: str) -> Response:
+    async def _back(message: str) -> Response:
+        """回到表單並顯示訊息。
+
+        🔴 **版本清單在這裡才查,不在函式外面**(T90):撞號那條路徑會先 `rollback()`,
+        rollback 讓先前查出來的 ORM 物件全部過期,模板一讀就 MissingGreenlet
+        ——本 repo 的第四次同型事故,由 `test_版本號重複時回到表單並顯示訊息` 當場抓到。
+        填錯的那一次最需要看到已有哪些版本號,所以清單不能省。
+        """
+        version_total, recent = await _recent_versions(session, project)
         return HTMLResponse(
             render(
                 request,
@@ -535,6 +574,8 @@ async def create_release_form(
                 project=project,
                 form=form,
                 error=message,
+                version_total=version_total,
+                recent_releases=recent,
             ),
             status_code=200,
         )
@@ -542,7 +583,7 @@ async def create_release_form(
     try:
         payload = ReleaseCreate(version=version, notes=notes)
     except Exception as exc:
-        return _back(f"欄位不正確:{exc}")
+        return await _back(f"欄位不正確:{exc}")
 
     release = Release(
         project_id=project.id,
@@ -558,7 +599,7 @@ async def create_release_form(
         # 同上:rollback 讓 ORM 物件過期,模板讀到就炸。
         await session.refresh(identity.user)
         await session.refresh(project)
-        return _back(f"版本 {payload.version} 已存在,請換一個版本號。")
+        return await _back(f"版本 {payload.version} 已存在,請換一個版本號。")
 
     await session.refresh(release)
     return _redirect(request, f"/releases/{release.id}/upload")

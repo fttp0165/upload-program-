@@ -1,0 +1,212 @@
+{#
+  T91:使用教學頁的視覺化圖示(Benny 2026-08-24:「教學加上 頁面圖 的 svg 檔 視覺化教學」)。
+
+  為什麼要有圖:使用者卡住的地方通常是**空間問題**——「建立版本的按鈕在哪一頁」、
+  「三個上傳格子是同一頁還是三頁」。文字清單回答不了空間問題。
+
+  🔴 一律**內嵌** SVG,不用 `<img src>` 也不用 data: URI:
+     CSP 是 `default-src 'self'`,data: URI 直接被擋;內嵌是標記不是資源載入,
+     離線可開、無外部依賴(同 base.html 的圖示註解,同一個理由第三次出現)。
+  🔴 顏色一律**寫死十六進位**、對齊 app.css 的設計 token:
+     presentation attribute 不吃 `var()`,而 `style="…"` 是 inline style,CSP 擋。
+     token 改色時這裡要一起改——`tests/test_web_layout.py` 守的是 light 主題本身。
+  🔴 圖裡的七步文字與 `help-steps` 清單以 `tests/test_help_diagrams.py` 對釘:
+     改一邊沒改另一邊會紅。**圖與文字互相矛盾比沒有圖更糟。**
+
+  本檔獨立於 help.html 並 include:三張圖的座標會把教學文字擠到看不見,
+  而以後來改文案的人只想改文字。
+#}
+
+{# --- 圖一:快速上手七步 --------------------------------------------------- #}
+<figure class="help-figure">
+  <svg class="help-svg" viewBox="0 0 880 250" role="img" aria-labelledby="dg-flow-t dg-flow-d">
+    <title id="dg-flow-t">快速上手七步流程圖</title>
+    <desc id="dg-flow-d">登入 → 等待開通 → 建立專案 → 建立版本 → 上傳三類檔案 → 發布 → 分享與下載;其中發布必須三類檔案齊備才會亮起。</desc>
+
+    <g fill="#ffffff" stroke="#e3e7f0">
+      <rect x="8" y="24" width="196" height="58" rx="12"/>
+      <rect x="228" y="24" width="196" height="58" rx="12"/>
+      <rect x="448" y="24" width="196" height="58" rx="12"/>
+      <rect x="668" y="24" width="196" height="58" rx="12"/>
+      <rect x="8" y="150" width="196" height="58" rx="12"/>
+      <rect x="228" y="150" width="196" height="58" rx="12"/>
+      <rect x="448" y="150" width="196" height="58" rx="12"/>
+    </g>
+
+    {# 步號用實心圓:步驟之間的順序是這張圖唯一要傳達的東西 #}
+    <g fill="#1b2a6b">
+      <circle cx="34" cy="53" r="13"/><circle cx="254" cy="53" r="13"/>
+      <circle cx="474" cy="53" r="13"/><circle cx="694" cy="53" r="13"/>
+      <circle cx="34" cy="179" r="13"/><circle cx="254" cy="179" r="13"/>
+      <circle cx="474" cy="179" r="13"/>
+    </g>
+    <g fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">
+      <text x="34" y="58">1</text><text x="254" y="58">2</text>
+      <text x="474" y="58">3</text><text x="694" y="58">4</text>
+      <text x="34" y="184">5</text><text x="254" y="184">6</text>
+      <text x="474" y="184">7</text>
+    </g>
+
+    <g fill="#24282f" font-size="15" font-weight="600">
+      <text x="56" y="50">登入</text>
+      <text x="276" y="50">等待開通</text>
+      <text x="496" y="50">建立專案</text>
+      <text x="716" y="50">建立版本</text>
+      <text x="56" y="176">上傳三類檔案</text>
+      <text x="276" y="176">發布</text>
+      <text x="496" y="176">分享與下載</text>
+    </g>
+    <g fill="#6b7280" font-size="11.5">
+      <text x="56" y="68">公司帳號(Keycloak)</text>
+      <text x="276" y="68">把識別碼給管理員</text>
+      <text x="496" y="68">代號 + 名稱 + 可見性</text>
+      <text x="716" y="68">版本號 + 版本說明</text>
+      <text x="56" y="194">doc / binary / source</text>
+      <text x="276" y="194">發布後檔案鎖定</text>
+      <text x="496" y="194">首頁搜尋、SHA-256 校驗</text>
+    </g>
+
+    {# 箭頭:同列往右,換列走下方折線(1→4 一列、5→7 一列) #}
+    <g stroke="#8a90a0" stroke-width="1.6" fill="none" stroke-linecap="round">
+      <path d="M206 53h18m-4-4 4 4-4 4"/>
+      <path d="M426 53h18m-4-4 4 4-4 4"/>
+      <path d="M646 53h18m-4-4 4 4-4 4"/>
+      <path d="M766 84v22H106v22m-4-4 4 4 4-4"/>
+      <path d="M206 179h18m-4-4 4 4-4 4"/>
+      <path d="M426 179h18m-4-4 4 4-4 4"/>
+    </g>
+
+    {# 唯一的閘門:三類不齊,發布鈕不會亮——教學裡最常被問的一句 #}
+    <g>
+      <rect x="228" y="216" width="230" height="26" rx="8" fill="#eaf6ef" stroke="#2f9e5b"/>
+      <text x="243" y="234" font-size="12" fill="#1b2a6b">🔒 三類齊備,「發布」才會亮起</text>
+    </g>
+  </svg>
+  <figcaption>圖一:從登入到讓同事下載的七個步驟。發布是唯一有前置條件的一步。</figcaption>
+</figure>
+
+{# --- 圖二:頁面圖(Benny 要的本體)---------------------------------------- #}
+<figure class="help-figure">
+  <svg class="help-svg" viewBox="0 0 880 330" role="img" aria-labelledby="dg-map-t dg-map-d">
+    <title id="dg-map-t">頁面圖:側欄與三個主要畫面</title>
+    <desc id="dg-map-d">左側欄固定在每一頁:專案總覽、建立專案、使用教學、回報問題,最下面是回到平台入口。右邊依序是首頁(專案總覽)、專案頁、上傳頁三個畫面,標出每一步要按的位置。</desc>
+
+    {# 側欄:與實際版面同樣的順序,含 T89 之後移到最下面的入口連結 #}
+    <rect x="8" y="30" width="168" height="284" rx="12" fill="#ffffff" stroke="#e3e7f0"/>
+    <text x="24" y="54" font-size="12.5" font-weight="700" fill="#1b2a6b">側欄(每一頁都在)</text>
+    <rect x="20" y="66" width="144" height="28" rx="8" fill="#1b2a6b"/>
+    <text x="34" y="85" font-size="12.5" fill="#ffffff">專案總覽</text>
+    <g fill="#3d434f" font-size="12.5">
+      <text x="34" y="117">建立專案</text>
+      <text x="34" y="145">使用教學</text>
+      <text x="34" y="173">回報問題</text>
+    </g>
+    <text x="24" y="205" font-size="11" fill="#8a90a0">管理(僅管理員)</text>
+    <g fill="#6b7280" font-size="12">
+      <text x="34" y="227">總覽 / 使用者 / 稽核紀錄</text>
+    </g>
+    <path d="M20 258h144" stroke="#e3e7f0"/>
+    <text x="34" y="280" font-size="12.5" fill="#6b7280">← 回到平台入口</text>
+    <text x="24" y="302" font-size="10.5" fill="#8a90a0">(在側欄最下面)</text>
+
+    {# 三個畫面 #}
+    <g fill="#ffffff" stroke="#e3e7f0">
+      <rect x="200" y="30" width="204" height="150" rx="12"/>
+      <rect x="432" y="30" width="204" height="150" rx="12"/>
+      <rect x="664" y="30" width="204" height="150" rx="12"/>
+    </g>
+    <g fill="#1b2a6b" font-size="13" font-weight="700">
+      <text x="216" y="54">① 首頁:專案總覽</text>
+      <text x="448" y="54">② 專案頁</text>
+      <text x="680" y="54">③ 上傳頁</text>
+    </g>
+
+    {# 首頁:搜尋框 + 兩張專案卡片 #}
+    <rect x="216" y="64" width="172" height="22" rx="11" fill="#f2f4f9" stroke="#d7ddea"/>
+    <text x="228" y="79" font-size="11" fill="#8a90a0">搜尋專案 / 標籤</text>
+    <rect x="216" y="94" width="82" height="70" rx="8" fill="#f2f4f9" stroke="#e3e7f0"/>
+    <rect x="306" y="94" width="82" height="70" rx="8" fill="#f2f4f9" stroke="#e3e7f0"/>
+    <text x="228" y="118" font-size="11" fill="#6b7280">專案卡片</text>
+    <text x="318" y="118" font-size="11" fill="#6b7280">專案卡片</text>
+    <text x="228" y="138" font-size="10.5" fill="#8a90a0">點進去看版本</text>
+
+    {# 專案頁:建立版本按鈕 + 版本列表 #}
+    <rect x="448" y="64" width="96" height="24" rx="12" fill="#1b2a6b"/>
+    <text x="462" y="80" font-size="11.5" fill="#ffffff">建立版本</text>
+    <text x="556" y="80" font-size="11" fill="#2f9e5b">← 從這裡開新版</text>
+    <g fill="#f2f4f9" stroke="#e3e7f0">
+      <rect x="448" y="98" width="172" height="24" rx="6"/>
+      <rect x="448" y="128" width="172" height="24" rx="6"/>
+    </g>
+    <text x="460" y="114" font-size="11" fill="#6b7280">v1.1.0 最新版 + 下載</text>
+    <text x="460" y="144" font-size="11" fill="#8a90a0">v1.0.0 歷史版本</text>
+
+    {# 上傳頁:三格卡片 + 發布鈕 #}
+    <g fill="#f2f4f9" stroke="#e3e7f0">
+      <rect x="680" y="64" width="56" height="56" rx="8"/>
+      <rect x="744" y="64" width="56" height="56" rx="8"/>
+      <rect x="808" y="64" width="44" height="56" rx="8"/>
+    </g>
+    <g font-size="10.5" fill="#6b7280" text-anchor="middle">
+      <text x="708" y="88">說明</text><text x="708" y="104">doc</text>
+      <text x="772" y="88">執行檔</text><text x="772" y="104">binary</text>
+      <text x="830" y="88">原始碼</text><text x="830" y="104">source</text>
+    </g>
+    <rect x="680" y="132" width="120" height="24" rx="12" fill="#eaf6ef" stroke="#2f9e5b"/>
+    <text x="694" y="148" font-size="11.5" fill="#1b2a6b">發布這個版本</text>
+    <text x="680" y="172" font-size="10.5" fill="#8a90a0">三格都上傳完才亮</text>
+
+    {# 畫面之間的順序 #}
+    <g stroke="#8a90a0" stroke-width="1.6" fill="none" stroke-linecap="round">
+      <path d="M406 105h20m-4-4 4 4-4 4"/>
+      <path d="M638 105h20m-4-4 4 4-4 4"/>
+    </g>
+    <g fill="#6b7280" font-size="11.5">
+      <text x="200" y="212">找專案</text>
+      <text x="432" y="212">看版本、開新版</text>
+      <text x="664" y="212">傳檔案、發布</text>
+    </g>
+    <rect x="200" y="232" width="668" height="30" rx="8" fill="#fdf3e3" stroke="#f2ddb8"/>
+    <text x="214" y="252" font-size="11.5" fill="#a35c14">⚠ 首次登入的帳號是「待開通」:能看,但建立專案的入口要等管理員開通後才可用。</text>
+  </svg>
+  <figcaption>圖二:頁面圖——側欄固定在每一頁,右邊三個畫面就是一輪發布會經過的全部地方。</figcaption>
+</figure>
+
+{# --- 圖三:三類齊備與發布的關係 ------------------------------------------- #}
+<figure class="help-figure">
+  <svg class="help-svg" viewBox="0 0 880 190" role="img" aria-labelledby="dg-kinds-t dg-kinds-d">
+    <title id="dg-kinds-t">三類齊備才能發布</title>
+    <desc id="dg-kinds-d">每一版必須有 doc 更新文件、binary 執行檔、source 原始碼包各至少一個;三類齊備後發布鈕才會亮起,缺任何一類都無法發布。</desc>
+
+    <g fill="#ffffff" stroke="#e3e7f0">
+      <rect x="8" y="24" width="180" height="86" rx="12"/>
+      <rect x="204" y="24" width="180" height="86" rx="12"/>
+      <rect x="400" y="24" width="180" height="86" rx="12"/>
+    </g>
+    <g fill="#1b2a6b" font-size="14" font-weight="700">
+      <text x="26" y="52">doc 更新文件</text>
+      <text x="222" y="52">binary 執行檔</text>
+      <text x="418" y="52">source 原始碼包</text>
+    </g>
+    <g fill="#6b7280" font-size="11.5">
+      <text x="26" y="74">改了什麼、怎麼用</text>
+      <text x="26" y="92">PDF / MD / docx / 截圖</text>
+      <text x="222" y="74">可直接執行的產物</text>
+      <text x="222" y="92">exe / ELF / whl / zip</text>
+      <text x="418" y="74">這一版完整原始碼</text>
+      <text x="418" y="92">zip / tar.gz / 7z</text>
+    </g>
+
+    <g stroke="#2f9e5b" stroke-width="1.6" fill="none" stroke-linecap="round">
+      <path d="M596 67h30m-4-4 4 4-4 4"/>
+    </g>
+    <rect x="634" y="42" width="230" height="50" rx="14" fill="#eaf6ef" stroke="#2f9e5b"/>
+    <text x="749" y="66" font-size="14" font-weight="700" fill="#1b2a6b" text-anchor="middle">發布這個版本</text>
+    <text x="749" y="84" font-size="11" fill="#2f9e5b" text-anchor="middle">三類齊備後才亮起</text>
+
+    <rect x="8" y="130" width="856" height="48" rx="10" fill="#fdf1f0" stroke="#f0c9c4"/>
+    <text x="24" y="150" font-size="12" fill="#a93226">缺任何一類 → 發布鈕不會亮;上傳以檔案實際內容(magic bytes)判型,不看副檔名。</text>
+    <text x="24" y="168" font-size="12" fill="#a93226">HTML 與 SVG 一律拒收;發布後檔案鎖定不可再變更,要調整請開新版本。</text>
+  </svg>
+  <figcaption>圖三:三類與發布鈕的關係。缺一類就發不出去,這是平台唯一的硬性發布規則。</figcaption>
+</figure>

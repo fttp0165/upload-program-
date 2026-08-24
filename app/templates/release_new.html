@@ -27,6 +27,31 @@
       <small class="muted">英數與 . _ + - ;不強制 SemVer</small>
     </label>
 
+    {#
+      T90:這個專案已有的版本號。放在輸入框**正下方**,因為要填的值就是
+      「上一版的下一個」;版本號有 UNIQUE 約束,撞號在送出之後才看得到錯誤。
+      🔴 草稿要標出來——不標的話,看到版本號已存在卻找不到它發布在哪。
+      🔴 版本號是使用者可控內容,靠 autoescape 逸出,禁用 |safe。
+    #}
+    <div class="version-hint">
+      {% if recent_releases %}
+        <span class="muted">已有 {{ version_total }} 個版本:</span>
+        <ul class="version-hint-list">
+          {% for release in recent_releases %}
+            <li>
+              <code>{{ release.version }}</code>
+              {% if release.status.value == 'draft' %}<span class="badge badge-warn">草稿</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% if version_total > recent_releases | length %}
+          <a href="{{ url('/projects/' ~ project.slug ~ '/releases') }}">看完整版本歷史 →</a>
+        {% endif %}
+      {% else %}
+        <span class="muted">這是第一個版本。</span>
+      {% endif %}
+    </div>
+
     <label>
       <span>版本說明</span>
       <textarea name="notes" rows="6" maxlength="20000">{{ form.notes or '' }}</textarea>

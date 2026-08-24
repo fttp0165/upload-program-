@@ -716,12 +716,61 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 .side-link.active,
 .side-link.active:hover { background: var(--ink); color: #ffffff; }
 
+/* T89:入口連結貼側欄底部。側欄是 flex column,`margin-top: auto` 把剩餘空間
+   全部推到它上面——項目數隨管理權限而變,用固定間距一定有一種身分看起來是壞的。
+   上方細線讓「離開這個 App」與上面那些站內連結看得出是不同層級(T67 的原意)。 */
+.side-exit {
+  margin-top: auto;
+  padding-top: .55rem;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 10px 10px;
+  color: var(--fg-muted);
+}
+
 .side-sect {
   font-size: .72rem;
   letter-spacing: .08em;
   color: var(--fg-faint);
   margin: .9rem .9rem .25rem;
 }
+
+/* T91:教學頁的內嵌 SVG 圖示。
+   `max-width: 100%` + viewBox 讓圖隨欄寬縮放;窄螢幕再縮就看不見字了,
+   所以外層 `overflow-x: auto` 讓它可以橫向捲——**縮到看不見比捲動糟**。 */
+.help-figure {
+  margin: 0 0 1.6rem;
+  padding: 0;
+  overflow-x: auto;
+}
+.help-svg {
+  display: block;
+  width: 100%;
+  min-width: 34rem;
+  max-width: 100%;
+  height: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: .6rem;
+}
+.help-figure figcaption {
+  margin: .45rem 0 0;
+  font-size: .85rem;
+  color: var(--fg-muted);
+}
+
+/* T90:建立版本表單的歷史版本號提示。橫排、可換行——版本號短,直排會把
+   輸入框推離頁面上緣,而它是這一頁唯一要填的東西。 */
+.version-hint { margin: -.35rem 0 .2rem; font-size: .85rem; }
+.version-hint-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .5rem;
+  list-style: none;
+  margin: .3rem 0;
+  padding: 0;
+}
+.version-hint-list li { display: flex; align-items: center; gap: .25rem; }
 
 /* --- 麵包屑(T61,Bootstrap breadcrumb 佈景成本站配色) --- */
 

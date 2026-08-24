@@ -184,6 +184,23 @@ jobs:
             --severity HIGH,CRITICAL --ignore-unfixed \
             upload-program:ci
 
+      # T93 診斷第二輪(**暫時**):apt 升級沒生效,要分清是「候選版本就是舊的」
+      # 還是「層被快取」。前者要改套件來源,後者要改建置方式——修法完全不同,
+      # 所以取事實,不猜。🔴 全部 `|| true`,不改變 CI 成敗;`if: always()` 讓它
+      # 在 Trivy 紅之後仍然執行(紅的時候才最需要這些數字)。
+      - name: 診斷 2:實際安裝版本與 apt 候選版本(T93,不擋 CI)
+        if: always()
+        run: |
+          set +e
+          echo "--- 建好的 image 裡實際裝的版本 ---"
+          docker run --rm --entrypoint dpkg-query upload-program:ci -W -f='util-linux=${Version}\n' util-linux
+          echo "--- base image 的 apt 來源與候選版本 ---"
+          docker run --rm --entrypoint sh python:3.12-slim -c '
+            cat /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null;
+            apt-get update >/dev/null 2>&1;
+            apt-cache policy util-linux'
+          true
+
   # ---------------------------------------------------------------- 發布
   publish:
     name: Push GHCR(僅版本 tag)

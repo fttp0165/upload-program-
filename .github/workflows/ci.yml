@@ -105,8 +105,15 @@ jobs:
       # 不吃 dockerd 的 registry mirror(本 VM 連不到 docker.io,靠 mirror.gcr.io),
       # 抓 base image 直接 i/o timeout。改用 dockerd 內建 builder——吃鏡像設定,
       # 且同機重跑天然有本機層快取(GHA 快取後端在本 VM 也連不到,一併移除)。
+      # 🔴 `--pull` 是 T93 加的,不是排版:runner 是**同一台 VM**,本機層快取長期存在,
+      # 沒有 `--pull` 的話 `FROM python:3.12-slim` 會一直用**第一次拉下來的那份**。
+      # 2026-08-24 的 Trivy 紅燈(util-linux CVE-2026-53612~53615)就是這樣來的
+      # ——上一次 main 綠是 08-11,期間 Debian 公布了那四支,而我們的 base image 沒更新。
+      # 🔴 修法**不能**是 Dockerfile 加 `apt-get upgrade`:VM 連不到 apt 套件庫
+      # (2026-07-30 run #85 就是為此把 builder 的 apt 整段拿掉);base image 則走
+      # dockerd 的 registry mirror,那條路是通的。
       - name: Build image(dockerd 內建 builder,先只建到本機)
-        run: docker build -t upload-program:ci .
+        run: docker build --pull -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |

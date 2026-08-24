@@ -14,6 +14,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "S106"]  # 測試裡的 assert 與假密碼是刻意的
 "alembic/*" = ["E402"]
+# T92:devserver 是本機驗證用的假設定(假 IdP secret / 假 S3 金鑰),與 tests/ 同性質。
+# 🔴 只放這一個檔案,不放整個 `tools/*`——`purge_*.py` 會碰正式資料,那些檔案裡出現
+#    寫死的密鑰就是真的問題,不該被這條 ignore 蓋掉。
+"tools/devserver.py" = ["S106"]
 
 [tool.pytest.ini_options]
 # 🐛 根本原因(T12,CI 第一次執行抓到):`python -m pytest` 會把 cwd 加進 sys.path,

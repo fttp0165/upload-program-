@@ -15,6 +15,8 @@ __pycache__/
 *.egg-info/
 
 # 工具
+# T92:本機驗證用 devserver 的 SQLite 檔與假資料——絕不進 git
+.devdata/
 .coverage
 htmlcov/
 .DS_Store

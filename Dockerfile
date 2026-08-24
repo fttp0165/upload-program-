@@ -55,19 +55,31 @@ RUN useradd -m -u 1000 app
 # 🔴 **升級必須當場驗證,不能只相信 apt 的離開碼**(2026-08-24 第四輪的教訓):
 # 實測 `apt-get` 回 0、build 一路過關,而 image 裡仍是舊版 2.41-5
 # ——**它靜靜地什麼都沒做**,然後由 Trivy 在下一步才告發,看起來像掃描的問題。
-# 下面的 `case` 把「沒升級」變成**建置當場失敗**並印出實際版本;
-# 少了它,同一個無聲失敗會在下一次有人改動這附近時再發生一次。
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends --only-upgrade \
-       util-linux mount login bsdutils \
-       libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 \
+#
+# 🔴 而重試要以**版本**為判準,不是 apt 的離開碼(2026-08-24 第五輪的教訓):
+# 同一個 commit、同樣的旗標、相隔 4 秒的兩次建置結果相反 —— 一次沒升級、一次升級了。
+# 根因是 `deb.debian.org` 是 CDN,節點之間的 Packages 索引**不一致**:抽到還沒同步
+# security 更新的節點,`apt-get install --only-upgrade` 就會回 0 而什麼都不做。
+# 🔴 **沒有這裡的版本檢查,那次就會產生一個未修補的 image 而 CI 全綠。**
+# 版本比較用 `dpkg --compare-versions ge`,不寫死等於某一版 —— Debian 之後再出
+# 新修版時不必回來改這裡(寫死會讓「更新的版本」被誤判成不合格)。
+RUN FIXED=2.41.5-0+deb13u1 \
+    && for attempt in 1 2 3; do \
+         apt-get update \
+         && apt-get install -y --no-install-recommends --only-upgrade \
+            util-linux mount login bsdutils \
+            libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 ; \
+         INSTALLED=$(dpkg-query -W -f='${Version}' util-linux); \
+         if dpkg --compare-versions "$INSTALLED" ge "$FIXED"; then break; fi; \
+         echo "第 ${attempt} 次沒拿到修版(現在 ${INSTALLED},需要 >= ${FIXED})——換節點重試"; \
+         rm -rf /var/lib/apt/lists/*; \
+         sleep 5; \
+       done \
     && rm -rf /var/lib/apt/lists/* \
     && INSTALLED=$(dpkg-query -W -f='${Version}' util-linux) \
-    && echo "util-linux 升級後版本:${INSTALLED}" \
-    && case "${INSTALLED}" in \
-         2.41.5-0+deb13u1*|2.41.5*|2.42*) : ;; \
-         *) echo "::error::util-linux 仍是 ${INSTALLED},未升級到修版(CVE-2026-53612~53615)"; exit 1 ;; \
-       esac
+    && echo "util-linux 最終版本:${INSTALLED}" \
+    && { dpkg --compare-versions "$INSTALLED" ge "$FIXED" \
+         || { echo "::error::util-linux 仍是 ${INSTALLED},未達修版 ${FIXED}(CVE-2026-53612~53615)"; exit 1; }; }
 
 COPY --from=builder /opt/venv /opt/venv
 

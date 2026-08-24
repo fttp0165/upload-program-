@@ -112,12 +112,13 @@ jobs:
       # 🔴 修法**不能**是 Dockerfile 加 `apt-get upgrade`:VM 連不到 apt 套件庫
       # (2026-07-30 run #85 就是為此把 builder 的 apt 整段拿掉);base image 則走
       # dockerd 的 registry mirror,那條路是通的。
-      # 🔴 `--no-cache` 是 T93 第四輪加的(**暫時**,確認修法生效後改回):
-      # `--pull` 只更新 base image,**不影響我們自己那層 `RUN apt-get`**。
-      # runner 是同一台 VM、層快取長期存在,所以那層很可能一直回放
-      # 「什麼都沒升級」的那次結果 —— 而它不會報錯,由 Trivy 在下一步才告發。
+      # `--pull` 保留(T93):runner 是同一台 VM,不加它 `FROM python:3.12-slim`
+      # 會一直用第一次拉下來的那份 —— 2026-08-24 的 util-linux CVE 就是這樣來的。
+      # 🔴 `--no-cache` **已收回**(第四輪暫時加、第五輪移除):OS 套件升級那層
+      # 自己帶版本檢查,**檢查沒過就不會產生層**,所以「快取到的層」必然是升級成功的那次;
+      # 而 base image 一換,那層的快取鍵也跟著失效。用不著每次全量重建。
       - name: Build image(dockerd 內建 builder,先只建到本機)
-        run: docker build --pull --no-cache -t upload-program:ci .
+        run: docker build --pull -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |

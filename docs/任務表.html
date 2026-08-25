@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 19:45
-<strong>版本:</strong> v1.74</p>
+<strong>最後更新:</strong> 2026-08-12 20:30
+<strong>版本:</strong> v1.75</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 19:45)</h2>
-<p>任務 95 項:<strong>✅ 90 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>523 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 20:30)</h2>
+<p>任務 96 項:<strong>✅ 91 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>528 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -649,6 +649,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 看正式站:「沒有顯示作者的名字」——查證屬實,<code>專案資訊</code> 只有容量與時間,<strong>完全沒有擁有者欄位</strong>。對程式分享平台是核心缺口:要下載一支執行檔,「這是誰放的」是判斷信不信任它的第一個依據,<strong>尤其掃毒還沒接上</strong>(<code>not_scanned</code>),發布者是誰是使用者僅剩的依據。🔴 <strong>但名字放不上去</strong>:名字唯一來源 <code>display_name_cache</code> 受契約 §4.2a L1 管,而那條「僅管理後台顯示、<strong>不出現在一般使用者可見頁面</strong>」是<strong>我方自己寫進申請書的</strong>——當初為求好過把範圍縮到最小,現在反過來咬到自己;偏離平台契約的權限不在本專案(〈位階〉),只能送申請不能自行放寬。Benny 裁示<strong>兩個都做</strong>:(1)過渡顯示 <strong>sub 前 8 碼</strong>+誠實標註「顯示名稱待平台核准」(sub 是不透明識別碼非個資,業務庫本來就只存它;截斷比照 T59「僅供人眼辨識」;與 <code>not_scanned</code> 同一個態度);(2)申請書送 portal,<strong>只動「用途」一欄</strong>,明列不申請的四件事(Admin API / 進 API 回應 / 新欄位 / email),附契約增修建議稿與「若不同意」的替代方向詢問。🐛 測試自己先寫錯一次:三條都讓<strong>擁有者自己</strong>看自己的專案,於是「不得洩漏完整 sub」當場紅——<strong>卻不是功能有問題</strong>,而是導覽列本來就會顯示檢視者自己的 sub;「名字不得出現」那條更是永遠不可能過。改成<strong>由別人來看</strong>才是真正要問的問題。教訓:寫反向斷言前要先確認頁面沒有<strong>另一個合法來源</strong>會產生同一個字串。<strong>3 條紅→綠(功能紅、兩條護欄綠),全套 523</strong></td>
 </tr>
 <tr>
+<td>T98</td>
+<td>本地 WSL 開發環境 + 本機跑 CI</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「部屬 本地 WSL 跑 CI」。盤點發現 <strong>README 現行指示是錯的</strong>——「最省事的方式是 <code>docker compose up -d</code>」在 WSL 必然失敗三次:<code>cats-edge</code> 外部網路本機沒有、<code>ghcr.io</code> image 要登入且拉到的是<strong>舊版而非你的程式碼</strong>、CA 憑證路徑是 VM 上的。根目錄 compose 是<strong>正式機形狀</strong>,本來就不該當本機環境,依第二條 5 回寫(README v2.1)。好消息是 CI 主力本機全跑得動:<code>conftest</code> 用 <strong>SQLite + 假 S3</strong>,528 條測試<strong>不需要 DB / MinIO / 網路</strong>;真正需要相依的只有「用瀏覽器實際點」。新增 <code>docker-compose.dev.yml</code>(只起 PG + MinIO、綁 <code>127.0.0.1</code>、無 restart)與 <code>docs/runbook_本地開發與CI.md</code>(七節:WSL 準備→venv→起相依→本機跑 CI 三個 job→做不到的事→常見卡關→一頁速查)。🔴 <strong>最大風險是 dev compose 被誤用到正式機</strong>:它為了本機能連<strong>必須發布 port</strong>,而那正是平台鐵則禁止的——三層防線:檔名<strong>不叫</strong> <code>docker-compose.override.yml</code>(那名字會被自動載入,在 VM 上打一次就把 DB 開到主機且無警告)、刻意不設 restart(差異本身是標記)、<code>tests/test_dev_compose.py</code> <strong>兩邊一起釘</strong>(dev 不得有 cats-edge/ghcr/restart;正式檔仍須有 cats-edge 且 db/minio 不得有 ports)。<code>docker compose config</code> <strong>實跑通過</strong>,不只是讀過覺得對。查證後修掉兩個本來會寫錯的地方:<code>PUBLIC_BASE_URL</code> <strong>不必改</strong>(頁面連結一律 root-relative,絕對網址只用於 OIDC)、<strong>啟動 log 的 discovery error 是正常的</strong>(刻意不擋啟動)並附 <code>/health</code> ✅ <code>/ready</code> ❌ 的本機預期表。🔴 本機<strong>登入不能用</strong>且刻意不解決——不會為了開發方便要求 portal 在正式 client 加 localhost redirect URI。<strong>5 條紅→綠,全套 528</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1053,6 +1060,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.75</td>
+<td>2026-08-12 20:30</td>
+<td>Claude(Benny:部屬本地 WSL 跑 CI)</td>
+<td><strong>T98 本地開發環境</strong>:新增 <code>docker-compose.dev.yml</code> 與本地 runbook;🐛 回寫 README 那句在 WSL 必敗的錯誤指示;dev/正式兩份 compose 由 5 條測試兩邊一起釘,防止互相污染;全套 528</td>
 </tr>
 <tr>
 <td>v1.74</td>

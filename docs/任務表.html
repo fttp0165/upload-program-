@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-24 17:40
-<strong>版本:</strong> v1.75</p>
+<strong>最後更新:</strong> 2026-08-25 06:15
+<strong>版本:</strong> v1.76</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-24 17:40)</h2>
-<p>任務 95 項:<strong>✅ 90 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-25 06:15)</h2>
+<p>任務 96 項:<strong>✅ 91 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -66,7 +66,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>app/version.py</code></td>
 <td><strong>0.2.3</strong></td>
-<td>T97 已改好(第八條 4:tag 前先改),<strong>待發</strong>;⚠ <code>v0.2.2</code> <strong>跳過不發</strong>(其內容未單獨出貨,見 T97)</td>
+<td>tag <code>v0.2.3</code> <strong>已推</strong>(指向 <code>46d265f</code>);⚠ 其 CI 的 build 因 VM 層快取失效而紅 → image 未上 GHCR,清快取後重跑(見 T98);<code>v0.2.2</code> 跳過不發(見 T97)</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
@@ -648,6 +648,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>v0.2.2 的常數在 T94 就備好,但 <strong>tag 一直沒推</strong>(本 session 憑證推 tag 回 403,需 Benny 手動;在那之前 T96 先合併進 main)→ main 的內容變成 T89–T95 <strong>+ T96</strong>;🔴 這時推 <code>v0.2.2</code> 會讓 tag 指到<strong>含 T96</strong> 的 commit 而常數與 Release 都說 0.2.2,<strong>正是第八條 4 要防的「對使用者說謊」</strong>;Benny 裁示發 <strong>0.2.3 一版含 T89–T96</strong>(少發一次版、VM 只換一次);⚠ <strong><code>v0.2.2</code> 就此跳過永遠不會存在</strong> —— 它的內容沒有單獨出貨過,補發一個指向舊 commit 的 tag 只會多一份沒人跑過的版本(Release 需交代一句,否則看 tag 列表的人會找它);<strong>不寫新測試</strong>(第三條 4,同 T83/T94);🔴 <strong>這是第二次因版本號記載卡住發版</strong>(T94 是任務表寫錯最新 tag),守門建議(CI 比對常數與最新 tag)更該做 —— <strong>兩次都是靠人臨場發現,那不是機制</strong></td>
 </tr>
 <tr>
+<td>T98</td>
+<td>CI 建置遇失效層快取時自動重試</td>
+<td>✅</td>
+<td>🟢</td>
+<td><code>v0.2.3</code> 推 tag 後 <strong><code>Build image</code> 第一步就死</strong>(32 秒),Trivy 與 <code>Push GHCR</code> 全部 skipped ——<strong>發版被擋在最後一哩</strong>;根因不是程式:<code>failed to compute cache key … could not fetch content descriptor sha256:4857… from remote: not found</code>,即本機層快取指向<strong>已經不存在於 registry 的 base image layer</strong>(T93 加的 <code>--pull</code> 更新了 manifest,舊 blob 被回收 —— 這是那個正確決定的<strong>已知副作用</strong>,不是它的錯);修法:build 那步加 fallback,第一次失敗就以 <code>--no-cache</code> 重試一次(build 與 publish 兩處都加,<strong>發版那一步失敗的代價最大</strong>);🔴 <strong>不會遮蓋真正的建置錯誤</strong>——程式壞掉時第二次一樣失敗、job 照樣紅,只在第一次失敗時多花 1–2 分鐘;⚠ <strong>本次的 v0.2.3 不會因此變綠</strong>(重跑用的是 tag 那個 commit 的 workflow 檔),當下解法是 VM 上 <code>docker builder prune -f</code> 再重跑,本任務要的是<strong>下一次不必靠人記得清快取</strong>;<strong>不寫新測試</strong>(第三條 4):CI 建置環境無法在本機重現(無 docker daemon),宣稱測過會是假的</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -975,6 +982,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.76</td>
+<td>2026-08-25 06:15</td>
+<td>Claude(發版受阻)</td>
+<td><strong>T98:CI 建置遇失效層快取時自動重試</strong>。<code>v0.2.3</code> 的 tag 推上後 build 第一步就死(層快取指向已從 registry 消失的 base image layer),Trivy 與 GHCR 推送全被 skip ——<strong>發版被環境問題擋死</strong>。build 與 publish 兩處加 <code>--no-cache</code> fallback;🔴 不遮蓋真正的建置錯誤。⚠ 本次 v0.2.3 需先在 VM <code>docker builder prune -f</code> 再重跑(重跑用的是 tag 那個 commit 的 workflow 檔)</td>
+</tr>
 <tr>
 <td>v1.75</td>
 <td>2026-08-24 17:40</td>

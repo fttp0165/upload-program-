@@ -117,8 +117,18 @@ jobs:
       # 🔴 `--no-cache` **已收回**(第四輪暫時加、第五輪移除):OS 套件升級那層
       # 自己帶版本檢查,**檢查沒過就不會產生層**,所以「快取到的層」必然是升級成功的那次;
       # 而 base image 一換,那層的快取鍵也跟著失效。用不著每次全量重建。
+      # 🔴 T98:第一次失敗就以 `--no-cache` 重試一次。
+      # 2026-08-25 的 `v0.2.3` 發版被這個擋死:本機層快取指向一個**已經不存在於
+      # registry 的 base image layer**(`--pull` 更新了 manifest,舊 blob 被回收),
+      # buildkit 在 `builder 2/4` 就死,Trivy 與 GHCR 推送全部 skipped。
+      # ⚠ 這不會遮蓋真正的建置錯誤 —— 程式壞掉時第二次一樣失敗、job 照樣紅;
+      #   它只在第一次失敗時多花 1–2 分鐘,換掉「發版被環境問題擋死」這個結果。
       - name: Build image(dockerd 內建 builder,先只建到本機)
-        run: docker build --pull -t upload-program:ci .
+        run: |
+          docker build --pull -t upload-program:ci . || {
+            echo "::warning::建置失敗,可能是層快取指向已消失的 base image layer;以 --no-cache 重試一次"
+            docker build --pull --no-cache -t upload-program:ci .
+          }
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |
@@ -225,7 +235,11 @@ jobs:
         run: |
           set -e
           # --pull 同 build job(T93):別讓要推上 GHCR 的那份用到舊的 base image
-          docker build --pull -t "${IMAGE_NAME}:${GITHUB_REF_NAME}" .
+          # T98:同 build job 的理由——發版這一步失敗的代價最大(tag 已經推出去了)。
+          docker build --pull -t "${IMAGE_NAME}:${GITHUB_REF_NAME}" . || {
+            echo "::warning::建置失敗,以 --no-cache 重試一次(層快取可能指向已消失的 layer)"
+            docker build --pull --no-cache -t "${IMAGE_NAME}:${GITHUB_REF_NAME}" .
+          }
           docker push "${IMAGE_NAME}:${GITHUB_REF_NAME}"
 
       - name: 發布摘要

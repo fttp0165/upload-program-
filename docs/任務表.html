@@ -43,16 +43,16 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 18:30
-<strong>版本:</strong> v1.72</p>
+<strong>最後更新:</strong> 2026-08-12 18:50
+<strong>版本:</strong> v1.73</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 18:30)</h2>
-<p>任務 92 項:<strong>✅ 87 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-12 18:50)</h2>
+<p>任務 93 項:<strong>✅ 88 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>520 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -66,8 +66,8 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td><code>app/version.py</code></td>
-<td><strong>0.2.1</strong></td>
-<td>與最新 tag 一致</td>
+<td><strong>0.2.2</strong></td>
+<td>🔵 已依第八條 4 在打 tag 前改好,待 PR 合併</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
@@ -628,6 +628,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 實測:「說明」卡片上傳 <code>客戶規格書.md</code> 回 422「檔案實際型別為 application/octet-stream」——<strong>而卡片自己寫著收 PDF / Markdown / 文字檔</strong>,是我方 bug 不是使用者用錯。根因:判型只看前 4096 bytes,尾端幾乎必然切在字元中間,舊補救寫「decode 失敗就砍尾端 3 bytes 再試」——對 ASCII 沒事,<strong>對中文是錯的</strong>:中文一字 3 bytes,殘尾若是 1 或 2 bytes,砍 3 bytes 會把<strong>前一個完整的字也砍破</strong>,製造出新的不完整字元 → 仍失敗 → 判成 binary → 白名單擋下。實測同一份內容只差一個 ASCII 前綴就翻盤(<strong>三種對齊兩種失敗</strong>),所以症狀是「有時可以有時不行」。改用 UTF-8 <strong>增量解碼器</strong>(<code>final=False</code> 語意正是「後面還有,尾端不完整不算錯」,非法位元組照樣拋錯)——把「被截斷」與「不是文字」分開,舊寫法混為一談。影響面比截圖大:<code>kind=source</code> 也吃 <code>text/plain</code>,<strong>帶中文註釋超過 4KB 的 <code>.py</code>/<code>.txt</code> 同樣被擋</strong>,公司內部開發者中文註釋是常態;英文文件不受影響,此 bug <strong>專打中文</strong>。🔴 護欄不動:不把 octet-stream 加進白名單、不看副檔名、HTML/SVG 仍一律拒收、attachment+nosniff 兜底未碰,皆有測試。活這麼久的原因是測試資料太乾淨(小檔 + 英文),新測試刻意用 &gt;4096 中文並把三種對齊全測;🔴 <strong>要換版才生效</strong>,建議併入 v0.2.2。<strong>5 條紅→綠,全套 520</strong></td>
 </tr>
 <tr>
+<td>T95</td>
+<td>發版前置:<code>APP_VERSION</code> → 0.2.2</td>
+<td>✅</td>
+<td>🟢</td>
+<td>T94 的修正要換版才生效(正式站仍跑 v0.2.1,中文大檔依舊傳不上去),Benny 裁示發下一版。依第八條 4 在打 tag <strong>之前</strong>改好常數。本版帶 6 個任務,其中<strong>只有兩個動到執行中的服務</strong>:T94 中文判型修正(主角)與 T92 壞 cookie 觀測;T89–T91、T93 是文件、測試與工具。<strong>為何 0.2.2 不是 0.3.0</strong>:無新功能面,一個 bug 修正 + 一個觀測補強,patch 語意正確;<strong>為何不重發 v0.2.1</strong>:第八條 5,該 tag 已發布且已部署,移動 tag 會讓「使用者手上那版」與「tag 說的那版」分家。依第三條 4 不寫新測試——版本號三個載體(頁尾/OpenAPI/問題回報附記)都讀同一常數,既有測試自動驗新值,再抄一次字面值只會製造「改版本要改兩處」的摩擦。🟢 <strong>無 migration</strong>,VM 換版不需 <code>alembic upgrade head</code>;換版驗證除哨兵外,🖐 <strong>人工必驗超過 4KB 的中文 <code>.md</code> 與帶中文註釋的 <code>.py</code> 能上傳</strong>(本版主角,腳本構不到),並反向確認 <code>.exe</code> 改名成 <code>.md</code> 仍被擋。全套 520</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1032,6 +1039,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.73</td>
+<td>2026-08-12 18:50</td>
+<td>Claude(Benny:好)</td>
+<td><strong>T95 <code>APP_VERSION</code> → 0.2.2</strong>:依第八條 4 在打 tag 前改好;本版主角是 T94 中文文字檔判型修正(修正需換版才生效),另含 T92 觀測補強與 T89–T91/T93 文件工具;🟢 無 migration;換版驗證加一項🖐 人工必驗中文大檔上傳</td>
 </tr>
 <tr>
 <td>v1.72</td>

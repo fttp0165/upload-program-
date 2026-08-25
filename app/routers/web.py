@@ -53,6 +53,7 @@ from ..security import (
     require_project_read,
     require_project_role,
 )
+from ..slugs import unique_slug
 from ..templating import render
 from ..web_urls import web_url
 from .releases import (
@@ -250,19 +251,20 @@ async def create_project_form(
     request: Request,
     session: DbSession,
     identity: OptionalUser,
-    slug: Annotated[str, Form()] = "",
     name: Annotated[str, Form()] = "",
     summary: Annotated[str, Form()] = "",
     visibility: Annotated[str, Form()] = "internal",
 ) -> Response:
     """建立專案。
 
+    T96:**不再收 slug 欄位** —— 短名由 `slugs.unique_slug()` 從名稱產生。
+
     驗證失敗或短名重複時**回到表單並顯示訊息**,不丟一頁錯誤讓使用者重打;
     使用者填過的值一併帶回(逸出由 autoescape 負責)。
     """
     if (blocked := await _require_web_user(request, identity, "/projects/new")) is not None:
         return blocked
-    form = {"slug": slug, "name": name, "summary": summary, "visibility": visibility}
+    form = {"name": name, "summary": summary, "visibility": visibility}
 
     def _back(message: str) -> Response:
         return HTMLResponse(
@@ -282,32 +284,40 @@ async def create_project_form(
 
     # 走與 API 完全相同的 schema 驗證,不另寫一套規則。
     try:
-        payload = ProjectCreate(
-            slug=slug, name=name, summary=summary, visibility=Visibility(visibility)
-        )
+        payload = ProjectCreate(name=name, summary=summary, visibility=Visibility(visibility))
     except Exception as exc:
         return _back(f"欄位不正確:{exc}")
 
-    project = Project(
-        slug=payload.slug,
-        name=payload.name,
-        summary=payload.summary,
-        visibility=payload.visibility,
-        owner_id=identity.user.id,
-    )
-    session.add(project)
-    try:
-        await session.commit()
-    except IntegrityError:
-        await session.rollback()
-        # 🐛 rollback 會讓 session 裡**所有** ORM 物件過期。導航列要讀
-        # `identity.user.is_active`,而模板算繪是同步的——過期屬性在那裡 lazy load
-        # 就是 `MissingGreenlet`。先在還有 async 上下文的地方把它取回來。
-        # (這是 T50「序列化時才 lazy load」那個家族的第三次變形。)
-        await session.refresh(identity.user)
-        return _back(f"專案短名 {payload.slug} 已被使用,請換一個。")
+    # T96:短名自動產生。
+    # 🔴 撞名要**自動換一個**,不是把錯誤丟回使用者——表單已經沒有那個欄位了,
+    #    叫他「換一個短名」是叫他改一個看不到的東西。
+    # 🔴 為什麼還要重試:`unique_slug()` 的查詢擋不住併發(兩個請求同時挑到同一個
+    #    名字,先寫入的贏)。真正的保證是 DB 的 UNIQUE 約束,這裡負責優雅地讓步。
+    for attempt in range(3):
+        project = Project(
+            slug=await unique_slug(session, payload.name),
+            name=payload.name,
+            summary=payload.summary,
+            visibility=payload.visibility,
+            owner_id=identity.user.id,
+        )
+        session.add(project)
+        try:
+            await session.commit()
+            break
+        except IntegrityError:
+            await session.rollback()
+            # 🐛 rollback 會讓 session 裡**所有** ORM 物件過期。導航列要讀
+            # `identity.user.is_active`,而模板算繪是同步的——過期屬性在那裡 lazy load
+            # 就是 `MissingGreenlet`。先在還有 async 上下文的地方把它取回來。
+            # (這是 T50「序列化時才 lazy load」那個家族的第三次變形。)
+            await session.refresh(identity.user)
+            if attempt == 2:
+                return _back("短名產生失敗,請再試一次(同名專案過多)。")
 
-    return _redirect(request, f"/projects/{payload.slug}")
+    # T96:轉址用**實際寫進 DB 的那個 slug**,不是 payload 的(它現在可能是 None,
+    # 而且撞名重試時換過)。
+    return _redirect(request, f"/projects/{project.slug}")
 
 
 @router.get("/projects/{slug}", summary="專案頁")

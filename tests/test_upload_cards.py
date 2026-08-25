@@ -28,7 +28,8 @@ async def _release(client, token, slug="card-tool"):
     headers = {**BROWSER, **auth(token)}
     await client.post(
         "/projects/new",
-        data={"slug": slug, "name": "卡片測試", "summary": "", "visibility": "internal"},
+        # T96:短名由名稱產生,所以名稱就是想要的短名。
+        data={"name": slug, "summary": "", "visibility": "internal"},
         headers=headers,
         follow_redirects=False,
     )

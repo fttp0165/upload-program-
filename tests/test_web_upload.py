@@ -38,7 +38,8 @@ async def test_不需curl即可完成一輪上傳與發布(client, active_user):
     # 1. 建專案(HTML 表單 POST)
     created = await client.post(
         "/projects/new",
-        data={"slug": "round-trip", "name": "一輪測試", "summary": "走完整流程", "visibility": "internal"},
+        # T96:短名由名稱產生(表單已無短名欄位)。
+        data={"name": "round-trip", "summary": "走完整流程", "visibility": "internal"},
         headers=headers,
         follow_redirects=False,
     )
@@ -110,19 +111,27 @@ async def test_待開通者看不到建立專案(client, app, oidc):
 # --- 表單錯誤要回到表單 -----------------------------------------------------
 
 
-async def test_slug重複時回到表單並顯示訊息(client, active_user):
-    """不是丟一頁錯誤讓使用者重打。"""
+async def test_同名專案不再回錯誤而是自動換一個短名(client, active_user):
+    """⚠ **這條測試在 T96 換了契約**,不是放水。
+
+    舊行為:短名重複 → 回到表單顯示「已被使用」,讓使用者改那個欄位。
+    新行為:表單**已經沒有短名欄位**(T96 由名稱自動產生),所以叫使用者
+    「換一個短名」是叫他改一個看不到的東西 —— 改為自動加後綴。
+
+    仍然被釘住的東西一項未少:**不得丟一頁錯誤讓使用者重打**。
+    產生規則本身在 `tests/test_slugs.py`。
+    """
     _, token = active_user
     headers = {**BROWSER, **auth(token)}
-    payload = {"slug": "dup-tool", "name": "重複測試", "summary": "", "visibility": "internal"}
+    payload = {"name": "dup-tool", "summary": "", "visibility": "internal"}
 
     first = await client.post("/projects/new", data=payload, headers=headers, follow_redirects=False)
-    assert first.status_code in (302, 303)
-
     second = await client.post("/projects/new", data=payload, headers=headers, follow_redirects=False)
-    assert second.status_code == 200, "應回到表單,不是轉址也不是錯誤頁"
-    assert "已被使用" in second.text
-    assert 'value="dup-tool"' in second.text, "使用者填過的值要留著"
+
+    assert first.status_code in (302, 303)
+    assert second.status_code in (302, 303), "第二次同樣要成功,不得回到表單"
+    assert first.headers["location"].endswith("/projects/dup-tool")
+    assert second.headers["location"].endswith("/projects/dup-tool-2")
 
 
 async def test_版本號重複時回到表單並顯示訊息(client, active_user):
@@ -130,7 +139,7 @@ async def test_版本號重複時回到表單並顯示訊息(client, active_user
     headers = {**BROWSER, **auth(token)}
     await client.post(
         "/projects/new",
-        data={"slug": "ver-tool", "name": "版本測試", "summary": "", "visibility": "internal"},
+        data={"name": "ver-tool", "summary": "", "visibility": "internal"},
         headers=headers,
         follow_redirects=False,
     )
@@ -150,7 +159,7 @@ async def _project_with_release(client, token, slug="perm-tool"):
     headers = {**BROWSER, **auth(token)}
     await client.post(
         "/projects/new",
-        data={"slug": slug, "name": "權限測試", "summary": "", "visibility": "internal"},
+        data={"name": slug, "summary": "", "visibility": "internal"},
         headers=headers,
         follow_redirects=False,
     )
@@ -307,11 +316,16 @@ async def test_新頁面的連結帶前綴且無絕對網址(client, active_user
 
 
 async def test_表單回填的值有逸出(client, active_user):
-    """使用者填過的值要留著,但留著不等於原樣輸出。"""
+    """使用者填過的值要留著,但留著不等於原樣輸出。
+
+    ⚠ T96 之後**觸發錯誤的方式改了**:原本靠一個非法的短名(`"BAD SLUG"`),
+    但表單已經沒有短名欄位了 —— 那條路徑不再存在。改用空白名稱觸發同一條錯誤路徑,
+    驗的東西一字未減:回填的值必須逸出。
+    """
     _, token = active_user
     resp = await client.post(
         "/projects/new",
-        data={"slug": "BAD SLUG", "name": '<script>alert(1)</script>', "summary": "", "visibility": "internal"},
+        data={"name": "", "summary": "<script>alert(1)</script>", "visibility": "internal"},
         headers={**BROWSER, **auth(token)},
         follow_redirects=False,
     )

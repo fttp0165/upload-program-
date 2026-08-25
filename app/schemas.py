@@ -47,14 +47,20 @@ class MeOut(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    slug: str = Field(description="網址用短名,小寫英數與連字號")
+    # T96:改為**選填** —— 網頁表單已不再詢問,由 `slugs.unique_slug()` 自名稱產生。
+    # 🔴 API 仍可指定(向下相容:腳本使用者要的正是可預測的短名);
+    #    指定時走的是與從前一字不差的同一條驗證。
+    slug: str | None = Field(default=None, description="網址用短名;省略則由名稱自動產生")
     name: str = Field(min_length=1, max_length=128)
     summary: str = Field(default="", max_length=2000)
     visibility: Visibility = Visibility.internal
 
     @field_validator("slug")
     @classmethod
-    def _check_slug(cls, v: str) -> str:
+    def _check_slug(cls, v: str | None) -> str | None:
+        # T96:None 或空字串 = 「請自動產生」,交給呼叫端;有填就照舊嚴格驗。
+        if v is None or not v.strip():
+            return None
         v = v.strip().lower()
         if not SLUG_RE.match(v):
             raise ValueError("slug 需為 3–64 字元的小寫英數與連字號,且不以連字號開頭或結尾")

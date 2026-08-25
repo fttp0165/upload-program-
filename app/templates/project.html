@@ -99,6 +99,15 @@
   <section class="project-info">
     <h2>專案資訊</h2>
     <dl class="info-grid">
+      {# T97:擁有者排在最前面——要下載一支執行檔的人,先想知道的是「這誰放的」。
+         🔴 顯示的是**識別碼不是名字**:契約 §4.2a L1 的名稱快取限「管理後台顯示」,
+         本頁是一般使用者可見頁面。已送申請請 portal 擴大用途;在那之前照實說明
+         為什麼這裡是一串碼,不假裝沒這回事(與 not_scanned 同一個態度)。 #}
+      <dt>擁有者</dt>
+      <dd>
+        <code>{{ owner_sub8 }}…</code>
+        <span class="muted">識別碼(顯示名稱待平台核准)</span>
+      </dd>
       <dt>容量</dt>
       <dd>
         {{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)

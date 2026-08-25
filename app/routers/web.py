@@ -352,6 +352,16 @@ async def project_page(
     except problems.ProblemError:
         release = None
 
+    # T97:擁有者識別碼。程式分享平台上「這是誰放的」是使用者決定要不要信任
+    # 一支執行檔的第一個依據——尤其掃毒還沒接上。
+    # 🔴 這裡刻意**只取 sub、不取 display_name_cache**:契約 §4.2a L1 的用途
+    # 限「管理後台顯示」,本頁是一般使用者可見頁面,放名字等於自行放寬契約。
+    # 已另送申請請 portal 擴大用途;獲准前以識別碼過渡(sub 是不透明識別碼,
+    # 不是個資,業務庫本來就只存它)。截斷 8 碼比照 T59 慣例:僅供人眼對照。
+    owner_sub = (
+        await session.execute(select(User.sub).where(User.id == project.owner_id))
+    ).scalar_one_or_none()
+
     return HTMLResponse(
         render(
             request,
@@ -361,6 +371,7 @@ async def project_page(
             release=release,
             artifacts=sorted(release.artifacts, key=lambda a: a.filename) if release else [],
             quota_bytes=project_limit(settings, project),
+            owner_sub8=(owner_sub or "")[:8],
             # F26 的固定連結:能貼進文件而不會隨版本失效。T35 做出來的東西
             # 不放在使用者看得到的地方就沒人會用。
             latest_url=lambda filename: web_url(

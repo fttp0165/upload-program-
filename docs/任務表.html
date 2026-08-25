@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 18:50
-<strong>版本:</strong> v1.73</p>
+<strong>最後更新:</strong> 2026-08-12 19:45
+<strong>版本:</strong> v1.74</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 18:50)</h2>
-<p>任務 93 項:<strong>✅ 88 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>520 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 19:45)</h2>
+<p>任務 95 項:<strong>✅ 90 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>523 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -635,6 +635,20 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>T94 的修正要換版才生效(正式站仍跑 v0.2.1,中文大檔依舊傳不上去),Benny 裁示發下一版。依第八條 4 在打 tag <strong>之前</strong>改好常數。本版帶 6 個任務,其中<strong>只有兩個動到執行中的服務</strong>:T94 中文判型修正(主角)與 T92 壞 cookie 觀測;T89–T91、T93 是文件、測試與工具。<strong>為何 0.2.2 不是 0.3.0</strong>:無新功能面,一個 bug 修正 + 一個觀測補強,patch 語意正確;<strong>為何不重發 v0.2.1</strong>:第八條 5,該 tag 已發布且已部署,移動 tag 會讓「使用者手上那版」與「tag 說的那版」分家。依第三條 4 不寫新測試——版本號三個載體(頁尾/OpenAPI/問題回報附記)都讀同一常數,既有測試自動驗新值,再抄一次字面值只會製造「改版本要改兩處」的摩擦。🟢 <strong>無 migration</strong>,VM 換版不需 <code>alembic upgrade head</code>;換版驗證除哨兵外,🖐 <strong>人工必驗超過 4KB 的中文 <code>.md</code> 與帶中文註釋的 <code>.py</code> 能上傳</strong>(本版主角,腳本構不到),並反向確認 <code>.exe</code> 改名成 <code>.md</code> 仍被擋。全套 520</td>
 </tr>
 <tr>
+<td>T96</td>
+<td>🐛 CI Trivy 紅燈:base image 被本機快取釘住</td>
+<td>✅</td>
+<td>🟢</td>
+<td>PR #33 的 Trivy job 紅燈,列出的全是 <strong>base image 的 OS 套件</strong>(<code>util-linux</code> / <code>mount</code> / <code>login</code> / <code>libmount1</code> / <code>libblkid1</code> / <code>libsmartcols1</code> / <code>libuuid1</code>,CVE-2026-53612~53615),與本 PR 的 diff 無關——Dockerfile 的 runtime stage 從頭到尾沒有 <code>apt-get</code>。根因:建置指令沒有 <code>--pull</code>,而 runner 是 <strong>self-hosted</strong>,<code>python:3.12-slim</code> 這個 tag 一旦拉過就躺在本機層快取,上游把同一個 tag 重建、把 Debian 安全更新併進去,我們永遠取不到 → <strong>時間到了 CI 自己會紅,而且 main 一起紅,看起來卻像某個 PR 弄壞的</strong>。🔴 這不是放寬紅線:tag 仍是版本 tag 不是 <code>latest</code>,<code>--pull</code> 只影響「同一個 tag 取哪一份」;沒用 <code>.trivyignore</code>、沒放寬 <code>--severity</code>(T82 立過的界線);<code>--ignore-unfixed</code> 維持原狀——它本來就在,代表這批 CVE <strong>上游有修好的版本</strong>,我們只是拿不到。若 <code>--pull</code> 後仍紅代表上游尚未重建,屆時再於 runtime stage 明確 <code>apt-get upgrade</code>,<strong>先不做</strong>免得上游修好後留下長期贅生物</td>
+</tr>
+<tr>
+<td>T97</td>
+<td>專案頁顯示擁有者(過渡 sub 前 8 碼)+ 申請擴大名稱快取用途</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 看正式站:「沒有顯示作者的名字」——查證屬實,<code>專案資訊</code> 只有容量與時間,<strong>完全沒有擁有者欄位</strong>。對程式分享平台是核心缺口:要下載一支執行檔,「這是誰放的」是判斷信不信任它的第一個依據,<strong>尤其掃毒還沒接上</strong>(<code>not_scanned</code>),發布者是誰是使用者僅剩的依據。🔴 <strong>但名字放不上去</strong>:名字唯一來源 <code>display_name_cache</code> 受契約 §4.2a L1 管,而那條「僅管理後台顯示、<strong>不出現在一般使用者可見頁面</strong>」是<strong>我方自己寫進申請書的</strong>——當初為求好過把範圍縮到最小,現在反過來咬到自己;偏離平台契約的權限不在本專案(〈位階〉),只能送申請不能自行放寬。Benny 裁示<strong>兩個都做</strong>:(1)過渡顯示 <strong>sub 前 8 碼</strong>+誠實標註「顯示名稱待平台核准」(sub 是不透明識別碼非個資,業務庫本來就只存它;截斷比照 T59「僅供人眼辨識」;與 <code>not_scanned</code> 同一個態度);(2)申請書送 portal,<strong>只動「用途」一欄</strong>,明列不申請的四件事(Admin API / 進 API 回應 / 新欄位 / email),附契約增修建議稿與「若不同意」的替代方向詢問。🐛 測試自己先寫錯一次:三條都讓<strong>擁有者自己</strong>看自己的專案,於是「不得洩漏完整 sub」當場紅——<strong>卻不是功能有問題</strong>,而是導覽列本來就會顯示檢視者自己的 sub;「名字不得出現」那條更是永遠不可能過。改成<strong>由別人來看</strong>才是真正要問的問題。教訓:寫反向斷言前要先確認頁面沒有<strong>另一個合法來源</strong>會產生同一個字串。<strong>3 條紅→綠(功能紅、兩條護欄綠),全套 523</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1039,6 +1053,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.74</td>
+<td>2026-08-12 19:45</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T96 CI <code>--pull</code></strong>(base image 被本機快取釘住,Trivy 對著沒改過的東西紅燈)+ <strong>T97 專案頁擁有者欄位</strong>(契約 §4.2a L1 擋住名字,過渡顯示 sub 前 8 碼並送申請擴大用途;🐛 測試視角寫錯的教訓);全套 523</td>
 </tr>
 <tr>
 <td>v1.73</td>

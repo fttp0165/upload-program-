@@ -105,8 +105,14 @@ jobs:
       # 不吃 dockerd 的 registry mirror(本 VM 連不到 docker.io,靠 mirror.gcr.io),
       # 抓 base image 直接 i/o timeout。改用 dockerd 內建 builder——吃鏡像設定,
       # 且同機重跑天然有本機層快取(GHA 快取後端在本 VM 也連不到,一併移除)。
+      # 🔴 --pull 不可省(T96):runner 是 self-hosted,`python:3.12-slim` 這個 tag
+      # 會被本機層快取釘在**第一次拉到的那份**。base image 的 OS 套件(util-linux…)
+      # 之後就再也不會更新,於是 Trivy 有一天突然對著我們沒改過的東西紅燈——
+      # 而且 main 也會一起紅,看起來像「這個 PR 弄壞的」。
+      # tag 本身仍是鎖版本(禁 latest 那條紅線不受影響),--pull 只是確保
+      # 同一個 tag 取到上游最新重建的那份。
       - name: Build image(dockerd 內建 builder,先只建到本機)
-        run: docker build -t upload-program:ci .
+        run: docker build --pull -t upload-program:ci .
 
       - name: 檢查 image 大小(目標 ≤300 MB)
         run: |

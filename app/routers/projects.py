@@ -32,6 +32,7 @@ from ..security import (
     require_project_read,
     require_project_role,
 )
+from ..slugs import unique_slug
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
 log = logging.getLogger(__name__)
@@ -62,8 +63,11 @@ async def list_projects(
 async def create_project(
     payload: ProjectCreate, request: Request, session: DbSession, identity: CurrentUser
 ) -> ProjectOut:
+    # T96:slug 選填 —— 沒指定就從名稱自動產生(網頁表單已不再詢問)。
+    # 🔴 指定時行為一字不變:向下相容,腳本使用者要的正是可預測的短名。
+    slug = payload.slug or await unique_slug(session, payload.name)
     project = Project(
-        slug=payload.slug,
+        slug=slug,
         name=payload.name,
         summary=payload.summary,
         visibility=payload.visibility,
@@ -77,7 +81,7 @@ async def create_project(
         await session.flush()
     except IntegrityError:
         await session.rollback()
-        raise problems.conflict(f"專案短名 {payload.slug} 已被使用") from None
+        raise problems.conflict(f"專案短名 {slug} 已被使用") from None
 
     record(
         session,

@@ -19,10 +19,11 @@ from tests.conftest import auth
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 
 
-async def _project(client, token, slug, name="版本歷史測試"):
+async def _project(client, token, slug, name=None):
+    # T96:表單不再有短名欄位——短名由**名稱**產生,所以這裡把名稱設成想要的短名。
     await client.post(
         "/projects/new",
-        data={"slug": slug, "name": name, "summary": "", "visibility": "internal"},
+        data={"name": name or slug, "summary": "", "visibility": "internal"},
         headers={**BROWSER, **auth(token)},
         follow_redirects=False,
     )

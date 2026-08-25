@@ -22,16 +22,12 @@
   {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
 
   <form method="post" action="{{ url('/projects/new') }}" class="stack-form">
-    <label>
-      <span>專案短名(網址用)</span>
-      <input type="text" name="slug" value="{{ form.slug or '' }}" required
-             placeholder="my-tool" pattern="[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]">
-      <small class="muted">3–64 字元的小寫英數與連字號,不以連字號開頭或結尾</small>
-    </label>
-
+    {# T96:短名欄位已移除 —— 由名稱自動產生(見 app/slugs.py)。
+       使用者要建專案,第一件事不該是先想一個網址用的英文短名。 #}
     <label>
       <span>專案名稱</span>
       <input type="text" name="name" value="{{ form.name or '' }}" required maxlength="128">
+      <small class="muted">網址用的短名會依名稱自動產生(建立後顯示在專案頁)</small>
     </label>
 
     <label>

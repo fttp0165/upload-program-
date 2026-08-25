@@ -727,6 +727,14 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
   color: var(--fg-muted);
 }
 
+/* T95:側欄底部的版號。跟在入口連結之後,用更小更淡的字與它拉開層級
+   ——它是「這台跑的是哪一版」的事實,不是可以點的東西。 */
+.side-version {
+  margin: .5rem .9rem 0;
+  font-size: .72rem;
+  color: var(--fg-faint);
+}
+
 .side-sect {
   font-size: .72rem;
   letter-spacing: .08em;

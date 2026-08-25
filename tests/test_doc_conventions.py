@@ -94,3 +94,62 @@ def test_憲法第九條存在且列出命名格式():
     assert "_致_" in charter, "第九條應寫明檔名格式(含 _致_ 分隔)"
     for field in REQUIRED_FIELDS:
         assert field in charter, f"第九條應列出抬頭欄位:{field}"
+
+
+# --- T99 憲法第十條:指令必須標明「在哪台機器、在哪個目錄」-------------------
+#
+# 為什麼需要守門:文件裡同時有三種機器的指令(WSL 開發機 / Windows 的 Docker
+# Desktop / Cats VM),每個區塊長得一模一樣——黑底、`$` 開頭。在 WSL 跑到 VM
+# 的指令頂多報錯;**在 VM 跑到本機的指令會出事**(dev compose 一貼就把資料庫
+# 的 port 開到主機上)。
+#
+# 🔴 而且已經出過事:2026-08-11 換版第一次失敗,根因是
+# 「改 docker-compose.yml 的 image tag」那一步**是編輯檔案,卻被當成 shell
+# 指令貼進終端機」。所以標記分兩種:🖥️ 執行 / 📄 編輯。
+#
+# 新增區塊時忘記標**不會有任何錯誤訊息**,文件會慢慢退回原狀而沒人看得見——
+# 這正是要用測試而不是靠自律的理由(與第九條同一課)。
+
+RUNBOOKS = ("runbook_本地開發與CI.md", "runbook_換版與備份還原.md")
+RUNNABLE_FENCES = ("```bash", "```cron")
+PLATFORM_MARKERS = ("在哪執行:", "編輯哪個檔:")
+LOOKBACK = 8
+
+
+def _unmarked_blocks(name: str) -> list[int]:
+    """回傳該文件中「沒有標平台/路徑」的可貼區塊行號(1-based)。"""
+    lines = (ROOT / "docs" / name).read_text(encoding="utf-8").split("\n")
+    bad = []
+    for i, line in enumerate(lines):
+        if not line.startswith(RUNNABLE_FENCES):
+            continue
+        window = lines[max(0, i - LOOKBACK): i]
+        if not any(m in w for w in window for m in PLATFORM_MARKERS):
+            bad.append(i + 1)
+    return bad
+
+
+def test_runbook的每個可貼區塊都標了平台與路徑():
+    broken = {name: _unmarked_blocks(name) for name in RUNBOOKS}
+    broken = {k: v for k, v in broken.items() if v}
+    assert not broken, (
+        f"以下區塊沒標「在哪執行/編輯哪個檔」(行號):{broken}\n"
+        "🔴 憲法第十條:指令要說明在哪一台機器、在哪個目錄"
+    )
+
+
+def test_憲法第十條存在且列出標記():
+    charter = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "第十條" in charter, "CLAUDE.md 應有第十條"
+    for marker in PLATFORM_MARKERS:
+        assert marker in charter, f"第十條應列出標記:{marker}"
+
+
+def test_標記要寫得出實際機器名():
+    """只寫「在哪執行:」而不寫機器名等於沒標。"""
+    machines = ("WSL", "Cats VM", "Windows")
+    for name in RUNBOOKS:
+        text = (ROOT / "docs" / name).read_text(encoding="utf-8")
+        for line in text.split("\n"):
+            if "在哪執行:" in line:
+                assert any(m in line for m in machines), f"{name} 標記未指明機器:{line}"

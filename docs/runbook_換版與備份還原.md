@@ -1,8 +1,9 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
+**專案:** upload-program
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-12 01:20
-**版本:** v1.8
+**最後更新:** 2026-08-12 21:10
+**版本:** v1.9
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -43,6 +44,8 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 `/upload/` 路由**刻
 
 ### A.0 前置確認(第一次部署後,每次都一樣)
 
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
+
 ```bash
 cd /opt/upload-program          # 部署目錄(VM 慣例:/opt/<服務名>,2026-07-29 實測定案)
 docker compose config -q        # compose 語法與 .env 齊全性
@@ -51,6 +54,8 @@ docker compose config -q        # compose 語法與 .env 齊全性
 ### A.1 發版:打 tag,讓 CI 產 image
 
 在開發機(不是 VM):
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`(本機 repo,不是 VM)
 
 ```bash
 git tag v1.2.0 && git push origin v1.2.0
@@ -76,6 +81,8 @@ Release 頁本來就只有 source zip,不會有 image。
 > 一定看得到是哪個步驟死的;什麼都沒有的紅燈去查帳,不要改程式。
 
 ### A.2 VM 上換版
+
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
 
 ```bash
 cd /opt/upload-program
@@ -120,6 +127,8 @@ gateway 仍指向舊 IP——症狀最惡劣:`docker ps` healthy、健康檢查�
 > 仍要照《測試項目清單》人工補驗。底下的逐條指令保留作後備與出處。
 
 
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 任何目錄(對外打 curl,不碰部署目錄)
+
 ```bash
 # 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
@@ -147,6 +156,8 @@ done
 
 ### B.1 只退程式(本版沒有 migration)
 
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
+
 ```bash
 # compose 的 image 改回上一版 tag
 docker compose pull svc && docker compose up -d svc
@@ -154,6 +165,8 @@ docker compose pull svc && docker compose up -d svc
 ```
 
 ### B.2 退程式 + 退 schema(本版有 migration)
+
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
 
 ```bash
 # 1) 🔴 先備份(回滾也會動資料——downgrade 是 UPDATE/DROP,不是「回到安全」)
@@ -200,6 +213,8 @@ docker compose exec svc alembic downgrade -1
 
 ### C.2 cron(部署當天照抄——設定值不會自己生效)
 
+> 📄 **編輯哪個檔:** Cats VM 的 crontab(`crontab -e`)——**貼進編輯器,不是貼進終端機**
+
 ```cron
 # 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
 30 2 * * *  cd /opt/upload-program && BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh >> /var/log/upload-backup.log 2>&1
@@ -243,6 +258,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.9 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為 7 個可貼區塊標明「在哪台機器、在哪個目錄」:🔴 §A.1 打 tag 是在**本機 repo** 不是 VM(這份文件裡唯一的例外,最容易貼錯)、§A.2/§B 在 VM 的 `/opt/upload-program`、§A.4 冒煙是對外打 curl、§C.2 cron 標為 **📄 編輯 crontab 不是貼進終端機**(2026-08-11 換版失敗正是「編輯」被當成「執行」);依第九條補抬頭「專案」 |
 | v1.8 | 2026-08-12 01:20 | Claude(Benny:可否寫測試腳本) | §A.4 加 **`tools/smoke.sh` 一鍵冒煙**(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備 |
 | v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |
 | v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |

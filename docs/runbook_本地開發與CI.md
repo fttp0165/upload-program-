@@ -2,11 +2,12 @@
 
 **專案:** upload-program
 **建立日期:** 2026-08-12 20:10
-**最後更新:** 2026-08-12 20:25
-**版本:** v1.1
+**最後更新:** 2026-08-12 21:10
+**版本:** v2.0
 
-> 照著做就好,不需要先懂為什麼。**每一段都標了「要不要 Docker」**——
-> 光是跑測試與 lint 不需要 Docker,也不需要資料庫。
+> 照著做就好,不需要先懂為什麼。
+> **每個指令區塊上面都標了「在哪台機器、在哪個目錄」**(憲法第十條);
+> 🖥️ 是貼進終端機執行,📄 是**編輯檔案內容**——這兩個混淆過一次,代價是一次失敗的換版。
 
 ---
 
@@ -30,6 +31,8 @@
 
 ### 1.1 WSL 裡要有的東西
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~`(還沒有專案目錄)
+
 ```bash
 # 確認 WSL 版本與發行版(建議 Ubuntu 22.04 以上)
 lsb_release -a
@@ -49,6 +52,8 @@ Docker:**在 Windows 裝 Docker Desktop**,設定裡開啟
 `Settings → Resources → WSL Integration → 你的發行版`。
 裝好後在 WSL 裡驗證:
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 任何目錄(只是確認 Windows 的 Docker Desktop 有接上)
+
 ```bash
 docker version && docker compose version
 ```
@@ -57,6 +62,8 @@ docker version && docker compose version
 > 但那需要 `systemd` 支援(WSL2 較新版才有),Docker Desktop 是省事的路。
 
 ### 1.2 取得程式碼
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~`(還沒有專案目錄)
 
 ```bash
 cd ~
@@ -70,6 +77,8 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 
 ### 1.3 建立 venv
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
@@ -77,6 +86,8 @@ python3.12 -m venv .venv
 ```
 
 ### 1.4 `.env`
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
 
 ```bash
 cp .env.example .env
@@ -89,6 +100,8 @@ cp .env.example .env
 
 ## 2. 跑測試與 lint(不需要 Docker)
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 .venv/bin/pytest -q                      # 全部測試
 .venv/bin/ruff check .                   # lint
@@ -100,6 +113,8 @@ cp .env.example .env
 
 常用的縮寫:
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 .venv/bin/pytest -q tests/test_filetypes.py          # 只跑一個檔
 .venv/bin/pytest -q -k 中文                          # 只跑名字含「中文」的
@@ -108,6 +123,8 @@ cp .env.example .env
 ```
 
 改完文件記得產生 HTML(否則 CI 的同步檢查會紅):
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
 
 ```bash
 .venv/bin/python tools/render_docs.py    # 不帶 --check 才會寫檔
@@ -118,6 +135,8 @@ cp .env.example .env
 ## 3. 用瀏覽器實際操作(需要 Docker)
 
 ### 3.1 起相依服務
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
@@ -130,6 +149,8 @@ docker compose -f docker-compose.dev.yml ps    # 兩個都要 healthy
 
 ### 3.2 `.env` 改四行
 
+> 📄 **編輯哪個檔:** `~/upload-program-/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
+
 ```bash
 DATABASE_URL=postgresql+asyncpg://upload_program_user:devpassword@127.0.0.1:15432/upload_program_db
 S3_ENDPOINT_URL=http://127.0.0.1:19000
@@ -138,6 +159,8 @@ S3_SECRET_KEY=devsecretkey
 ```
 
 另外這兩個要有值(內容隨便,但不能空):
+
+> 📄 **編輯哪個檔:** `~/upload-program-/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
 
 ```bash
 SESSION_SECRET=local-dev-only-not-a-real-secret
@@ -148,6 +171,8 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 反正登入本來就不能用(§5),真 secret 放進來只是多一份外洩面。
 
 ### 3.3 建表並啟動
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
 
 ```bash
 .venv/bin/alembic upgrade head           # 建表(第一次,或有新 migration 時)
@@ -177,6 +202,8 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 
 ### 3.4 收工 / 重來
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 docker compose -f docker-compose.dev.yml down          # 停掉,資料留著
 docker compose -f docker-compose.dev.yml down -v       # 連資料一起砍掉,下次從乾淨的來
@@ -192,6 +219,8 @@ CI 有三個 job,本機能跑前兩個:
 
 見 §2 的三條指令,加上 CI 另外做的兩項檢查:
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 # 不該進 git 的檔案
 git ls-files | grep -E '\.(sql|xlsx)$|^\.env$|node_modules/|\.venv/' && echo "❌ 有不該進 git 的檔案" || echo "✅"
@@ -201,6 +230,8 @@ grep -ri "authentik\|HS256" app/ tests/ && echo "❌ 踩到 SSO 紅線" || echo 
 ```
 
 ### 4.2 job 2:建 image + 弱點掃描(需要 Docker)
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
 
 ```bash
 # 🔴 --pull 不可省(T96):少了它,base image 會被本機快取釘在舊版,
@@ -262,6 +293,8 @@ Trivy 第一次跑要下載弱點資料庫,約 1–2 分鐘,之後有快取。
 
 ## 7. 一頁速查
 
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+
 ```bash
 # 日常:改程式 → 驗證
 .venv/bin/pytest -q && .venv/bin/ruff check . && .venv/bin/python tools/render_docs.py --check
@@ -291,5 +324,6 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.70.
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v2.0 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為全部 16 個指令區塊標明機器與工作目錄;區分 🖥️ 執行 / 📄 編輯(`.env` 那兩段是編輯不是貼指令);導言改述新的閱讀方式 |
 | v1.1 | 2026-08-12 20:25 | Claude(Benny:部屬本地 WSL 跑 CI) | §3.3 補上「啟動 log 會有 OIDC discovery 失敗」是**預期行為**(不擋啟動)與三個端點的本機預期(`/ready` 本機必然紅);§6 對應加兩列 |
 | v1.0 | 2026-08-12 20:10 | Claude(Benny:部屬本地 WSL 跑 CI) | 初版:WSL 準備、venv、`docker-compose.dev.yml` 起相依、本機跑 CI 三個 job(job 3 不跑的理由)、🔴 本機做不到的事(登入)、常見卡關七項、一頁速查 |

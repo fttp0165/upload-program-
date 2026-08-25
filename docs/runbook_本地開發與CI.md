@@ -2,12 +2,16 @@
 
 **專案:** upload-program
 **建立日期:** 2026-08-12 20:10
-**最後更新:** 2026-08-12 21:10
-**版本:** v2.0
+**最後更新:** 2026-08-12 21:40
+**版本:** v2.1
 
 > 照著做就好,不需要先懂為什麼。
 > **每個指令區塊上面都標了「在哪台機器、在哪個目錄」**(憲法第十條);
 > 🖥️ 是貼進終端機執行,📄 是**編輯檔案內容**——這兩個混淆過一次,代價是一次失敗的換版。
+>
+> 📁 **本文件一律以 `~/up` 作為專案目錄**(2026-08-25 實機建置時的實際位置)。
+> 你若 clone 在別處,把下面每一個 `~/up` 換成你的路徑——
+> 🔴 但**不要**放在 `/mnt/c/...`,理由見 §1.2。
 
 ---
 
@@ -15,7 +19,7 @@
 
 | 你想做的事 | 需要 Docker? | 需要 DB / MinIO? | 看哪一節 |
 |---|---|---|---|
-| 跑 528 條測試 | ❌ | ❌ | §2 |
+| 跑 531 條測試 | ❌ | ❌ | §2 |
 | 跑 lint / 文件同步檢查 | ❌ | ❌ | §2 |
 | 用瀏覽器實際點畫面 | ✅ | ✅ | §3 |
 | 跑完整 CI(含建 image + 弱點掃描) | ✅ | ❌ | §4 |
@@ -67,8 +71,8 @@ docker version && docker compose version
 
 ```bash
 cd ~
-git clone https://github.com/fttp0165/upload-program-.git
-cd upload-program-
+git clone https://github.com/fttp0165/upload-program-.git up
+cd ~/up
 git checkout claude/read-article-join-project-1op5nk   # 或 main
 ```
 
@@ -77,7 +81,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 
 ### 1.3 建立 venv
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 python3.12 -m venv .venv
@@ -87,7 +91,7 @@ python3.12 -m venv .venv
 
 ### 1.4 `.env`
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 cp .env.example .env
@@ -100,7 +104,7 @@ cp .env.example .env
 
 ## 2. 跑測試與 lint(不需要 Docker)
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 .venv/bin/pytest -q                      # 全部測試
@@ -113,7 +117,7 @@ cp .env.example .env
 
 常用的縮寫:
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 .venv/bin/pytest -q tests/test_filetypes.py          # 只跑一個檔
@@ -124,7 +128,7 @@ cp .env.example .env
 
 改完文件記得產生 HTML(否則 CI 的同步檢查會紅):
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 .venv/bin/python tools/render_docs.py    # 不帶 --check 才會寫檔
@@ -136,7 +140,7 @@ cp .env.example .env
 
 ### 3.1 起相依服務
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
@@ -149,7 +153,7 @@ docker compose -f docker-compose.dev.yml ps    # 兩個都要 healthy
 
 ### 3.2 `.env` 改四行
 
-> 📄 **編輯哪個檔:** `~/upload-program-/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
+> 📄 **編輯哪個檔:** `~/up/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://upload_program_user:devpassword@127.0.0.1:15432/upload_program_db
@@ -160,7 +164,7 @@ S3_SECRET_KEY=devsecretkey
 
 另外這兩個要有值(內容隨便,但不能空):
 
-> 📄 **編輯哪個檔:** `~/upload-program-/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
+> 📄 **編輯哪個檔:** `~/up/.env`(用 `nano .env` 或 VS Code 開,**不是**貼進終端機)
 
 ```bash
 SESSION_SECRET=local-dev-only-not-a-real-secret
@@ -172,7 +176,7 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 
 ### 3.3 建表並啟動
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 .venv/bin/alembic upgrade head           # 建表(第一次,或有新 migration 時)
@@ -202,7 +206,7 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 
 ### 3.4 收工 / 重來
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 docker compose -f docker-compose.dev.yml down          # 停掉,資料留著
@@ -219,7 +223,7 @@ CI 有三個 job,本機能跑前兩個:
 
 見 §2 的三條指令,加上 CI 另外做的兩項檢查:
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 # 不該進 git 的檔案
@@ -231,7 +235,7 @@ grep -ri "authentik\|HS256" app/ tests/ && echo "❌ 踩到 SSO 紅線" || echo 
 
 ### 4.2 job 2:建 image + 弱點掃描(需要 Docker)
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 # 🔴 --pull 不可省(T96):少了它,base image 會被本機快取釘在舊版,
@@ -266,7 +270,7 @@ Trivy 第一次跑要下載弱點資料庫,約 1–2 分鐘,之後有快取。
 
 | 做不到 | 為什麼 | 怎麼辦 |
 |---|---|---|
-| **登入** | OIDC 打的是真的 Keycloak,而 `http://localhost:8000/...` 這個 redirect URI **沒有登記在 client 上**(契約 §4:逐字比對)。這不是 bug | 登入後的行為靠 528 條測試涵蓋;真的要點畫面就上正式站 |
+| **登入** | OIDC 打的是真的 Keycloak,而 `http://localhost:8000/...` 這個 redirect URI **沒有登記在 client 上**(契約 §4:逐字比對)。這不是 bug | 登入後的行為靠 531 條測試涵蓋;真的要點畫面就上正式站 |
 | 跨 App 單一登出 | 同上,需要真實 IdP session | 測試項目清單標 🖐 人工,在正式站驗 |
 | gateway 行為(剝前綴、標頭) | 本機沒有 portal-gateway | 換版冒煙時在正式站驗(`tools/smoke.sh`) |
 
@@ -293,7 +297,7 @@ Trivy 第一次跑要下載弱點資料庫,約 1–2 分鐘,之後有快取。
 
 ## 7. 一頁速查
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/up`
 
 ```bash
 # 日常:改程式 → 驗證
@@ -324,6 +328,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.70.
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v2.1 | 2026-08-12 21:40 | Claude(WSL 實機建置回寫) | 🐛 **依實機回寫**(第二條 5):專案目錄改為實際的 `~/up`(原本寫 `~/upload-program-` 是我方假設,實機不符——第十條要求路徑寫死,寫錯的路徑比不寫更糟);§1.2 的 `git clone` 補上目標目錄名;測試數 528 → **531**;導言加註路徑約定與「clone 在別處要自行代換」 |
 | v2.0 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為全部 16 個指令區塊標明機器與工作目錄;區分 🖥️ 執行 / 📄 編輯(`.env` 那兩段是編輯不是貼指令);導言改述新的閱讀方式 |
 | v1.1 | 2026-08-12 20:25 | Claude(Benny:部屬本地 WSL 跑 CI) | §3.3 補上「啟動 log 會有 OIDC discovery 失敗」是**預期行為**(不擋啟動)與三個端點的本機預期(`/ready` 本機必然紅);§6 對應加兩列 |
 | v1.0 | 2026-08-12 20:10 | Claude(Benny:部屬本地 WSL 跑 CI) | 初版:WSL 準備、venv、`docker-compose.dev.yml` 起相依、本機跑 CI 三個 job(job 3 不跑的理由)、🔴 本機做不到的事(登入)、常見卡關七項、一頁速查 |

@@ -43,12 +43,15 @@ summary { cursor:pointer; color:#12228f; }
 <h1>Runbook:本地開發環境(WSL)與本機跑 CI</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 20:10
-<strong>最後更新:</strong> 2026-08-12 21:10
-<strong>版本:</strong> v2.0</p>
+<strong>最後更新:</strong> 2026-08-12 21:40
+<strong>版本:</strong> v2.1</p>
 <blockquote>
 <p>照著做就好,不需要先懂為什麼。
 <strong>每個指令區塊上面都標了「在哪台機器、在哪個目錄」</strong>(憲法第十條);
 🖥️ 是貼進終端機執行,📄 是<strong>編輯檔案內容</strong>——這兩個混淆過一次,代價是一次失敗的換版。</p>
+<p>📁 <strong>本文件一律以 <code>~/up</code> 作為專案目錄</strong>(2026-08-25 實機建置時的實際位置)。
+你若 clone 在別處,把下面每一個 <code>~/up</code> 換成你的路徑——
+🔴 但<strong>不要</strong>放在 <code>/mnt/c/...</code>,理由見 §1.2。</p>
 </blockquote>
 <hr />
 <h2>0. 先看這張表:你想做的事需要什麼</h2>
@@ -63,7 +66,7 @@ summary { cursor:pointer; color:#12228f; }
 </thead>
 <tbody>
 <tr>
-<td>跑 528 條測試</td>
+<td>跑 531 條測試</td>
 <td>❌</td>
 <td>❌</td>
 <td>§2</td>
@@ -127,15 +130,15 @@ git --version || sudo apt install -y git
 <p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~</code>(還沒有專案目錄)</p>
 </blockquote>
 <pre><code class="language-bash">cd ~
-git clone https://github.com/fttp0165/upload-program-.git
-cd upload-program-
+git clone https://github.com/fttp0165/upload-program-.git up
+cd ~/up
 git checkout claude/read-article-join-project-1op5nk   # 或 main
 </code></pre>
 <p>🔴 <strong>放在 WSL 的檔案系統裡(<code>~/</code>),不要放在 <code>/mnt/c/...</code>。</strong>
 跨檔案系統存取慢 5–10 倍,<code>pytest</code> 會從一分鐘變成好幾分鐘。</p>
 <h3>1.3 建立 venv</h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
@@ -143,7 +146,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 </code></pre>
 <h3>1.4 <code>.env</code></h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">cp .env.example .env
 </code></pre>
@@ -152,7 +155,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 <hr />
 <h2>2. 跑測試與 lint(不需要 Docker)</h2>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">.venv/bin/pytest -q                      # 全部測試
 .venv/bin/ruff check .                   # lint
@@ -162,7 +165,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 <strong>推之前先跑這三條</strong>,可以省掉一趟 CI 往返。</p>
 <p>常用的縮寫:</p>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">.venv/bin/pytest -q tests/test_filetypes.py          # 只跑一個檔
 .venv/bin/pytest -q -k 中文                          # 只跑名字含「中文」的
@@ -171,7 +174,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 </code></pre>
 <p>改完文件記得產生 HTML(否則 CI 的同步檢查會紅):</p>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">.venv/bin/python tools/render_docs.py    # 不帶 --check 才會寫檔
 </code></pre>
@@ -179,7 +182,7 @@ git checkout claude/read-article-join-project-1op5nk   # 或 main
 <h2>3. 用瀏覽器實際操作(需要 Docker)</h2>
 <h3>3.1 起相依服務</h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">docker compose -f docker-compose.dev.yml up -d
 docker compose -f docker-compose.dev.yml ps    # 兩個都要 healthy
@@ -189,7 +192,7 @@ docker compose -f docker-compose.dev.yml ps    # 兩個都要 healthy
 在本機必然失敗(而且那份本來就不是給本機用的)。</p>
 <h3>3.2 <code>.env</code> 改四行</h3>
 <blockquote>
-<p>📄 <strong>編輯哪個檔:</strong> <code>~/upload-program-/.env</code>(用 <code>nano .env</code> 或 VS Code 開,<strong>不是</strong>貼進終端機)</p>
+<p>📄 <strong>編輯哪個檔:</strong> <code>~/up/.env</code>(用 <code>nano .env</code> 或 VS Code 開,<strong>不是</strong>貼進終端機)</p>
 </blockquote>
 <pre><code class="language-bash">DATABASE_URL=postgresql+asyncpg://upload_program_user:devpassword@127.0.0.1:15432/upload_program_db
 S3_ENDPOINT_URL=http://127.0.0.1:19000
@@ -198,7 +201,7 @@ S3_SECRET_KEY=devsecretkey
 </code></pre>
 <p>另外這兩個要有值(內容隨便,但不能空):</p>
 <blockquote>
-<p>📄 <strong>編輯哪個檔:</strong> <code>~/upload-program-/.env</code>(用 <code>nano .env</code> 或 VS Code 開,<strong>不是</strong>貼進終端機)</p>
+<p>📄 <strong>編輯哪個檔:</strong> <code>~/up/.env</code>(用 <code>nano .env</code> 或 VS Code 開,<strong>不是</strong>貼進終端機)</p>
 </blockquote>
 <pre><code class="language-bash">SESSION_SECRET=local-dev-only-not-a-real-secret
 OIDC_CLIENT_SECRET=local-dev-placeholder
@@ -207,7 +210,7 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 反正登入本來就不能用(§5),真 secret 放進來只是多一份外洩面。</p>
 <h3>3.3 建表並啟動</h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">.venv/bin/alembic upgrade head           # 建表(第一次,或有新 migration 時)
 .venv/bin/uvicorn app.asgi:app --reload --port 8000
@@ -245,7 +248,7 @@ OIDC_CLIENT_SECRET=local-dev-placeholder
 可以直接看上傳的物件長什麼樣。</p>
 <h3>3.4 收工 / 重來</h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash">docker compose -f docker-compose.dev.yml down          # 停掉,資料留著
 docker compose -f docker-compose.dev.yml down -v       # 連資料一起砍掉,下次從乾淨的來
@@ -256,7 +259,7 @@ docker compose -f docker-compose.dev.yml down -v       # 連資料一起砍掉,�
 <h3>4.1 job 1:測試 / lint / 文件同步</h3>
 <p>見 §2 的三條指令,加上 CI 另外做的兩項檢查:</p>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash"># 不該進 git 的檔案
 git ls-files | grep -E '\.(sql|xlsx)$|^\.env$|node_modules/|\.venv/' &amp;&amp; echo &quot;❌ 有不該進 git 的檔案&quot; || echo &quot;✅&quot;
@@ -266,7 +269,7 @@ grep -ri &quot;authentik\|HS256&quot; app/ tests/ &amp;&amp; echo &quot;❌ 踩�
 </code></pre>
 <h3>4.2 job 2:建 image + 弱點掃描(需要 Docker)</h3>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash"># 🔴 --pull 不可省(T96):少了它,base image 會被本機快取釘在舊版,
 #    掃描結果與 CI 不一致,而且會一直帶著早就修好的 CVE。
@@ -304,7 +307,7 @@ docker run --rm \
 <tr>
 <td><strong>登入</strong></td>
 <td>OIDC 打的是真的 Keycloak,而 <code>http://localhost:8000/...</code> 這個 redirect URI <strong>沒有登記在 client 上</strong>(契約 §4:逐字比對)。這不是 bug</td>
-<td>登入後的行為靠 528 條測試涵蓋;真的要點畫面就上正式站</td>
+<td>登入後的行為靠 531 條測試涵蓋;真的要點畫面就上正式站</td>
 </tr>
 <tr>
 <td>跨 App 單一登出</td>
@@ -371,7 +374,7 @@ docker run --rm \
 <hr />
 <h2>7. 一頁速查</h2>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code></p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
 </blockquote>
 <pre><code class="language-bash"># 日常:改程式 → 驗證
 .venv/bin/pytest -q &amp;&amp; .venv/bin/ruff check . &amp;&amp; .venv/bin/python tools/render_docs.py --check
@@ -405,6 +408,12 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.70.
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.1</td>
+<td>2026-08-12 21:40</td>
+<td>Claude(WSL 實機建置回寫)</td>
+<td>🐛 <strong>依實機回寫</strong>(第二條 5):專案目錄改為實際的 <code>~/up</code>(原本寫 <code>~/upload-program-</code> 是我方假設,實機不符——第十條要求路徑寫死,寫錯的路徑比不寫更糟);§1.2 的 <code>git clone</code> 補上目標目錄名;測試數 528 → <strong>531</strong>;導言加註路徑約定與「clone 在別處要自行代換」</td>
+</tr>
 <tr>
 <td>v2.0</td>
 <td>2026-08-12 21:10</td>

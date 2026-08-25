@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-24 15:45
-<strong>版本:</strong> v1.72</p>
+<strong>最後更新:</strong> 2026-08-24 16:20
+<strong>版本:</strong> v1.73</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-24 15:45)</h2>
-<p>任務 92 項:<strong>✅ 87 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-24 16:20)</h2>
+<p>任務 93 項:<strong>✅ 88 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -66,7 +66,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>app/version.py</code></td>
 <td><strong>0.2.2</strong></td>
-<td>T94 已改好(第八條 4:tag 前先改),<strong>待發</strong></td>
+<td>T94 已改好;tag <code>v0.2.2</code> <strong>待推</strong>(本 session 憑證只能推 <code>claude/*</code> 分支,推 tag 回 403)</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
@@ -627,6 +627,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>🔴 <strong>這批不能用 v0.2.1——它早就發布過了</strong>(tag 指向 <code>568014b</code>,即 T87/T88 合併後的 main);第八條 5 同版不重發,故走 <strong>v0.2.2</strong>,並依第八條 4 在打 tag 前隨 PR 改好常數;⚠ <strong>本表的「三個版本號」表寫「最新 tag = v0.2.0、v0.2.1 待發」是過期記載</strong>,發版規劃照它做,結果 VM 在 15:34 換到的 <code>v0.2.1</code> 是 T87/T88 那一版、<strong>不含 T89–T93</strong>(沒造成故障,但「照著文件做卻部署了不是預期內容的版本」正是第七條存在的理由),已依第二條 5 回寫該表;<strong>不寫新測試</strong>(第三條 4,同 T83):既有版本號測試全部讀同一常數,再抄一遍字面值抓不到任何錯;遺留建議:CI 加守門比對 <code>APP_VERSION</code> 與 GitHub 最新 tag(常數不得 ≤ 已發布最新 tag),另立任務不夾在發版裡做</td>
 </tr>
 <tr>
+<td>T95</td>
+<td>版號位置改到側欄底部</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測回報(截圖:箭頭由右上指向左下);<strong>現況那個位置不是設計是意外</strong> —— <code>app.css</code> 從來沒有 <code>.app-version</code> 規則,那個 <code>&lt;p&gt;</code> 只是 <code>.layout</code>(flex)裡排在 <code>&lt;main&gt;</code> 之後的第三個項目,於是被擠到右上角;🔴 <strong>不能整個搬進側欄</strong>:側欄只有「已登入且已開通」看得到,而 T68 放版號的理由是<strong>三種身分都要看得到</strong>(回報問題報得出版本、換版驗證不必挑哨兵檔),T81 才剛為了保住這點把它搬到共用版型 —— 整個搬進去等於把 T68 悄悄廢掉;故拆成兩半:有側欄 → 側欄最底(入口連結下方)、無側欄 → 維持原位,<strong>兩者以同一個條件互斥</strong>(同頁印兩次,回報的人不知道該報哪一個);測試釘的是<strong>順序</strong>(<code>side-exit</code> &lt; <code>side-version</code> &lt; <code>&lt;/aside&gt;</code>)而不是「頁面上有沒有」——後者在版號還在右上角時也會綠,那種測試不保護任何東西;⚠ 誠實標註:三條新測試裡只有位置那條是紅起步,另兩條釘的是「搬動時不要弄壞的東西」;devserver + Chromium 截圖驗過;<strong>3 條新增(1 紅→綠),全套 530</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -954,6 +961,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.73</td>
+<td>2026-08-24 16:20</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T95 版號移到側欄底部</strong>(全套 530)。🔴 關鍵不是移動而是<strong>不能整個移</strong>:側欄只有已開通者看得到,而 T68 要求三種身分都看得到版號 —— 拆成「有側欄 → 側欄最底 / 無側欄 → 維持原位」且兩者互斥。順帶記錄一個發現:版號原本在右上角是因為 <code>app.css</code> <strong>從來沒有</strong> <code>.app-version</code> 規則,它只是 flex 容器裡的第三個項目 —— 那個位置沒有人決定過</td>
+</tr>
 <tr>
 <td>v1.72</td>
 <td>2026-08-24 15:45</td>

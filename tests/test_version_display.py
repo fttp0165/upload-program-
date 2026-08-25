@@ -46,3 +46,45 @@ async def test_版本字串格式受檢():
     from app.version import APP_VERSION
 
     assert re.fullmatch(r"\d+\.\d+\.\d+", APP_VERSION), f"版本字串應為 X.Y.Z:{APP_VERSION!r}"
+
+
+# --- T95:版號位置在側欄底部 -------------------------------------------------
+
+
+async def test_已開通者的版號在側欄底部(client, app, oidc):
+    """T95(Benny 截圖:箭頭由右上指向左下)。
+
+    🔴 斷言的是**順序**,不是「頁面上有沒有」:後者在版號還在右上角時也會綠。
+    """
+    from app.version import APP_VERSION
+
+    await make_user(app, "sub-version-side")
+    resp = await client.get("/", headers={**BROWSER, **auth(oidc.issue("sub-version-side"))})
+    body = resp.text
+    assert 'class="muted side-version"' in body, "側欄應有版號"
+    assert body.index("side-exit") < body.index("side-version"), (
+        "版號應排在入口連結之後(側欄最後一個元素)"
+    )
+    assert body.index("side-version") < body.index("</aside>"), "版號必須在側欄之內"
+    assert f"v{APP_VERSION}" in body
+
+
+async def test_同一頁只出現一次版號(client, app, oidc):
+    """🔴 印兩次的話,回報問題的人不知道該報哪一個。"""
+    from app.version import APP_VERSION
+
+    await make_user(app, "sub-version-once")
+    resp = await client.get("/", headers={**BROWSER, **auth(oidc.issue("sub-version-once"))})
+    assert resp.text.count(f"upload-program v{APP_VERSION}") == 1
+
+
+async def test_無側欄者仍看得到版號(client):
+    """🔴 側欄只有已開通者看得到。整個搬進去等於把 T68 悄悄廢掉。
+
+    匿名者沒有側欄,所以版號必須留在共用版型那一個位置。
+    """
+    from app.version import APP_VERSION
+
+    resp = await client.get("/help", headers=BROWSER)
+    assert "side-version" not in resp.text, "匿名者沒有側欄,不該出現側欄版號"
+    assert f"upload-program v{APP_VERSION}" in resp.text

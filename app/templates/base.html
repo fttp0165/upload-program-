@@ -178,6 +178,13 @@
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5H13a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1H9.5"/><path d="M6.5 5.5 3 8l3.5 2.5"/><path d="M3 8h7"/></svg>
       回到平台入口
     </a>
+
+    {# T95:版號在側欄最底(Benny 截圖:箭頭由右上指向左下)。
+       原本它在內容區右上角,而那個位置**不是設計**——`app.css` 從來沒有
+       `.app-version` 規則,它只是 `.layout`(flex)裡排在 `<main>` 之後的第三個項目。
+       🔴 只有這裡放**不夠**:側欄只有已開通者看得到,而 T68 的理由是三種身分
+          都要看得到版號。無側欄的那一半仍由下面共用版型的那一個負責,兩者互斥。 #}
+    <p class="muted side-version">upload-program v{{ app_version }}</p>
   </aside>
 {% endif %}
 
@@ -185,13 +192,19 @@
 {% block content %}{% endblock %}
 </main>
 {#
-  T68 的版本號,T81 從 home.html 搬到這裡。
+  T68 的版本號,T81 從 home.html 搬到這裡,T95 再拆成兩半。
   T68 當初挑首頁的理由是「匿名 / 待開通 / 已開通三種狀態都看得到」——
   使用者回報問題時報得出版本,換版驗證也不必挑哨兵檔。T81 之後匿名與待開通的
   瀏覽器**再也到不了首頁**,那個理由就要求它搬家,否則 T68 等於被悄悄廢掉。
+
+  T95:有側欄的人,版號在側欄最底(見上);**這裡只服務沒有側欄的那一半**
+  (匿名 / 待開通)。🔴 條件與側欄的判斷是同一個,所以兩者**互斥**——
+  同一頁印兩次版號,回報問題的人會不知道該報哪一個(有測試釘住)。
   單一真相仍是 app/version.py,由 templating 注入。
 #}
-<p class="muted app-version">upload-program v{{ app_version }}</p>
+{% if not (identity and identity.user.is_active) %}
+  <p class="muted app-version">upload-program v{{ app_version }}</p>
+{% endif %}
 </div>
 {# T58:navbar 的 collapse 與 dropdown 需要 Bootstrap JS。
    🔴 外部檔案(CSP 禁 inline script);collapse 動畫由 JS 設 element.style,

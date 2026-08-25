@@ -7,6 +7,8 @@
 等於在自己的網域上開 XSS。下載端另有 `Content-Disposition: attachment` + `nosniff` 兜底。
 """
 
+import codecs
+
 from .models import ArtifactKind
 
 OCTET_STREAM = "application/octet-stream"
@@ -80,18 +82,31 @@ _ALWAYS_REJECT_PREFIXES = ("text/html", "image/svg+xml")
 
 
 def _looks_like_text(head: bytes) -> bool:
+    """檔頭看起來是不是純文字(UTF-8)。
+
+    參數:head 檔案前 `magic_sniff_bytes` bytes。回傳:是否視為文字。副作用:無。
+
+    🐛 根本原因(T94,Benny 上傳中文 `.md` 被擋):判型只看檔頭,**尾端幾乎必然
+    切在字元中間**。舊寫法的補救是「decode 失敗就砍掉尾端 3 bytes 再試」——
+    對 ASCII 沒事,對中文是錯的:中文一個字佔 3 bytes,殘尾若是 1 或 2 bytes,
+    砍掉 3 bytes 會把**前一個完整的字**也砍破,製造出新的不完整字元,於是仍然
+    失敗、整份中文文件被判成 binary。三種對齊有兩種會踩到,所以症狀是
+    「有時可以有時不行」,而且專打中文(英文單 byte 一字,砍 3 bytes 傷不到前一字)。
+
+    正解是增量解碼器:`final=False` 的語意正是「後面還有,尾端不完整不算錯」,
+    而**真正的非法位元組照樣會拋錯**。這不是放寬判型——是把「被截斷」與
+    「不是文字」這兩件事分開,舊寫法把它們混為一談。
+    """
     if not head:
         return False
     if b"\x00" in head:
         return False
     try:
-        head.decode("utf-8")
+        # decode(head) 預設 final=False:尾端殘缺的多位元組序列會被留在緩衝區等後續,
+        # 不當成錯誤;非法序列則照常拋 UnicodeDecodeError。
+        codecs.getincrementaldecoder("utf-8")().decode(head)
     except UnicodeDecodeError:
-        # 截斷的多位元組字元會造成誤判,允許尾端 3 bytes 的不完整。
-        try:
-            head[:-3].decode("utf-8")
-        except UnicodeDecodeError:
-            return False
+        return False
     return True
 
 

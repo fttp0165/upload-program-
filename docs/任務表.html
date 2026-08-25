@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 17:30
-<strong>版本:</strong> v1.71</p>
+<strong>最後更新:</strong> 2026-08-12 18:30
+<strong>版本:</strong> v1.72</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 17:30)</h2>
-<p>任務 91 項:<strong>✅ 86 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>515 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 18:30)</h2>
+<p>任務 92 項:<strong>✅ 87 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>520 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -621,6 +621,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 裁示:文件要標明專案與時間,交付其他專案的檔名要標明<strong>發文與受文專案</strong>。動工前盤點 <code>docs/plans/</code> 13 份揪出病灶:收發欄位<strong>四種寫法</strong>(發文方/收文方、受文方/發文方、申請方、英文 From/To)、<strong>3 份完全沒有</strong>、檔名只看得出對象看不出來源與時間;對方來文更慘(收到過 <code>catsportal____uploadprogram_____.md</code>,中文被傳輸吃光只剩底線,連是誰發的都認不出)。第九條定:所有文件抬頭加 <code>專案</code>;跨專案文件再加 <code>發文專案 / 受文專案 / 發文時間</code>(<strong>發文時間不隨改版變動</strong>,供雙方對帳,與 <code>最後更新</code> 分工);🔴 檔名 <code>&lt;發文專案&gt;_致_&lt;受文專案&gt;_&lt;類別&gt;_&lt;主題&gt;_&lt;YYYYMMDD-HHmm&gt;.md</code>(類別限六種);他方來文原樣存 <code>docs/plans/inbox/</code> 不改內容;一律登記進<strong>跨專案文件索引</strong>(新增,一頁看完發過什麼/給誰/何時/對方回了沒/卡在對方三項)。⚠️ <strong>界線:只對生效後新建文件有強制力,既有 8 份不改名</strong>——舊檔被開發日誌引用 40+ 處,為求整齊回頭改寫日誌等於<strong>拿新規則竄改舊歷史</strong>(第六條精神反對),改以索引為橋、腳本統一補抬頭(手改 8 次必然漏,那正是本條要消滅的東西);規約由 <code>tests/test_doc_conventions.py</code> <strong>5 條</strong>守門(規約沒有測試,三個月後就是一句沒人記得的話)。順帶完成 T92 回覆文件 v1.1:Benny 撈回 48h VM log——正面 08:18:<strong>21.226</strong> <code>invalid_grant</code> 與對方同秒且在前段,佐證時序主張,<code>授權碼交換失敗</code> <strong>0 筆</strong>(中斷已結束);🔴 <strong>負面更有價值:08:18:44 無任何紀錄 → 排除「續期失敗導致踢回」</strong>,剩 cookie 無法解析 / 未帶 cookie 兩種,已請對方比對毫秒序 UA 來源 IP。<strong>5 條紅→綠,全套 515</strong></td>
 </tr>
 <tr>
+<td>T94</td>
+<td>🐛 中文文字檔被判成 binary(判型截斷補救砍過頭)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測:「說明」卡片上傳 <code>客戶規格書.md</code> 回 422「檔案實際型別為 application/octet-stream」——<strong>而卡片自己寫著收 PDF / Markdown / 文字檔</strong>,是我方 bug 不是使用者用錯。根因:判型只看前 4096 bytes,尾端幾乎必然切在字元中間,舊補救寫「decode 失敗就砍尾端 3 bytes 再試」——對 ASCII 沒事,<strong>對中文是錯的</strong>:中文一字 3 bytes,殘尾若是 1 或 2 bytes,砍 3 bytes 會把<strong>前一個完整的字也砍破</strong>,製造出新的不完整字元 → 仍失敗 → 判成 binary → 白名單擋下。實測同一份內容只差一個 ASCII 前綴就翻盤(<strong>三種對齊兩種失敗</strong>),所以症狀是「有時可以有時不行」。改用 UTF-8 <strong>增量解碼器</strong>(<code>final=False</code> 語意正是「後面還有,尾端不完整不算錯」,非法位元組照樣拋錯)——把「被截斷」與「不是文字」分開,舊寫法混為一談。影響面比截圖大:<code>kind=source</code> 也吃 <code>text/plain</code>,<strong>帶中文註釋超過 4KB 的 <code>.py</code>/<code>.txt</code> 同樣被擋</strong>,公司內部開發者中文註釋是常態;英文文件不受影響,此 bug <strong>專打中文</strong>。🔴 護欄不動:不把 octet-stream 加進白名單、不看副檔名、HTML/SVG 仍一律拒收、attachment+nosniff 兜底未碰,皆有測試。活這麼久的原因是測試資料太乾淨(小檔 + 英文),新測試刻意用 &gt;4096 中文並把三種對齊全測;🔴 <strong>要換版才生效</strong>,建議併入 v0.2.2。<strong>5 條紅→綠,全套 520</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1025,6 +1032,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.72</td>
+<td>2026-08-12 18:30</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T94 修好中文文字檔上傳</strong>:判型的 UTF-8 截斷補救「砍尾端 3 bytes」會砍破前一個中文字,導致 &gt;4KB 的中文 <code>.md</code>/<code>.py</code> 被判成 binary 擋下(三種對齊兩種失敗,故症狀時好時壞);改用增量解碼器分開「被截斷」與「不是文字」;白名單與 HTML/SVG 拒收未動;🔴 要換版才生效,建議 v0.2.2;5 條紅→綠,全套 520</td>
 </tr>
 <tr>
 <td>v1.71</td>

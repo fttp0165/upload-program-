@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 狀態總覽</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/狀態總覽.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 狀態總覽</h1>
+<p><strong>建立日期:</strong> 2026-08-26 15:58
+<strong>最後更新:</strong> 2026-08-26 15:58
+<strong>版本:</strong> v1.0</p>
+<blockquote>
+<p>本文是專案現況的<strong>一頁總覽快照</strong>,給新加入者與回頭查看的人。
+🔴 <strong>權威來源是 <a href="任務表.md">任務表.md</a> 與 <a href="dev-logs/">dev-logs/</a></strong>——兩邊不一致時以任務表為準;
+本文新鮮度以檔頭「最後更新」判斷。本次快照對齊任務表 <strong>v1.75(2026-08-24 17:40)</strong>。</p>
+</blockquote>
+<hr />
+<h2>1. 系統定位與部署現況</h2>
+<ul>
+<li><strong>系統:</strong> upload-program——公司內部<strong>開發者程式分享平台</strong>(「AI 小程式分享平台」,T69 更名),
+  簡易型 GitHub:登入後建立專案,上傳<strong>原始碼、執行檔、程式文件</strong>,以版本為單位發布、瀏覽、搜尋、下載。</li>
+<li><strong>技術:</strong> Python 3.12 + FastAPI + PostgreSQL + MinIO(物件儲存)。</li>
+<li><strong>部署:</strong> Cats 共用 VM,經 <code>portal-gateway</code> 掛載於子路徑
+  <code>catsapp.sporton.com.tw/upload/</code>,<strong>✅ 已上線</strong>(cats-portal 系統清單)。</li>
+<li><strong>MVP 不做:</strong> git 協定(clone/push)、PR / code review、issue、線上編輯、CI 建置、外網公開。
+  一句話界線:<strong>有版本管理的程式發布倉庫,不是分散式版本控制系統。</strong></li>
+</ul>
+<h2>2. 版本現況(三個版本號各在哪裡)</h2>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>版本</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app/version.py</code></td>
+<td><strong>0.2.3</strong></td>
+<td>T97 已改好(憲法第八條 4:tag 前先改),<strong>待發</strong>;⚠ <code>v0.2.2</code> 跳過不發(其內容未單獨出貨,見 T97)</td>
+</tr>
+<tr>
+<td>GitHub 最新 tag</td>
+<td><strong>v0.2.1</strong></td>
+<td>指向 <code>568014b</code>(T87/T88)</td>
+</tr>
+<tr>
+<td>VM 執行中</td>
+<td><strong>v0.2.1</strong></td>
+<td>2026-08-24 15:34 換版(T87/T88,<strong>不含 T89–T93</strong>);待 v0.2.3 image 推出後再換,🟢 無 migration</td>
+</tr>
+</tbody>
+</table>
+<h2>3. 里程碑與任務進度</h2>
+<p>任務 95 項:<strong>✅ 90 / 🔵 1 / ⬜ 3</strong>(另 ~~T30~~ 已由 T40–T45 取代)。</p>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1 規則與計畫</td>
+<td>✅ 完成(8/8)</td>
+</tr>
+<tr>
+<td>M2 骨架與規約落地</td>
+<td>✅ 完成(8/8)</td>
+</tr>
+<tr>
+<td>M3 身分接入</td>
+<td>✅ 完成(5/5)</td>
+</tr>
+<tr>
+<td>M4 核心業務</td>
+<td>✅ 完成(7/7)</td>
+</tr>
+<tr>
+<td>M5 檔案</td>
+<td>✅ 完成(6/6)</td>
+</tr>
+<tr>
+<td>M6 接入 Cats</td>
+<td>🔵 進行中(餘 T27 / T29 / T73)</td>
+</tr>
+<tr>
+<td>M7 前端</td>
+<td>✅ 完成(8/8)</td>
+</tr>
+<tr>
+<td>M8 第二期(不納入 MVP)</td>
+<td>⬜ 未開始(T46 病毒掃描)</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 未完成任務與卡點</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>任務</th>
+<th>卡在哪裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T27 🔵</td>
+<td>換版 runbook + 備份<strong>還原演練</strong></td>
+<td>文件已完成;演練待 staging 環境,回填證據表後才轉 ✅</td>
+</tr>
+<tr>
+<td>T29 ⬜</td>
+<td>接入冒煙清單(SSO 契約 §7)</td>
+<td>六項餘 4 項待實跑;T81 改了首頁行為(首頁也 302),第 1 項說明要一併更新</td>
+</tr>
+<tr>
+<td>T73 ⬜</td>
+<td>顯示名稱改 Admin API 即時查詢</td>
+<td><strong>待 portal 裁示</strong>;契約 v2.0 §4.2a L1 明文禁用 Admin API,屬<strong>通則層級變更</strong>,申請書需重寫</td>
+</tr>
+<tr>
+<td>T46 ⬜</td>
+<td>病毒掃描接上(F38)</td>
+<td>M8 第二期,不納入 MVP;現以 <code>scan_status=not_scanned</code> 誠實標示</td>
+</tr>
+</tbody>
+</table>
+<h2>5. 平台整合狀態(SSO / SLO / gateway)</h2>
+<ul>
+<li><strong>SSO 契約:已對齊 v2.0(2026-07-31)</strong>——RS256/JWKS、業務庫只存 <code>sub</code>、
+  首登「待開通」deny-by-default、PKCE;IdP 與各 App <strong>同源</strong>,§4.10 額外義務對本專案有強制力。</li>
+<li><strong>單一登出(SLO,契約 §10):</strong> front-channel logout 端點<strong>已實作(T74)</strong>;
+  SLO 聲明文已送 portal,<strong>等對方登錄 <code>frontchannel.logout.url</code></strong> 後才能重跑 §10 的 A→B 復現步驟。</li>
+<li><strong>等外部回覆(不在本專案手上):</strong> ① 上述 SLO 登錄;② Admin API <code>view-users</code> 申請(T73 前置)。</li>
+<li>gateway / 部署變更依 cats-portal 的《App服務對齊指南》;平台文件<strong>只引用、不複製維護</strong>。</li>
+</ul>
+<h2>6. 測試與品質</h2>
+<ul>
+<li>測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨(2026-08-24)。</li>
+<li>CI(GitHub Actions)push/PR 必跑;Trivy base image CVE 紅燈已於 T93 處理。</li>
+<li>文件 md/HTML 同步由 <code>python tools/render_docs.py --check</code> 把關。</li>
+<li>安全底線(自我加嚴):上傳驗 magic bytes、HTML/SVG 拒收、下載強制
+  <code>Content-Disposition: attachment</code> + <code>nosniff</code>、每檔保存 SHA-256。</li>
+</ul>
+<h2>7. 遺留問題與後續建議</h2>
+<ul>
+<li>[ ] <code>tools/purge_issues.py</code> 排進 VM cron(runbook §C.2)</li>
+<li>[ ] runbook「不可逆操作」清單補上 <code>0007</code> / <code>0008</code> 的 <code>DROP TABLE</code></li>
+<li>[ ] 🐛 登入曾出現 401「授權碼交換失敗」(trace <code>5983122e</code>):<code>app/oidc.py</code> 只記 status
+      不記 IdP 的 <code>error</code>;建議另立任務,<strong>裁示前不動工</strong></li>
+<li>[ ] 🔴 <code>requirements.txt</code> 仍是相容區間不是 lock 檔——建置不可重現,建議另立任務做 pip-compile</li>
+<li>發版待辦:v0.2.3(T89–T96 一版發出)依憲法第八條發版儀式補 Release title/content 後換版</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-26</td>
+<td>Claude(Benny 指示)</td>
+<td>初版:七節總覽,對齊任務表 v1.75</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

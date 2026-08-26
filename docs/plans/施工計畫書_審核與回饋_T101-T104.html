@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施工計畫書:管理員權限、發布審核、專案回饋、版本屬名(T101–T104)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/施工計畫書_審核與回饋_T101-T104.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>施工計畫書:管理員權限、發布審核、專案回饋、版本屬名(T101–T104)</h1>
+<p><strong>專案:</strong> upload-program
+<strong>建立日期:</strong> 2026-08-12 22:20
+<strong>最後更新:</strong> 2026-08-12 22:20
+<strong>版本:</strong> v1.0
+<strong>狀態:</strong> 📤 <strong>待 Benny 確認後才動工</strong>(憲法第二條 3)</p>
+<blockquote>
+<p>依憲法<strong>第一條 4</strong>:需求變更不直接改程式,先更新計畫與任務表。
+本文件不是通知,是提案——<strong>四項裡有兩項需要你先裁示</strong>,見 §6。</p>
+</blockquote>
+<hr />
+<h2>0. 需求原文與盤點結果</h2>
+<p>Benny(2026-08-12):</p>
+<ol>
+<li>建立管理員權限</li>
+<li>使用者發布後,要管理員審核才會讓其他使用者下載</li>
+<li>專案可以增加 user feedback</li>
+<li>增加專案版本 作者屬名(例如初始版本 jack 發布、v2 由 benny 發布)</li>
+</ol>
+<p>盤點後,<strong>四項的規模差很多</strong>——這一點很重要,不該平均分配注意力:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>任務</th>
+<th>現況</th>
+<th>規模</th>
+<th>資料影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>管理員權限</td>
+<td><strong>九成已存在</strong>,只缺一個按鈕</td>
+<td>小</td>
+<td>🟢 不動</td>
+</tr>
+<tr>
+<td>2</td>
+<td>發布審核</td>
+<td><strong>完全沒有</strong>,要動狀態機</td>
+<td>🔴 <strong>最大</strong></td>
+<td>🟡 加欄位 + migration</td>
+</tr>
+<tr>
+<td>3</td>
+<td>專案回饋</td>
+<td>完全沒有(問題回報是平台層,不是專案層)</td>
+<td>中</td>
+<td>🟡 加表 + migration</td>
+</tr>
+<tr>
+<td>4</td>
+<td>版本屬名</td>
+<td><strong>資料早就有</strong>,只缺顯示;名字受契約擋住</td>
+<td>小</td>
+<td>🟢 不動</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>1. T101 管理員權限(規模:小)</h2>
+<h3>現況:後端早就做完了</h3>
+<ul>
+<li><code>User.platform_role</code>(<code>member</code> / <code>admin</code>)欄位存在;</li>
+<li><code>PATCH /v1/admin/users/{id}</code> <strong>已經可以改 <code>platform_role</code></strong>,而且有稽核;</li>
+<li>管理後台的使用者清單<strong>已經會顯示「管理員」徽章</strong>;</li>
+<li><code>BOOTSTRAP_ADMIN_SUBS</code> 讓第一個管理員能從 <code>.env</code> 帶進來(否則雞生蛋)。</li>
+</ul>
+<p><strong>唯一缺的是網頁上的按鈕</strong>——跟 T100 同一個形狀:功能在,入口沒有。
+目前要指派管理員只能自己打 API。</p>
+<h3>提案</h3>
+<p><code>/admin/users</code> 每一列加「設為管理員 / 取消管理員」按鈕(POST 表單)。</p>
+<h3>🔴 三條防呆(這是給權限,不是給顏色)</h3>
+<ol>
+<li><strong>不能取消自己的管理員身分</strong>——不然一個人手滑就沒人管得動系統了
+   (平台無 root 後門,只能改 <code>.env</code> 重啟)。</li>
+<li><strong>不能把「未開通」的人設為管理員</strong>:待開通是 deny-by-default 的狀態,
+   跳過開通直接給管理權等於繞過自己的門禁。</li>
+<li><strong>稽核照記</strong>(<code>user.role_change</code> 已存在),誰把誰升成管理員必須查得到。</li>
+</ol>
+<h3>驗收</h3>
+<p>授權變更走既有 API 路徑(不另寫一套權限邏輯);三條防呆各一條測試。</p>
+<hr />
+<h2>2. T102 發布審核(規模:🔴 最大,需裁示)</h2>
+<h3>這一項改變的是系統的核心承諾</h3>
+<p>現在的模型是<strong>兩態</strong>:<code>draft</code>(作者的工作區)→ <code>published</code>(大家可下載)。
+你要的是<strong>三態</strong>:作者發布後先進「待審」,管理員准了才真的能下載。</p>
+<p>這牽動的東西比看起來多:</p>
+<table>
+<thead>
+<tr>
+<th>牽動</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ReleaseStatus</code> 列舉</td>
+<td>加 <code>pending_review</code>(或 <code>approved</code> 另立欄位)——<strong>migration 🟡</strong></td>
+</tr>
+<tr>
+<td><code>latest_published_release()</code></td>
+<td>「最新版」的定義要改成「最新<strong>已核准</strong>版」</td>
+</tr>
+<tr>
+<td>下載端</td>
+<td>每個 artifact 下載都要多一道狀態檢查</td>
+</tr>
+<tr>
+<td>固定連結 F26</td>
+<td><code>/releases/latest/artifacts/{name}/download</code> 的語意跟著變</td>
+</tr>
+<tr>
+<td>管理後台</td>
+<td>要有審核佇列(核准 / 退回 + 理由)</td>
+</tr>
+<tr>
+<td>通知</td>
+<td><strong>平台沒有 email / 推播</strong>——作者怎麼知道被退回?只能靠站內顯示</td>
+</tr>
+<tr>
+<td>既有資料</td>
+<td>現在已發布的版本,migration 時要當成「已核准」還是「待審」?</td>
+</tr>
+</tbody>
+</table>
+<h3>🔴 我方的兩個建議(但決定權在你,見 §6)</h3>
+<p><strong>建議 A:退回時必須寫理由。</strong> 沒有理由的退回,作者只能猜,然後重傳一次一模一樣的東西。
+理由欄位不是裝飾,是這個流程能不能運轉的關鍵。</p>
+<p><strong>建議 B:待審版本對「非成員」直接隱藏,不是顯示但不能下載。</strong>
+顯示一個下載不了的版本,對使用者是純粹的挫折;而且「這個專案有一版正在審」
+本身也是資訊。專案成員仍看得到(他們要知道自己送審的東西卡在哪)。</p>
+<h3>🔴 一個必須先想清楚的風險</h3>
+<p>審核會<strong>卡住發布流程</strong>。平台目前沒有任何通知管道(T79 已載明「不會寄信」),
+所以:作者送審 → 管理員不知道有東西要審 → 版本卡住 → 作者以為系統壞了。</p>
+<p><strong>緩解</strong>:管理總覽的「待辦」區已經有「未處理的回報」,審核佇列比照加一項;
+但這仍然要求管理員<strong>主動去看</strong>。如果實際運作上沒人天天看後台,
+這個功能會製造比它解決的更多問題——<strong>這是要你評估的營運現實,不是技術問題</strong>。</p>
+<hr />
+<h2>3. T103 專案回饋(規模:中,需裁示範圍)</h2>
+<h3>現況</h3>
+<p>平台有<strong>問題回報系統</strong>(T76–T79),但那是「回報<strong>這個網站</strong>的問題」,
+只有本人與平台管理員看得到(🔴 404 不洩漏存在)。
+<strong>它不是專案層的公開回饋</strong>,兩者的可見性設計完全相反。</p>
+<h3>三種可能的解讀,工作量差很多</h3>
+<table>
+<thead>
+<tr>
+<th>解讀</th>
+<th>是什麼</th>
+<th>規模</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) 專案留言板</td>
+<td>專案頁下方一串留言,成員與使用者都能留</td>
+<td>中(加一張表)</td>
+</tr>
+<tr>
+<td>(b) 版本層回饋</td>
+<td>每個版本各自的意見(「v1.2 在 Win11 會閃退」)</td>
+<td>中偏大</td>
+</tr>
+<tr>
+<td>(c) 評分 / 有用嗎</td>
+<td>👍/👎 或星等,只計數不留文字</td>
+<td>小</td>
+</tr>
+</tbody>
+</table>
+<p>我方建議 <strong>(a)</strong>:文字回饋對「這支程式好不好用」的價值遠高於分數,
+而且與既有的 <code>IssueComment</code> 結構相近,可以沿用同一套逸出與長度限制。</p>
+<h3>🔴 不論哪一種都要面對的三件事</h3>
+<ol>
+<li><strong>誰看得到</strong>:專案是 internal 的話,回饋跟著 internal;private 專案的回饋
+   絕不能外洩(比照 <code>visible_projects_condition</code>)。</li>
+<li><strong>留言者的身分怎麼顯示</strong>——又撞到契約 §4.2a L1(見 §4)。
+   在獲准之前只能顯示 <code>sub</code> 前 8 碼,一串 UUID 的留言板體驗很差。</li>
+<li><strong>保留與清理</strong>:留言會長期累積。<code>purge_issues.py</code> 有 365 天清理的先例,
+   回饋要不要比照?</li>
+</ol>
+<hr />
+<h2>4. T104 版本屬名(規模:小,但名字被契約擋住)</h2>
+<h3>好消息:資料早就在</h3>
+<p><code>Release.created_by_id</code> <strong>已經存在且必填</strong>——每個版本本來就記得是誰建立的。
+所以「初始版本 jack、v2 由 benny」這件事,資料庫<strong>現在就答得出來</strong>,
+只是<strong>沒有顯示在任何地方</strong>。</p>
+<h3>🔴 壞消息:顯示「名字」仍被契約擋住</h3>
+<p>與 T97 完全同一個問題:名字的唯一來源 <code>display_name_cache</code> 受契約 §4.2a L1
+限制,<strong>僅限管理後台顯示</strong>。版本歷史頁是一般使用者可見頁面。</p>
+<p><strong>申請已送出</strong>(<code>upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md</code>),
+而且該申請書<strong>已經把「上傳者」寫進請求範圍</strong>——獲准後這一項可以一次補齊。</p>
+<h3>提案(分兩段,不等裁示也能先做一半)</h3>
+<table>
+<thead>
+<tr>
+<th>段</th>
+<th>內容</th>
+<th>依賴</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>現在就能做</td>
+<td>版本歷史頁每一版顯示建立者 <code>sub</code> 前 8 碼,格式與 T97 專案頁一致</td>
+<td>無</td>
+</tr>
+<tr>
+<td>獲准後</td>
+<td>把 8 碼換成名字(一行的事)</td>
+<td>portal 裁示</td>
+</tr>
+</tbody>
+</table>
+<h3>一個要澄清的語意問題</h3>
+<p>「作者屬名」是指<strong>建立這一版的人</strong>,還是<strong>按下發布鍵的人</strong>?
+現在只記前者(<code>created_by_id</code>)。若兩者可能不同(例如 jack 建版、benny 發布),
+要新增 <code>published_by_id</code> 欄位——<strong>那就從 🟢 變成 🟡 加欄位 + migration</strong>。
+見 §6 第 3 問。</p>
+<hr />
+<h2>5. 建議的施工順序</h2>
+<pre><code>T101 管理員權限(小、無依賴)
+   ↓  ← 必須先有可指派的管理員,審核才有人可審
+T102 發布審核(最大、要 migration)
+   ↓
+T104 版本屬名(小;與 T102 同樣動版本頁,一起改省一次回歸)
+   ↓
+T103 專案回饋(獨立,可最後做)
+</code></pre>
+<p>🔴 <strong>T101 必須排在 T102 之前</strong>:審核制度需要「管理員」這個角色實際可指派,
+否則上線當天會發現只有 <code>.env</code> 裡那一個 bootstrap 管理員能審,全部卡在他身上。</p>
+<hr />
+<h2>6. 🔴 需要你裁示的四個問題</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>選項</th>
+<th>我方建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>審核範圍</strong></td>
+<td>(a) 所有專案的所有版本都要審 (b) 只有特定專案要審(專案設定開關)</td>
+<td>(a)——(b) 的開關本身會變成繞過審核的路</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>既有已發布版本</strong></td>
+<td>(a) migration 時一律視為「已核准」 (b) 全部退回待審</td>
+<td>(a)——(b) 會讓正在用的東西當天全部不能下載</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>屬名指誰</strong></td>
+<td>(a) 建立這一版的人(資料已有,🟢) (b) 按下發布的人(要加欄位,🟡)</td>
+<td>先做 (a);若實務上兩者常不同再加 (b)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>回饋形態</strong></td>
+<td>(a) 專案留言板 (b) 版本層回饋 (c) 評分</td>
+<td>(a)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>另外一個不是選擇題、但要你評估的:</strong>
+🔴 平台<strong>沒有通知管道</strong>。審核佇列只能靠管理員主動看後台。
+如果實務上不會有人天天看,T102 會製造比它解決的更多問題。
+<strong>要不要做,取決於營運現實,不是技術可行性。</strong></p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-12 22:20</td>
+<td>Claude(Benny 提出四項需求)</td>
+<td>初版:四項盤點(規模差距懸殊——T101 九成已存在、T104 資料早就有、T102 最大);各項提案與防呆;建議施工順序(T101 必先於 T102);🔴 四個待裁示問題與「沒有通知管道」的營運風險</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

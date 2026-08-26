@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-13 01:50
-<strong>版本:</strong> v1.84</p>
+<strong>最後更新:</strong> 2026-08-26 07:15
+<strong>版本:</strong> v1.85</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -705,6 +705,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>常數原為 0.2.2(T95 決定),但<strong>這一版後來長大了</strong>:累積了四項新功能(T101 管理員指派 / T102 審核制度 / T103 留言板 / T104 屬名)與<strong>兩個 migration</strong>。SemVer 在 0.x 的慣例是新功能與行為變更都升 minor,而且這一版有一件比新功能更重的事——🔴 <strong><code>POST /v1/releases/{id}/publish</code> 的語意改了</strong>:原本「發布,馬上可下載」,現在是「送審,等核准」;同一條端點、同樣回 200,<strong>結果完全不同</strong>。用 0.2.2 發等於對看 Release 頁的人說「這只是小修正」,而他下一步就會發現自己發布的東西沒人下載得到——<strong>版本號會說謊</strong>。0.2.2 從未打成 tag、只在分支上當過幾小時的常數值,<strong>跳號不補</strong>(SemVer 不要求連號,為了整齊而發一版是本末倒置)。依第三條 4 不寫新測試(三個載體讀同一常數)。🔴 本版<strong>有兩個 migration</strong>,VM 換版必須跑 <code>alembic upgrade head</code>;換版前先清空審核佇列(0009 的 downgrade 會把待審當回草稿)</td>
 </tr>
 <tr>
+<td>T106</td>
+<td>🐛 CI Trivy 紅燈:base image 的 openssl 落後安全更新</td>
+<td>🔵</td>
+<td>🟢</td>
+<td>PR #33(v0.3.0)的 <code>Build image + Trivy 掃描</code> 紅:<code>libssl3t64</code> / <code>openssl</code> / <code>openssl-provider-legacy</code> 同一個 <strong>CVE-2026-14456</strong>(HIGH ×3,<code>3.5.6-1~deb13u2</code> → <code>3.5.7-1~deb13u2</code>)。<strong>與本 PR 的 diff 無關</strong>——runtime stage 沒有任何 <code>apt-get</code>,OS 套件原封不動來自 base image,main 現在建也會紅。🔍 <strong>這次不是 T96 的快取問題</strong>:<code>--pull</code> 確實生效了(掃到的就是 Debian 13.6 的當期版本),真正的原因是<strong>上游 <code>python:3.12-slim</code> 尚未重建</strong>——<code>--pull</code> 只能保證取到上游最新的那份,<strong>上游沒動就沒得取</strong>。處置正是 T96 日誌〈如果 <code>--pull</code> 之後還是紅〉那一節<strong>預先寫好</strong>的方案:runtime stage 只升 openssl 家族(不做整包 <code>apt-get upgrade -y</code>——那會讓「這個 image 裝了什麼」隨建置時間漂移,是 T82 遺留問題的 OS 版本)。🔴 <strong>仍然不用 <code>.trivyignore</code></strong>,而且這次誘惑比前兩次都大:CVE-2026-14456 是 OpenSSL <strong>QUIC 伺服器</strong>的記憶體無限成長,本服務沒有任何 QUIC 伺服器路徑(TLS 在 gateway 終結,OpenSSL 只被 Python 用在對外 client:JWKS、MinIO),<strong>幾乎確定不適用</strong>——但「我判斷用不到」不是關掉掃描的理由:判斷可能錯,而 ignore 檔留下的只有一行 CVE 編號、留不下今天這段推理;既然上游<strong>已經有修好的版本</strong>(<code>--ignore-unfixed</code> 一直開著,它出現就代表有得修),拿到它才是正解。⚠️ <strong>誠實記下一個風險</strong>:Dockerfile 第 12–16 行的歷史正是「apt 套件庫從 CI 網路不可達」(run #85)才把 apt 拿掉的,本次把 apt 加回來<strong>可能撞同一堵牆</strong>;若撞牆會<strong>大聲失敗</strong>(🔴 刻意不加 <code>\|\| true</code>——吞掉失敗等於發布一個自己以為修好的 image),下一步是 apt proxy / 內部鏡像或等上游,屬平台網路事宜待裁示。⏳ 上游重建後這幾行即為贅生物,應拿掉</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1115,6 +1122,48 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-08-12 22:20</td>
 <td>Claude(Benny 提出四項需求)</td>
 <td><strong>依第一條 4 先立計畫不動程式</strong>:新增 <a href="plans/施工計畫書_審核與回饋_T101-T104.md">施工計畫書 T101–T104</a>。盤點發現四項規模懸殊——T101 後端九成已存在只缺按鈕、T104 資料早就有只缺顯示(名字被契約擋住)、T103 不能沿用問題回報(可見性設計相反)、<strong>T102 最大</strong>(兩態變三態 + migration,且最大風險是「沒有通知管道」的營運現實)。四題待裁示、T101 必先於 T102</td>
+</tr>
+<tr>
+<td>v1.79</td>
+<td>2026-08-12 22:55</td>
+<td>Claude(Benny 四項需求之一)</td>
+<td><strong>T101 管理員指派入口</strong>:後端九成已存在(角色欄位、PATCH API、稽核、bootstrap),只缺網頁按鈕——與 T100 同一形狀。三條防呆做<strong>兩層</strong>(畫面不給機會按、伺服器端 409 才是把關);刻意不做「最後一個管理員不能被降級」(要計數,並行下不可靠)。全套 539</td>
+</tr>
+<tr>
+<td>v1.80</td>
+<td>2026-08-12 23:45</td>
+<td>Claude(Benny 四項需求之二)</td>
+<td><strong>T102 發布審核</strong>:兩態變三態,🎯 <code>published</code> 語意刻意不變,既有已發布版本<strong>一列都不用改</strong>(裁示第 2 條靠設計達成而非資料遷移,🔴 降為 🟡)。🐛 up→down→up 演練當場抓到兩個 <strong>548 條全綠也看不到</strong>的 migration bug(pytest 用 <code>create_all</code> 不跑 migration)。既有 21 條依新行為改寫。全套 548</td>
+</tr>
+<tr>
+<td>v1.81</td>
+<td>2026-08-13 00:05</td>
+<td>Claude(Benny 執行演練)</td>
+<td><strong>T102 欠項清除</strong>:0009 的 PostgreSQL up→down→up 三步全過,<code>information_schema</code> 量到 <code>status</code> 已是 VARCHAR(20);⚠️ 誠實註明那是<strong>空庫</strong>演練,證明 DDL 跑得動,不是資料搬遷邏輯</td>
+</tr>
+<tr>
+<td>v1.82</td>
+<td>2026-08-13 00:45</td>
+<td>Claude(Benny 四項需求之四)</td>
+<td><strong>T104 版本作者屬名</strong>:資料早就在(<code>created_by_id</code>),只缺顯示;名字仍卡在契約 §4.2a L1,先顯示 sub 前 8 碼。🔴 一次 <code>IN</code> 查完不逐列查,護欄<strong>實作前就綠</strong>——它真正的價值在<strong>實作後仍然綠</strong>。全套 552</td>
+</tr>
+<tr>
+<td>v1.83</td>
+<td>2026-08-13 01:25</td>
+<td>Claude(Benny 四項需求之三)</td>
+<td><strong>T103 專案留言板,四項需求全部完成</strong>:不可沿用問題回報(可見性設計相反)。🔴 <strong>專案擁有者不能刪別人的留言</strong>——只留得住讚美的回饋區比沒有回饋區更糟。🐛 一條<strong>為錯的理由而綠</strong>的假綠(端點不存在時 404 也會過,且永遠不會紅),補前提斷言後才真的紅。全套 559</td>
+</tr>
+<tr>
+<td>v1.84</td>
+<td>2026-08-13 01:50</td>
+<td>Claude(發版前置)</td>
+<td><strong>T105 <code>APP_VERSION</code> → 0.3.0</strong>:這一版累積四項新功能與兩個 migration,且 🔴 <code>publish</code> 的<strong>語意改了</strong>(發布→送審)——用 patch 版發等於版本號說謊。0.2.2 從未打成 tag,<strong>跳號不補</strong></td>
+</tr>
+<tr>
+<td>v1.85</td>
+<td>2026-08-26 07:15</td>
+<td>Claude(CI 紅燈觸發)</td>
+<td><strong>T106 openssl CVE 擋下建置</strong>:PR #33 的 Trivy job 紅,三筆 HIGH 是同一個 CVE-2026-14456。<strong>不是 T96 的快取</strong>——<code>--pull</code> 已生效,是<strong>上游 image 尚未重建</strong>;執行 T96 預先寫好的處置(runtime stage 只升 openssl 家族)。🔴 第三次重申不用 <code>.trivyignore</code>,即使本 CVE 對我方幾乎確定不適用。📌 順手補齊 <strong>v1.79–v1.84 六列漏記的版本歷史</strong>——那六次只改了抬頭沒補歷史列,正是第七條 4「缺一不可」要防的事</td>
 </tr>
 <tr>
 <td>v1.77</td>

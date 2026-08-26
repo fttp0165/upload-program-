@@ -26,22 +26,22 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
-# 2026-08-26(T106):把 openssl 升到 Debian 已發布的安全版本。
+# 2026-08-26(T106):這裡**曾經**加過一段 `apt-get --only-upgrade` 想把 openssl
+# 升到 Debian 已發布的安全版本(CVE-2026-14456),當場實測失敗,已移除。留下這段
+# 註釋是為了讓下一個想到同一招的人不必再撞一次:
 #
-# 為什麼需要這幾行:上游 `python:3.12-slim` 尚未把 Debian 的安全更新併進去
-# (CVE-2026-14456,3.5.6-1~deb13u2 → 3.5.7-1~deb13u2),`--pull` 只能保證
-# 取到上游**最新重建的那份**,上游沒動我們就沒得取。T96 日誌已預先寫好這一步。
+# 1. deb.debian.org 從 CI runner 的容器網路**仍然不可達**(connection timed out)
+#    ——與上面 2026-07-30 run #85 同一堵牆,不是只擋 builder stage。
+# 2. 🔴 **`apt-get update` 抓不到索引時只印 `W:`,exit code 仍是 0。**
+#    於是後面的 `--only-upgrade` 拿舊索引去比,回報「已經是最新版」,整條 `&&`
+#    鏈**成功**,建置產出一個看起來已修好、實際沒動過的 image。
+#    當時刻意不寫 `|| true` 就是為了防這件事,而 apt 自己把它繞過去了——
+#    抓到的是 Trivy,不是這條護欄。
+#    ⚠️ 日後網路若開通、要把 apt 加回來,**必須自己驗 `apt-get update` 的結果**
+#    (例如接 `apt-get -o Acquire::Retries=3 update` 後再 `grep` 目標版本存在),
+#    不能只靠 `&&`。
 #
-# 為什麼不整包 `apt-get upgrade -y`:那會讓「這個 image 裝了什麼」隨建置時間漂移,
-# 只升被點名的那個來源套件,影響面看得見、日後要拿掉也一眼看得出拿掉什麼。
-#
-# 🔴 刻意不加 `|| true`:吞掉失敗等於發布一個自己以為修好的 image,比紅燈危險得多。
-# ⏳ 這是暫時的——上游重建之後這幾行就是贅生物,那時應該拿掉(見 T106 日誌)。
-#    在此之前若上游先一步修好,`--only-upgrade` 會安靜地無事可做,不會弄壞任何東西。
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends --only-upgrade \
-       libssl3t64 openssl openssl-provider-legacy \
-    && rm -rf /var/lib/apt/lists/*
+# 在網路開通或上游 image 重建之前,本檔不再嘗試 apt。詳見 T106 日誌。
 
 # 🔴 non-root:UID 1000
 RUN useradd -m -u 1000 app

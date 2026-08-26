@@ -48,6 +48,7 @@ from ..security import (
     DbSession,
     OptionalUser,
     get_project,
+    may_manage_releases,
     parse_uuid,
     require_admin,
     require_project_read,
@@ -456,6 +457,12 @@ async def project_releases_page(
             download_url=lambda artifact: web_url(
                 settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
             ),
+            # T100:草稿的「繼續編輯」入口。上傳頁原本**只在建立版本送出後被導向一次**,
+            # 使用者一離開就再也回不去——草稿於是變成看得見卻點不進去的孤兒。
+            # 🔴 判準與發布同一條(maintainer 以上):viewer 看得見草稿但改不動,
+            # 給他一個按下去必然 403 的連結,比不給更糟。
+            can_edit_releases=may_manage_releases(role, identity.user),
+            edit_url=lambda release: web_url(settings, f"/releases/{release.id}/upload"),
         )
     )
 

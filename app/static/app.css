@@ -447,6 +447,18 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .release-version { font-weight: 800; font-size: 1.35rem; color: var(--ink); }
 .release-notes { white-space: pre-wrap; margin: .5rem 0 1rem; color: var(--fg-strong); }
 
+/* T100:草稿的「繼續編輯」入口。刻意做成連結而不是 .btn——
+   它與旁邊的「草稿」徽章是一組(狀態 + 該狀態下唯一能做的事),
+   做成實心按鈕會比版本號本身還搶眼。 */
+.release-edit {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.release-edit:hover { color: var(--ink-strong); }
+
 .artifact-list { list-style: none; margin: 0; padding: 0; }
 
 .artifact {

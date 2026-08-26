@@ -313,3 +313,82 @@ async def test_版本說明對使用者可控內容逸出(client, active_user):
     resp = await client.get("/projects/cli-tool/releases", headers={**BROWSER, **auth(token)})
     assert "<script>alert(1)</script>" not in resp.text
     assert "&lt;script&gt;" in resp.text
+
+
+# --- T100 🐛 草稿版本回不去 ------------------------------------------------
+#
+# Benny 實測:「草稿版本就不能再發布與編輯了」。他的專案裡躺著 4 個 0 檔案的草稿,
+# 每一個都只有一枚「草稿」徽章,旁邊什麼都沒有。
+#
+# 根因不是功能沒做——上傳與發布都在,而且有測試。缺的是**入口**:
+# 上傳頁 `/releases/{id}/upload` 只在「建立版本」送出後被自動導向一次
+# (web.py 的 `_redirect(... f"/releases/{release.id}/upload")`),
+# 使用者一旦離開就再也回不去;版本歷史頁只印徽章不給連結,
+# 專案頁又只顯示最新**已發布**版本。草稿於是變成孤兒:看得見、點不進去。
+#
+# 🔴 兩條護欄和功能本身一樣重要:
+# 1. viewer **看得見草稿但改不動**(發布要 maintainer 以上),
+#    給他一個按下去必然 403 的連結,比不給更糟;
+# 2. **已發布的版本不得出現這個入口**——已發布不可再變更檔案(API 回 409),
+#    給連結等於誘導使用者去撞一堵牆。
+
+EDIT_HINT = "繼續編輯"
+
+
+async def test_草稿在版本歷史頁要有繼續編輯的入口(client, app, oidc):
+    await make_user(app, "sub-owner-t100")
+    token = oidc.issue("sub-owner-t100")
+    await _project(client, token, slug="draft-tool")
+    release_id = await _create(client, token, "draft-tool", "v0.9.0")
+
+    resp = await client.get(
+        f"{PREFIX}/projects/draft-tool/releases", headers={**BROWSER, **auth(token)}
+    )
+    assert resp.status_code == 200
+    body = _main(resp.text)
+    assert EDIT_HINT in body, "草稿必須有回得去的入口,否則就是孤兒"
+    assert f"/releases/{release_id}/upload" in body, "入口要指向該草稿的上傳頁"
+
+
+async def test_viewer看得到草稿但不得看到編輯入口(client, app, oidc):
+    """🔴 給一個按下去必然 403 的連結,比不給更糟。"""
+    await make_user(app, "sub-owner-t100b")
+    owner = oidc.issue("sub-owner-t100b")
+    await _project(client, token=owner, slug="viewer-tool")
+    await _create(client, owner, "viewer-tool", "v0.9.0")
+
+    watcher = await make_user(app, "sub-viewer-t100")
+    added = await client.put(
+        "/v1/projects/viewer-tool/members",
+        json={"user_id": str(watcher.id), "role": "viewer"},
+        headers=auth(owner),
+    )
+    assert added.status_code in (200, 201), added.text
+
+    resp = await client.get(
+        f"{PREFIX}/projects/viewer-tool/releases",
+        headers={**BROWSER, **auth(oidc.issue("sub-viewer-t100"))},
+    )
+    assert resp.status_code == 200
+    body = _main(resp.text)
+    # 前提斷言:viewer 確實看得到這個草稿,否則下面的反向斷言只是在測「什麼都沒有」
+    assert "草稿" in body, "前提不成立:viewer 看不到草稿,反向斷言會假綠"
+    assert EDIT_HINT not in body, "🔴 viewer 改不動,不該給編輯入口"
+
+
+async def test_已發布的版本不得出現編輯入口(client, app, oidc):
+    """已發布不可再變更檔案(API 回 409),給連結等於誘導使用者去撞牆。"""
+    await make_user(app, "sub-owner-t100c")
+    token = oidc.issue("sub-owner-t100c")
+    await _project(client, token, slug="published-tool")
+    release_id = await _create(client, token, "published-tool", "v1.0.0")
+    await _upload(client, token, release_id)          # binary(complete_kinds 不含)
+    await complete_kinds(client, token, release_id)   # source + doc
+    published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    assert published.status_code == 200, published.text
+
+    resp = await client.get(
+        f"{PREFIX}/projects/published-tool/releases", headers={**BROWSER, **auth(token)}
+    )
+    assert resp.status_code == 200
+    assert EDIT_HINT not in _main(resp.text)

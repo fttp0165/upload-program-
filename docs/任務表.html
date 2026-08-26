@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 21:15
-<strong>版本:</strong> v1.76</p>
+<strong>最後更新:</strong> 2026-08-12 22:05
+<strong>版本:</strong> v1.77</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 21:15)</h2>
-<p>任務 97 項:<strong>✅ 92 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>531 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 22:05)</h2>
+<p>任務 98 項:<strong>✅ 93 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>534 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -663,6 +663,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「給指令要說明在哪一個平台執行 以及執行的檔案路徑」。不是龜毛——<strong>已經出過事</strong>:2026-08-11 換版第一次失敗,根因是「改 <code>docker-compose.yml</code> 的 image tag」那一步<strong>是編輯檔案,卻被當成 shell 指令貼進終端機</strong>,結果 pull 到舊版而容器顯示 Running。文件裡同時躺著<strong>三種機器</strong>的指令(WSL 開發機 / Windows Docker Desktop / Cats VM),長得一模一樣,而貼錯的代價<strong>不對稱</strong>:在開發機跑到 VM 指令頂多報錯,<strong>在 VM 跑到開發機指令會出事</strong>(dev compose 一貼就把 DB 的 port 開到主機)。第十條定:每個可貼區塊正上方標 <code>🖥️ 在哪執行</code>(機器 + 工作目錄)或 <code>📄 編輯哪個檔</code>;工作目錄一律絕對路徑或 <code>~</code> 起頭,不寫「專案根目錄」這種要讀者換算的話;聊天回覆指令同樣適用。兩份 runbook <strong>23 個區塊全標</strong>(本地 16 → v2.0、換版 7 → v1.9)。🔎 <strong>標記這個動作逼出三個坑</strong>(不是順便發現,是「要寫在哪執行就得先回答這是執行還是編輯」逼出來的):§A.1 打 tag 其實在<strong>本機 repo</strong> 卻夾在兩段 VM 指令中間、§C.2 的 cron 是<strong>編輯 crontab</strong> 不是貼進終端機(08-11 同一個分界換個地方等著)、本地 §3.2 的 <code>.env</code> 區塊<strong>看起來就像四條指令</strong>(照貼會得到四個 command not found 且不知錯在哪)。⚠️ 誠實記下第 4 項(聊天回覆)<strong>測試守不到</strong>——只掃 repo 內文件,靠自律。<strong>3 條紅→綠,全套 531</strong></td>
 </tr>
 <tr>
+<td>T100</td>
+<td>🐛 草稿版本回不去(版本歷史頁沒有編輯入口)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測:「草稿版本就不能再發布與編輯了」——他的專案裡躺著 <strong>4 個 0 檔案的草稿</strong>,每個只有一枚徽章、旁邊什麼都沒有。根因<strong>不是功能沒做</strong>:上傳與發布都在且有測試(三類齊備、已發布回 409、maintainer 把關);缺的是<strong>入口</strong>——上傳頁 <code>/releases/{id}/upload</code> 只在「建立版本」送出後被 <code>_redirect</code> 導向<strong>一次</strong>,使用者一離開就再也回不去;版本歷史頁只印徽章不給連結,專案頁又只顯示最新<strong>已發布</strong>版本。草稿因此變成孤兒:<strong>看得見、點不進去</strong>,每次建版沒一次做完就多一個殼。修法是版本歷史頁的草稿列加「繼續編輯」。🔴 兩條護欄與功能同等重要:(a)<strong>viewer 看得見草稿但改不動</strong>(發布要 maintainer 以上),給他一個按下去必然 403 的連結<strong>比不給更糟</strong>——新增 <code>security.may_manage_releases()</code> 與 <code>require_project_role</code> <strong>共用 <code>_ROLE_RANK</code></strong>,只是不拋例外(真正把關仍在 API,這裡少判只會少一個入口);(b)<strong>已發布的版本不得出現該入口</strong>,已發布不可變更,給連結等於誘導撞牆。🐛 順手修掉 <code>upload.html</code> 的 <code>**已發布**</code>——Markdown 寫在 HTML 模板裡不會變粗體,<strong>會原樣印出星號</strong>,已發布頁面一直掛著兩對星號沒人回報。📌 記一筆免得日後誤讀規模:「功能做完了」與「使用者找得到」是兩件事,而本例的症狀聽起來完全像前者。<strong>3 條紅→綠(功能紅、護欄綠),全套 534</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1067,6 +1074,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.77</td>
+<td>2026-08-12 22:05</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T100 草稿版本回不去</strong>:上傳頁只在建立版本後導向一次,離開就找不到路,草稿成孤兒;版本歷史頁草稿列加「繼續編輯」,判準與發布同一條(viewer 不給必然 403 的連結、已發布不給入口);🐛 順手修掉 HTML 模板裡的 Markdown 星號;全套 534</td>
 </tr>
 <tr>
 <td>v1.76</td>

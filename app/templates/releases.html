@@ -50,6 +50,13 @@
               <span class="release-version">{{ release.version }}</span>
               {% if release.status.value == 'draft' %}
                 <span class="badge badge-warn">草稿</span>
+                {# T100:草稿唯一的回頭路。上傳頁原本只在「建立版本」送出後被導向一次,
+                   離開就再也找不到——草稿因此變成看得見卻點不進去的孤兒。
+                   🔴 判準與發布同一條(maintainer 以上):viewer 看得見草稿但改不動,
+                   給他一個按下去必然 403 的連結,比不給更糟。 #}
+                {% if can_edit_releases %}
+                  <a class="release-edit" href="{{ edit_url(release) }}">繼續編輯</a>
+                {% endif %}
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}

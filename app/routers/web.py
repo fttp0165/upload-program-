@@ -35,6 +35,7 @@ from ..models import (
     AuditEvent,
     PlatformRole,
     Project,
+    ProjectComment,
     ProjectRole,
     Release,
     ReleaseStatus,
@@ -45,7 +46,7 @@ from ..models import (
 )
 from ..queries import query_projects, query_releases
 from ..quota import project_limit
-from ..schemas import ProjectCreate, ReleaseCreate, ReleaseReject
+from ..schemas import ProjectCommentCreate, ProjectCreate, ReleaseCreate, ReleaseReject
 from ..security import (
     DbSession,
     OptionalUser,
@@ -58,6 +59,7 @@ from ..security import (
 )
 from ..templating import render
 from ..web_urls import web_url
+from .projects import create_comment, delete_comment
 from .releases import (
     REQUIRED_KINDS,
     approve_release,
@@ -367,6 +369,22 @@ async def project_page(
         await session.execute(select(User.sub).where(User.id == project.owner_id))
     ).scalar_one_or_none()
 
+    # T103 專案留言板。可見性已由上面的 `require_project_read` 決定——
+    # 走到這裡就代表這個人讀得到本專案,留言跟著專案走,不另立規則。
+    comments = (
+        (
+            await session.execute(
+                select(ProjectComment)
+                .where(ProjectComment.project_id == project.id)
+                .order_by(ProjectComment.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    # 🔴 一次批次取留言者識別碼(同 T104 的理由:逐列查就是 N+1)。
+    comment_subs = await _subs_by_id(session, {c.author_id for c in comments})
+
     return HTMLResponse(
         render(
             request,
@@ -377,6 +395,15 @@ async def project_page(
             artifacts=sorted(release.artifacts, key=lambda a: a.filename) if release else [],
             quota_bytes=project_limit(settings, project),
             owner_sub8=(owner_sub or "")[:8],
+            comments=comments,
+            # 🔴 顯示識別碼不是名字——契約 §4.2a L1(與 T97 / T104 同一個處境)。
+            comment_sub8=lambda c: (comment_subs.get(c.author_id) or "")[:8],
+            # 🔴 只有留言者本人與平台管理員能刪。**專案擁有者刻意不在內**:
+            # 擁有者若能刪掉別人的評語,留言板就只會剩下好話,而一個只留得住
+            # 讚美的回饋區比沒有回饋區更糟。伺服器端同樣擋(routers/projects.py)。
+            may_delete_comment=lambda c: (
+                c.author_id == identity.user.id or identity.user.is_admin
+            ),
             # F26 的固定連結:能貼進文件而不會隨版本失效。T35 做出來的東西
             # 不放在使用者看得到的地方就沒人會用。
             latest_url=lambda filename: web_url(
@@ -389,6 +416,37 @@ async def project_page(
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
         )
     )
+
+
+@router.post("/projects/{slug}/comments", summary="留一則回饋(送出)")
+async def project_comment_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    body_markdown: Annotated[str, Form()],
+) -> Response:
+    """網頁表單版的留言。與 `POST /v1/projects/{slug}/comments` 同一段語意。"""
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    if not identity.user.is_active:
+        return _portal_redirect(request)
+    await create_comment(slug, ProjectCommentCreate(body_markdown=body_markdown), session, identity)
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/comments/{comment_id}/delete", summary="刪除留言(送出)")
+async def project_comment_delete_form(
+    slug: str, comment_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """網頁表單版的刪除。權限由 `delete_comment` 把關——🔴 表單可以偽造,
+    畫面上不顯示按鈕只是不給機會按,真正的界線在那裡。"""
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    if not identity.user.is_active:
+        return _portal_redirect(request)
+    await delete_comment(slug, comment_id, session, identity)
+    return _redirect(request, f"/projects/{slug}")
 
 
 @router.get("/projects/{slug}/releases", summary="專案歷史(版本列表)")

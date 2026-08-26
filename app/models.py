@@ -213,6 +213,38 @@ class ProjectMember(Base):
     user: Mapped[User] = relationship(back_populates="memberships")
 
 
+class ProjectComment(Base):
+    """專案留言板:使用者對這個專案的回饋(T103)。
+
+    🔴 **與問題回報(`Issue`)是相反方向的東西**,不可混用:
+    回報是「這個網站壞了」,只有本人與平台管理員看得到、404 不洩漏存在;
+    留言是「這支程式好不好用」,**就是要給同專案的人看的**。
+    兩者長得像,但把其中一邊的可見性套到另一邊,就會弄壞那一邊的保證。
+
+    🔴 刪除權限刻意**不含專案擁有者**(見 routers/projects.py):
+    擁有者若能刪掉別人的評語,留言板就只會剩下好話,
+    而一個只留得住讚美的回饋區比沒有回饋區更糟。
+    """
+
+    __tablename__ = "project_comments"
+    __table_args__ = (Index("ix_project_comments_project_created", "project_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # CASCADE:專案刪掉時留言一起走,不留孤兒(與 users 的 RESTRICT 是不同考量)。
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    # 存原文,顯示時才轉譯(沿用 markdown_lite,與問題回報同一套逸出規則)。
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    project: Mapped["Project"] = relationship()
+    author: Mapped["User"] = relationship(foreign_keys=[author_id])
+
+
 class Release(Base):
     __tablename__ = "releases"
     __table_args__ = (UniqueConstraint("project_id", "version", name="uq_release_version"),)

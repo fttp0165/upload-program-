@@ -206,6 +206,30 @@ class ArtifactOut(ORMModel):
     completed_at: datetime | None
 
 
+class ProjectCommentCreate(BaseModel):
+    """留一則專案回饋(T103)。長度上限比照問題回報的討論串。"""
+
+    body_markdown: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("body_markdown")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("留言不可空白")
+        return value
+
+
+class ProjectCommentOut(ORMModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    body_markdown: str
+    created_at: datetime
+    # 🔴 只帶 `author_id`(資料庫 id),**不帶名字也不帶 sub**:
+    # 名字受契約 §4.2a L1 限制;sub 是 IdP 的識別碼,沒有理由讓 API 整批吐出來。
+    # 畫面上的「誰留的」由網頁層另外批次組(見 web.py 的 `_subs_by_id`)。
+    author_id: uuid.UUID
+
+
 class ReleaseReject(BaseModel):
     """退回一個待審版本時要附的理由(T102)。
 

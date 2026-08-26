@@ -43,9 +43,9 @@ summary { cursor:pointer; color:#12228f; }
 <h1>施工計畫書:管理員權限、發布審核、專案回饋、版本屬名(T101–T104)</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 22:20
-<strong>最後更新:</strong> 2026-08-12 22:35
-<strong>版本:</strong> v1.1
-<strong>狀態:</strong> ✅ <strong>已裁示,開工中</strong>(裁示內容見 §6)</p>
+<strong>最後更新:</strong> 2026-08-13 01:30
+<strong>版本:</strong> v1.2
+<strong>狀態:</strong> ✅ <strong>四項全部完成</strong>(T101 / T102 / T104 / T103,見 §7)</p>
 <blockquote>
 <p>依憲法<strong>第一條 4</strong>:需求變更不直接改程式,先更新計畫與任務表。
 提案時列了四個待裁示問題,<strong>已於 2026-08-12 22:35 全數裁示</strong>(見 §6),現依裁示施工。</p>
@@ -316,6 +316,56 @@ T103 專案回饋(獨立,可最後做)
   上線後若發現版本常卡住,要回頭檢討的是流程不是程式。</li>
 </ul>
 <hr />
+<h2>7. 施工結果(2026-08-13)</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>狀態</th>
+<th>資料影響</th>
+<th>測試</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T101 管理員權限</td>
+<td>✅</td>
+<td>🟢 不動</td>
+<td>5 條紅→綠</td>
+</tr>
+<tr>
+<td>T102 發布審核</td>
+<td>✅</td>
+<td>🟡 加欄位(PG 演練通過)</td>
+<td>9 條 + 既有 21 條改寫</td>
+</tr>
+<tr>
+<td>T104 版本屬名</td>
+<td>✅</td>
+<td>🟢 不動</td>
+<td>4 條紅→綠</td>
+</tr>
+<tr>
+<td>T103 專案留言板</td>
+<td>✅</td>
+<td>🟡 加表</td>
+<td>7 條紅→綠</td>
+</tr>
+</tbody>
+</table>
+<p>全站測試 <strong>559 passed</strong>、ruff 乾淨。</p>
+<h3>三項跨任務的共同狀況(不是任何一項的缺陷)</h3>
+<ol>
+<li>🔴 <strong>顯示的都是識別碼不是名字</strong>(T97 專案擁有者、T104 版本建立者、
+   T103 留言者)。全部卡在同一件事:契約 §4.2a L1 的名稱快取僅限管理後台。
+   <a href="upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md">申請書</a>
+   已備妥<strong>待送出</strong>;獲准後三處一起換,是一行的事。</li>
+<li>🔴 <strong>平台沒有通知管道</strong>。作者送審後、專案被留言後,對方都不會收到提醒。
+   T102 靠管理總覽的待辦數緩解,T103 連那個都沒有。這是已知限制(T79 已載明),
+   不是這兩項的疏漏。</li>
+<li><strong>PostgreSQL 演練</strong>:0009 已做(T102);0010 建議發版前一起補做。</li>
+</ol>
+<hr />
 <h2>版本歷史</h2>
 <table>
 <thead>
@@ -327,6 +377,12 @@ T103 專案回饋(獨立,可最後做)
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.2</td>
+<td>2026-08-13 01:30</td>
+<td>Claude(四項完成)</td>
+<td>新增 §7 施工結果:四項全部完成、全站 559;整理三項<strong>跨任務的共同狀況</strong>(名字全卡在同一份申請書、平台沒有通知管道、0010 的 PG 演練待補)——它們不是任何單一任務的缺陷</td>
+</tr>
 <tr>
 <td>v1.1</td>
 <td>2026-08-12 22:35</td>

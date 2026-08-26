@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-13 00:45
-<strong>版本:</strong> v1.82</p>
+<strong>最後更新:</strong> 2026-08-13 01:25
+<strong>版本:</strong> v1.83</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-13 00:45)</h2>
-<p>任務 102 項:<strong>✅ 96 / 🔵 1 / ⬜ 4</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>552 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-13 01:25)</h2>
+<p>任務 102 項:<strong>✅ 97 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>559 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -685,10 +685,10 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 <tr>
 <td>T103</td>
-<td>專案回饋(user feedback)</td>
-<td>⬜</td>
+<td>專案回饋(專案留言板)</td>
+<td>✅</td>
 <td>🟡</td>
-<td><strong>待 Benny 裁示形態</strong>(計畫書 §3、§6-4)。現有的問題回報是<strong>平台層</strong>(回報網站問題,🔴 僅本人與管理員可見、404 不洩漏存在),與專案層公開回饋的可見性設計<strong>完全相反</strong>,不能沿用。三種解讀工作量差很多:(a) 專案留言板 (b) 版本層回饋 (c) 評分;建議 (a)——文字對「這支程式好不好用」的價值遠高於分數,且結構近似 <code>IssueComment</code> 可沿用逸出與長度限制。三件必須面對的事:可見性跟隨專案(private 的回饋絕不能外洩)、留言者身分又撞契約 §4.2a L1(獲准前只能顯示 sub 前 8 碼,一串 UUID 的留言板體驗很差)、保留與清理是否比照 365 天</td>
+<td>依裁示做<strong>專案留言板</strong>(計畫書 §3、§6-4)。現有的問題回報是<strong>平台層</strong>(回報網站問題,🔴 僅本人與管理員可見、404 不洩漏存在),與專案層公開回饋的可見性設計<strong>完全相反</strong>,不能沿用。三種解讀工作量差很多:(a) 專案留言板 (b) 版本層回饋 (c) 評分;建議 (a)——文字對「這支程式好不好用」的價值遠高於分數,且結構近似 <code>IssueComment</code> 可沿用逸出與長度限制。三件必須面對的事:可見性跟隨專案(private 的回饋絕不能外洩)、留言者身分又撞契約 §4.2a L1(獲准前只能顯示 sub 前 8 碼,一串 UUID 的留言板體驗很差)、保留與清理是否比照 365 天。<strong>實作結果</strong>:新表 <code>project_comments</code>(專案 CASCADE、使用者 RESTRICT、複合索引);可見性沿用 <code>require_project_read</code> 不另立一套(private 非成員 404 不是 403);<strong>能讀就能寫</strong>,viewer 也能留言——只有 maintainer 講得了話的留言板不叫 feedback。🔴 <strong>最重要的界線:專案擁有者不能刪別人的留言</strong>,只有留言者本人與平台管理員可以——擁有者若能刪掉評語,留言板就只會剩下好話,而<strong>一個只留得住讚美的回饋區比沒有回饋區更糟</strong>(它讓人誤以為「沒有負評」= 「沒有問題」);想回應批評的方式是再留一則言。<strong>刻意不做自動清理</strong>(與 issues 不同:回報是事務、處理完就沒價值,留言是<strong>內容</strong>,一年後仍有用)。🐛 第一版有一條<strong>為錯的理由而綠</strong>的假綠:「private 非成員 404」在端點根本不存在時本來就會過,而且<strong>永遠不會紅</strong>;補前提斷言(擁有者先拿到 200)後才真的紅——反向斷言必須先證明正向那條路是通的(T84 同一課換個面貌)。<strong>7 條紅→綠,全套 559</strong>;migration up→down→up(SQLite)通過</td>
 </tr>
 <tr>
 <td>T104</td>

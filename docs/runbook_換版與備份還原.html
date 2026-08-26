@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-08-12 23:40
-<strong>版本:</strong> v1.10
+<strong>最後更新:</strong> 2026-08-13 01:20
+<strong>版本:</strong> v1.11
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -257,6 +257,11 @@ docker compose exec svc alembic downgrade -1
 <td>❌</td>
 </tr>
 <tr>
+<td><code>0010_project_comments</code></td>
+<td><strong>全部專案留言</strong>(使用者累積的回饋內容)</td>
+<td>❌ 無法重建</td>
+</tr>
+<tr>
 <td><code>0009_release_review</code></td>
 <td><strong>「待審核」這個狀態本身</strong>:待審版本一律被當回 <code>draft</code>(即未送審),<code>review_note</code>(退回理由)整欄消失</td>
 <td>⚠️ 部分——版本與檔案都還在,但誰送審過、被退回的理由都沒了</td>
@@ -405,6 +410,12 @@ docker compose exec svc alembic downgrade -1
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.11</td>
+<td>2026-08-13 01:20</td>
+<td>Claude(T103)</td>
+<td>§B 不可逆清單補 <code>0010_project_comments</code>:downgrade 是 DROP TABLE,<strong>全部專案留言消失且無法重建</strong>——留言是使用者累積的內容,不是可重算的衍生資料(與 <code>0007_issues</code> 同一類)</td>
 </tr>
 <tr>
 <td>v1.10</td>

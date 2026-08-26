@@ -2,8 +2,8 @@
 
 **專案:** upload-program
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-12 23:40
-**版本:** v1.10
+**最後更新:** 2026-08-13 01:20
+**版本:** v1.11
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -186,6 +186,7 @@ docker compose exec svc alembic downgrade -1
 | `0004_artifact_download_count` | 全部下載累計數 | ❌(無事件表可重算) |
 | `0005_audit_events` | 整張稽核表 | ❌(stdout log 會輪替) |
 | `0007_issues` | **全部問題回報與討論串** | ❌ |
+| `0010_project_comments` | **全部專案留言**(使用者累積的回饋內容) | ❌ 無法重建 |
 | `0009_release_review` | **「待審核」這個狀態本身**:待審版本一律被當回 `draft`(即未送審),`review_note`(退回理由)整欄消失 | ⚠️ 部分——版本與檔案都還在,但誰送審過、被退回的理由都沒了 |
 | `0008_issue_attachments` | **全部回報附件的 DB 紀錄** | ❌(MinIO 物件會變成孤兒,佔空間且無從對應) |
 
@@ -262,6 +263,7 @@ docker compose exec svc alembic downgrade -1
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.11 | 2026-08-13 01:20 | Claude(T103) | §B 不可逆清單補 `0010_project_comments`:downgrade 是 DROP TABLE,**全部專案留言消失且無法重建**——留言是使用者累積的內容,不是可重算的衍生資料(與 `0007_issues` 同一類) |
 | v1.10 | 2026-08-12 23:40 | Claude(T102) | §B 不可逆清單補 `0009_release_review`:downgrade 會把待審版本一律當回 `draft`、退回理由整欄消失(版本與檔案還在,但「誰送審過、為什麼被退」沒了);加註**退版前先清空審核佇列**,否則作者會以為自己根本沒送出過 |
 | v1.9 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為 7 個可貼區塊標明「在哪台機器、在哪個目錄」:🔴 §A.1 打 tag 是在**本機 repo** 不是 VM(這份文件裡唯一的例外,最容易貼錯)、§A.2/§B 在 VM 的 `/opt/upload-program`、§A.4 冒煙是對外打 curl、§C.2 cron 標為 **📄 編輯 crontab 不是貼進終端機**(2026-08-11 換版失敗正是「編輯」被當成「執行」);依第九條補抬頭「專案」 |
 | v1.8 | 2026-08-12 01:20 | Claude(Benny:可否寫測試腳本) | §A.4 加 **`tools/smoke.sh` 一鍵冒煙**(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備 |

@@ -78,6 +78,17 @@
       </div>
     {% endif %}
 
+    {# T102:待審版本。與下面的「未處理的回報」同一個理由——平台沒有 email 也沒有
+       推播,🔴 這一格是管理員唯一會知道「有東西在等我審」的地方。
+       少了它,作者送審之後版本會安靜地卡在資料庫裡,而作者以為系統壞了。 #}
+    {% if todos.pending_reviews %}
+      <div class="todo card">
+        <h3>待審核的版本(<span data-metric="reviews-pending">{{ todos.pending_reviews }}</span>)</h3>
+        <p class="muted">作者已送審、等你核准才會讓其他人下載。核准前沒有任何人收得到通知。</p>
+        <p><a href="{{ url('/admin/reviews') }}">前往審核 →</a></p>
+      </div>
+    {% endif %}
+
     {% if todos.open_issues %}
       <div class="todo card">
         <h3>未處理的回報(<span data-metric="issues-open">{{ todos.open_issues }}</span>)</h3>

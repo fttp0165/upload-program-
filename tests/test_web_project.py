@@ -9,7 +9,7 @@
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, publish_and_approve
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -56,8 +56,8 @@ async def _publish(client, token, slug, version, *, filename="tool.bin", notes="
     )
     assert up.status_code == 201, up.text
     await complete_kinds(client, token, release_id)
-    done = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert done.status_code == 200, done.text
+    # T102:發布 = 送審;本檔測的是專案頁上的「最新已發布版本」,要核准後才算數。
+    await publish_and_approve(client, token, release_id)
     return release_id, up.json()["id"]
 
 

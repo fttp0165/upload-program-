@@ -10,7 +10,7 @@ F73 的驗收標準正是「依發布時間倒序」,所以一併修正 API,不�
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, publish_and_approve
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -72,9 +72,12 @@ async def _upload(client, token, release_id, filename="tool.bin"):
 
 
 async def _publish(client, token, release_id):
+    """T102 之後這個名字仍叫 _publish,但真正做的是「送審 + 核准」。
+
+    本檔多數斷言講的是「已發布(=可下載)的版本」,那個狀態現在要兩步才到得了。
+    """
     await complete_kinds(client, token, release_id)
-    resp = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert resp.status_code == 200, resp.text
+    await publish_and_approve(client, token, release_id)
 
 
 # --- 🐛 排序:既有缺陷的修正 ------------------------------------------------

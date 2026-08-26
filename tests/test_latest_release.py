@@ -9,7 +9,7 @@
 
 import hashlib
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, publish_and_approve
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 120
 
@@ -40,9 +40,9 @@ async def _publish(client, token, slug, version, *, filename="tool.bin", body=EL
     assert up.status_code == 201, up.text
 
     await complete_kinds(client, token, rid)
-    pub = await client.post(f"/v1/releases/{rid}/publish", headers=auth(token))
-    assert pub.status_code == 200, pub.text
-    return pub.json()
+    # T102:發布 = 送審,核准後才真的可下載。本檔測的是「最新**可下載**版本」,
+    # 所以要走完整條路;`publish_and_approve` 刻意用真實 API 而不是塞 DB。
+    return await publish_and_approve(client, token, rid)
 
 
 async def test_取得最新已發布版本(client, active_user):
@@ -78,9 +78,10 @@ async def test_最新版以發布時間判定而非版本號字串(client, activ
     await _publish(client, token, "cli-tool", "v9")
 
     # v10 最後才發布 → 它的 published_at 最大
+    # T102:`published_at` 在**核准**當下才寫入(不是送審當下),所以要走完整條路
+    # 才測得到排序;這也正是本測試要釘的東西——語意不能因為多一道審核而漂移。
     await complete_kinds(client, token, rid10)
-    pub10 = await client.post(f"/v1/releases/{rid10}/publish", headers=auth(token))
-    assert pub10.status_code == 200
+    await publish_and_approve(client, token, rid10)
 
     resp = await client.get("/v1/projects/cli-tool/releases/latest", headers=auth(token))
     assert resp.json()["version"] == "v10", (

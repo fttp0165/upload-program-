@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.config import Settings
 from app.db import Base
@@ -165,6 +166,10 @@ async def client(app) -> AsyncIterator[AsyncClient]:
         # 是落地頁本身的內容與行為,不是首訪的探測轉址;首訪行為由
         # test_silent_sso.py 自行清掉這個 cookie 來驗。
         ac.cookies.set(app.state.cookies.sso_probe_cookie_name, "1")
+        # T102:把 app 掛在 client 上,讓 `publish_and_approve()` 只靠 client 就能
+        # 取到 app 與假 oidc。否則幾十個既有的 `_publish(client, token, ...)` helper
+        # 都得改簽章、連帶每個呼叫它的測試都要多要兩個 fixture——那是純粹的雜訊改動。
+        ac.app = app
         yield ac
 
 
@@ -227,3 +232,42 @@ async def complete_kinds(client, token, release_id):
             headers=auth(token),
         )
         assert resp.status_code == 201, resp.text
+
+async def publish_and_approve(client, token, release_id):
+    """送審 + 核准,把版本推到「真的可以下載」的狀態(T102)。
+
+    為什麼需要這個 helper:T102 之後 `POST /releases/{id}/publish` 的語意變成
+    **送審**,版本會停在 `pending_review`。既有測試裡幾十處「發布完就假設可下載」
+    因此全部要多走一步核准。
+
+    🔴 **刻意走真實 API 而不是直接把 status 塞成 published**:
+    手動塞 DB 的狀態測到的是「我自己寫進去的東西」,不是系統真的能走到那裡——
+    T84 的假綠就是這樣來的。多一次 HTTP 呼叫換一個真的算數的前提,划算。
+
+    參數:client(需為本檔 `client` fixture,帶有 `.app`)、token 作者的 token、release_id。
+    回傳:核准後的 ReleaseOut JSON。副作用:建立(或沿用)一個管理員帳號。
+    """
+    from app.models import User
+
+    app = client.app
+    oidc = app.state.oidc
+
+    sent = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    assert sent.status_code == 200, sent.text
+    assert sent.json()["status"] == "pending_review"
+
+    # 核准要平台管理員。沿用同一個固定 sub,重複呼叫時不會一直長出新帳號。
+    sub = "sub-review-admin"
+    async with app.state.sessionmaker() as session:
+        existing = (
+            await session.execute(select(User).where(User.sub == sub))
+        ).scalar_one_or_none()
+    if existing is None:
+        await make_user(app, sub, admin=True)
+
+    ok = await client.post(
+        f"/v1/releases/{release_id}/approve", headers=auth(oidc.issue(sub))
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["status"] == "published"
+    return ok.json()

@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
@@ -44,7 +45,7 @@ from ..models import (
 )
 from ..queries import query_projects, query_releases
 from ..quota import project_limit
-from ..schemas import ProjectCreate, ReleaseCreate
+from ..schemas import ProjectCreate, ReleaseCreate, ReleaseReject
 from ..security import (
     DbSession,
     OptionalUser,
@@ -59,9 +60,11 @@ from ..templating import render
 from ..web_urls import web_url
 from .releases import (
     REQUIRED_KINDS,
+    approve_release,
     latest_published_release,
     load_release,
     missing_required_kinds,
+    reject_release,
 )
 
 router = APIRouter(include_in_schema=False, tags=["web"])
@@ -961,6 +964,80 @@ async def _display_names(session: AsyncSession, ids: set) -> dict:
         )
     ).all()
     return {uid: name for uid, name in rows if name}
+
+
+@router.get("/admin/reviews", summary="管理後台:待審核的版本")
+async def admin_reviews_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """T102 審核佇列:作者送審的版本停在這裡,核准後才會讓其他人下載。
+
+    參數:無。回傳:HTML。副作用:無(唯讀)。
+
+    🔴 這一頁本身就是「沒有通知管道」的緩解措施——平台沒有 email 也沒有推播,
+    管理員只有主動走進來才會知道有東西要審。總覽的待辦區必須指得到這裡,
+    兩者是一組的;拆開任何一半,版本就會安靜地卡住。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+
+    settings = request.app.state.settings
+    releases = (
+        (
+            await session.execute(
+                select(Release)
+                .where(Release.status == ReleaseStatus.pending_review)
+                .options(selectinload(Release.project))
+                .order_by(Release.created_at)  # 先送先審,不讓新的插隊
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return HTMLResponse(
+        render(
+            request,
+            "admin_reviews.html",
+            identity=identity,
+            releases=releases,
+            download_url=lambda artifact: web_url(
+                settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
+            ),
+        )
+    )
+
+
+@router.post("/admin/reviews/{release_id}/approve", summary="核准版本(送出)")
+async def admin_approve_release(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """核准一個待審版本。與 `POST /v1/releases/{id}/approve` 同一段語意,不另立規則。"""
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    await approve_release(release_id, session, identity)
+    return _redirect(request, "/admin/reviews")
+
+
+@router.post("/admin/reviews/{release_id}/reject", summary="退回版本(送出)")
+async def admin_reject_release(
+    release_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    note: Annotated[str, Form()],
+) -> Response:
+    """退回一個待審版本,附上理由。
+
+    🔴 理由必填。表單的 `required` 只是不給機會送出——**真正的把關在這裡**
+    (`ReleaseReject` 的 schema 驗證),因為表單可以偽造。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    await reject_release(release_id, ReleaseReject(note=note), session, identity)
+    return _redirect(request, "/admin/reviews")
 
 
 @router.get("/admin/audit", summary="管理後台:稽核紀錄")

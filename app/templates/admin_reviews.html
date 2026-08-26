@@ -1,0 +1,72 @@
+{#
+  T102 審核佇列:作者送審的版本等在這裡,管理員核准後才會讓其他人下載。
+
+  🔴 這一頁的存在本身就是那個「沒有通知管道」的緩解措施——平台沒有 email
+  也沒有推播,管理員只有主動走進來才會知道有東西要審。所以總覽的待辦區
+  一定要指得到這裡(admin_dashboard.html),兩者是一組的。
+
+  🔴 退回一律要理由:表單的 textarea 是 required,伺服器端另有同一條檢查
+  (schema 的 min_length + strip)。畫面那層只是不給機會送出。
+#}
+{% extends "base.html" %}
+
+{% block title %}待審核 — upload-program{% endblock %}
+
+{% block content %}
+<h1>待審核的版本</h1>
+{% with current = "reviews" %}{% include "_admin_tabs.html" %}{% endwith %}
+
+<p class="muted">
+  {# 🔴 模板裡要粗體用 <strong>,不是 Markdown 的 `**`——那會原樣印出星號(T100 的教訓)。 #}
+  作者送審之後版本會停在這裡,<strong>核准前其他人下載不到</strong>。
+  平台不會寄信,所以這一頁沒人看的話,版本就會一直等下去。
+</p>
+
+{% if releases %}
+  <ul class="project-list admin-list">
+    {% for release in releases %}
+      <li class="project">
+        <div class="project-head">
+          <a class="project-name" href="{{ url('/projects/' ~ release.project.slug) }}">{{ release.project.name }}</a>
+          <span class="release-version">{{ release.version }}</span>
+          <span class="badge badge-warn">待審核</span>
+          <span class="muted">{{ release.artifacts | length }} 個檔案</span>
+        </div>
+
+        {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
+
+        <ul class="artifact-list">
+          {% for artifact in release.artifacts | sort(attribute='filename') %}
+            <li class="artifact">
+              <div class="artifact-head">
+                <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
+                <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes</span>
+              </div>
+              <dl class="artifact-meta">
+                <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+              </dl>
+            </li>
+          {% endfor %}
+        </ul>
+
+        <div class="review-actions">
+          <form method="post" action="{{ url('/admin/reviews/' ~ release.id ~ '/approve') }}">
+            <button class="btn btn-green" type="submit">核准並上架</button>
+          </form>
+
+          {# 🔴 退回必須寫理由:沒有理由的退回,作者只能猜,然後重傳一模一樣的東西。 #}
+          <form method="post" action="{{ url('/admin/reviews/' ~ release.id ~ '/reject') }}">
+            <label for="note-{{ release.id }}">退回理由(必填)</label>
+            <textarea id="note-{{ release.id }}" name="note" rows="2" required
+                      maxlength="2000" placeholder="說明要改什麼,作者才知道下一步"></textarea>
+            <button class="btn" type="submit">退回給作者</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">目前沒有待審核的版本。</p>
+{% endif %}
+
+{% endblock %}

@@ -158,9 +158,11 @@ async def test_空版本不能發布發完就鎖住(client, active_user):
     await complete_kinds(client, token, release_id)
     published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert published.status_code == 200
-    assert published.json()["status"] == "published"
+    # T102:按下發布 = **送審**,不是直接上架。
+    assert published.json()["status"] == "pending_review"
 
-    # 已發布就不可再改檔案,避免「同一版內容被偷換」
+    # 🔴 T102 起,送審當下就鎖住(原本是發布後才鎖)——待審中若還能換檔,
+    # 管理員核准的就不是他看過的那一份,審核會變成可以繞過的形式。
     locked = await client.put(
         f"/v1/releases/{release_id}/artifacts/another.zip?kind=source",
         content=ZIP,
@@ -181,7 +183,8 @@ async def test_重複發布是冪等的(client, active_user):
     first = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     second = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert first.status_code == second.status_code == 200
-    assert first.json()["published_at"] == second.json()["published_at"]
+    # T102:兩次都停在待審,重送不會產生兩筆待審或改變狀態。
+    assert first.json()["status"] == second.json()["status"] == "pending_review"
 
 
 async def test_專案容量上限(client, active_user, settings):

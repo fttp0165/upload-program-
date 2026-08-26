@@ -67,7 +67,16 @@ class ProjectRole(enum.StrEnum):
 
 
 class ReleaseStatus(enum.StrEnum):
+    # T102 審核制度。狀態機:
+    #   draft ──(作者送審)──> pending_review ──(管理員核准)──> published
+    #     ^                         │
+    #     └──(管理員退回 + 理由)────┘
+    #
+    # 🎯 `published` 的語意**刻意不變**(一直都是「可下載」)。這是整個設計的樞紐:
+    # 既有已發布的版本因此一列都不用改,自然滿足「既有已發布視為已核准」的裁示,
+    # 資料影響從 🔴 UPDATE 降為 🟡 純加欄位。
     draft = "draft"
+    pending_review = "pending_review"
     published = "published"
 
 
@@ -219,7 +228,17 @@ class Release(Base):
     )
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # 🔴 `published_at` 在**核准當下**寫入,不是送審當下——`latest_published_release()`
+    # 依它排序,語意維持「最新**可下載**的版本」,那條查詢一行都不用改。
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    # T102 審核結果。`review_note` 是**退回理由**——裁示要求必填:
+    # 沒有理由的退回,作者只能猜,然後重傳一模一樣的東西。
+    review_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), default=None
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     project: Mapped[Project] = relationship(back_populates="releases")
     # 🐛 根本原因(T50):原本是預設的 lazy="select",序列化 ReleaseOut 時才去碰 artifacts,

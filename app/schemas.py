@@ -206,6 +206,24 @@ class ArtifactOut(ORMModel):
     completed_at: datetime | None
 
 
+class ReleaseReject(BaseModel):
+    """退回一個待審版本時要附的理由(T102)。
+
+    🔴 **必填,且不接受純空白**。沒有理由的退回,作者只能猜,然後重傳一次一模一樣
+    的東西——理由欄位不是裝飾,是這個流程能不能運轉的關鍵。
+    `min_length=1` 擋不掉 `"   "`,所以另外 strip 後再驗一次。
+    """
+
+    note: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("退回理由不可空白")
+        return value
+
+
 class ReleaseOut(ORMModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -215,6 +233,11 @@ class ReleaseOut(ORMModel):
     created_by_id: uuid.UUID
     created_at: datetime
     published_at: datetime | None
+    # T102 審核結果。🔴 只帶「退回理由」與時間,**不帶審核者的任何身分資訊**——
+    # `reviewed_by_id` 刻意不出現在 API:誰審的屬於稽核紀錄的範疇,
+    # 而稽核不是繞過個資紅線的後門(AuditEventOut 的 docstring 早已寫明同一件事)。
+    review_note: str = ""
+    reviewed_at: datetime | None = None
     artifacts: list[ArtifactOut] = []
     # 版本的下載次數是底下所有檔案的加總,**不另存欄位**(F43):
     # 兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來。

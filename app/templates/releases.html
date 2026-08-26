@@ -57,11 +57,22 @@
                 {% if can_edit_releases %}
                   <a class="release-edit" href="{{ edit_url(release) }}">繼續編輯</a>
                 {% endif %}
+              {% elif release.status.value == 'pending_review' %}
+                {# T102:待審中。刻意**不給編輯入口**——待審中不能改檔案
+                   (伺服器端同樣擋),不然管理員核准的就不是他看過的那一份。 #}
+                <span class="badge badge-warn">待審核</span>
+                <span class="muted">已送出,等管理員核准後其他人才下載得到</span>
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}
               <span class="muted">{{ release.artifacts | length }} 個檔案</span>
             </summary>
+
+            {# T102:退回理由。🔴 只有能編輯的人看得到——理由是寫給作者的工作訊息,
+               不是給所有讀者的公告。 #}
+            {% if release.review_note and can_edit_releases %}
+              <p class="notice review-note"><strong>被退回:</strong>{{ release.review_note }}</p>
+            {% endif %}
 
             {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 

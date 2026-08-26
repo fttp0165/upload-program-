@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-12 22:55
-<strong>版本:</strong> v1.79</p>
+<strong>最後更新:</strong> 2026-08-12 23:45
+<strong>版本:</strong> v1.80</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-12 22:55)</h2>
-<p>任務 102 項:<strong>✅ 94 / 🔵 1 / ⬜ 6</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>539 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-12 23:45)</h2>
+<p>任務 102 項:<strong>✅ 95 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>548 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -679,9 +679,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T102</td>
 <td>發布審核:管理員核准後才可下載</td>
-<td>⬜</td>
+<td>⚠️</td>
 <td>🟡</td>
-<td><strong>待 Benny 裁示</strong>(計畫書 §2、§6)。規模最大的一項:<code>ReleaseStatus</code> 由兩態變三態,牽動 <code>latest_published_release()</code> 的語意、每個下載端的狀態檢查、F26 固定連結、管理後台審核佇列、既有已發布資料的 migration 處置。建議:退回<strong>必須寫理由</strong>(沒理由作者只能猜,然後重傳一模一樣的東西)、待審版本對非成員<strong>隱藏</strong>而非顯示但不能下載。🔴 <strong>最大風險不是技術是營運</strong>:平台<strong>沒有 email / 推播</strong>(T79 已載明),作者送審後管理員不知道有東西要審,版本卡住而作者以為系統壞了;緩解只能是管理總覽加待辦項,但仍要求管理員主動看後台——<strong>若實務上不會有人天天看,這功能會製造比它解決的更多問題</strong></td>
+<td>依裁示施工:狀態機由兩態變三態 <code>draft →(送審)→ pending_review →(核准)→ published</code>,退回帶理由回到 draft。🎯 <strong>關鍵設計:<code>published</code> 的語意刻意不變</strong>(一直都是「可下載」)——既有已發布的版本因此<strong>一列都不用改</strong>,裁示第 2 條不是靠資料遷移達成而是靠設計,資料影響從 🔴 UPDATE 降為 🟡 純加欄位(實測 <code>alembic upgrade --sql</code> 產出的 PostgreSQL DDL <strong>沒有任何一行 UPDATE</strong>)。可見性沿用草稿既有的 404 規則(<code>is draft</code> → <code>is not published</code>),不發明新規則——兩套可見性遲早分岔,分岔的那邊就是漏洞。🔴 順手補上一道洞:<strong>待審中不得再改檔案</strong>(原本只擋 published),否則管理員核准的不是他看過的那一份,審核會變成能繞過的形式。🐛 <strong>up→down→up 演練當場抓到兩個 migration bug,而 548 條全綠也看不到</strong>(pytest 用 <code>create_all</code> 根本不跑 migration):SQLite 不支援 <code>ALTER COLUMN TYPE</code>(改用 <code>batch_alter_table</code>)、batch 模式外鍵必須具名。🔴 另有一個 <strong>SQLite 永遠測不到</strong>的坑:<code>native_enum=False</code> 存 VARCHAR、長度取最長值 → 原本 <code>VARCHAR(9)</code>,而 <code>pending_review</code> 有 14 字元,PostgreSQL 會拒寫而 SQLite 不檢查——靠讀 <code>_enum</code> 實作推出來的,已用 <code>--sql</code> 逐行確認放寬語句在裡面。既有 <strong>21 條測試依新行為改寫</strong>(需求變更的預期後果,非回歸):新增 <code>conftest.publish_and_approve()</code> 走真實 API 而非塞 DB(T84 假綠的教訓),並把 app 掛在 client 上讓幾十個 helper 的<strong>呼叫點一行未動</strong>。⚠️ <strong>欠項:PostgreSQL 上的 up→down→up 尚未實跑</strong>(容器無 docker daemon),換版前必須在 WSL 補做;通知缺口仍在(已知取捨)。<strong>9 條紅→綠,全套 548</strong></td>
 </tr>
 <tr>
 <td>T103</td>

@@ -153,3 +153,49 @@ def test_標記要寫得出實際機器名():
         for line in text.split("\n"):
             if "在哪執行:" in line:
                 assert any(m in line for m in machines), f"{name} 標記未指明機器:{line}"
+
+
+# --------------------------------------------------------------------------
+# T107:第四條 4 × 第九條 —— 對外文件必須有 HTML 版
+#
+# 為什麼補這一條:`render_docs.py --check` 只掃它自己的 TARGETS 清單,
+# 所以**新建一份正式文件卻忘了加進 TARGETS,--check 會照樣印「All checks passed」**
+# ——漏掉的東西不在清單裡,清單當然檢查不出來。
+#
+# 這正是 2026-08-26 實際發生的事:第 11 份申請書建好、登記進索引、CI 綠燈,
+# 但它**沒有 HTML 版**,而其他兩份第九條文件都有。發現的方式是人眼看了一次
+# TARGETS,不是任何一道自動守門——那就是「規約沒有測試」的樣子(第九條 7)。
+#
+# 🔴 判準刻意綁在**索引**而不是 glob:索引是「哪些算跨專案文件」的唯一登記處
+# (第九條 5)。綁 glob 等於讓規則散成兩份,而兩份遲早分岔。
+# --------------------------------------------------------------------------
+
+
+def _render_targets() -> set[str]:
+    """讀 tools/render_docs.py 的 TARGETS 清單。
+
+    以正規表示式讀原始碼而非 import:render_docs 需要 markdown 套件,
+    而本檔的其餘測試都不需要任何相依——為了一條測試把整檔綁上第三方套件不划算。
+    """
+    src = (ROOT / "tools" / "render_docs.py").read_text(encoding="utf-8")
+    block = re.search(r"TARGETS\s*=\s*\[(.*?)\]", src, re.S)
+    assert block, "render_docs.py 找不到 TARGETS 清單"
+    return set(re.findall(r'"([^"]+\.md)"', block.group(1)))
+
+
+def test_登記在案的對外文件都有HTML版():
+    """第四條 4:正式文件 md 與 HTML 並存;跨專案文件尤其如此。
+
+    對方收到的往往是**單檔 HTML**(可離線開、不必有 markdown 檢視器)。
+    只給 md 等於要求對方自己有工具——而這份文件的整個重點就是「離開 repo
+    之後還能自己說話」。
+    """
+    targets = _render_targets()
+    missing = [
+        name
+        for name in _registered()
+        if f"plans/{name}" not in targets and name != INDEX.name
+    ]
+    assert not missing, (
+        f"對外文件已登記進索引卻沒有 HTML 版(請加進 tools/render_docs.py 的 TARGETS):{missing}"
+    )

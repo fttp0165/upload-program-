@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 狀態總覽</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/狀態總覽.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 狀態總覽</h1>
+<p><strong>專案:</strong> upload-program
+<strong>建立日期:</strong> 2026-08-26 08:20
+<strong>最後更新:</strong> 2026-08-26 08:20
+<strong>版本:</strong> v1.0</p>
+<blockquote>
+<p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
+<p>為什麼需要它:狀態目前散在任務表(160+ 列)、26 篇開發日誌、跨專案文件索引
+與 GitHub PR 四個地方。每個都是對的,但<strong>沒有一頁看得完</strong>,
+於是「現在到底能不能發版」這種問題每次都要重查一遍。</p>
+<p>🔴 本頁是<strong>摘要,不是真相來源</strong>。任何一格與任務表 / 日誌 / 索引衝突時,
+<strong>以那些為準</strong>——它們有完整脈絡,本頁只有結論。</p>
+</blockquote>
+<hr />
+<h2>1. 一句話</h2>
+<p><strong>線上服務正常;v0.3.0 已經做完並測完,但被一條 CI 紅燈擋住發不出去,
+而那條紅燈我方修不掉——球在平台網路側。</strong></p>
+<hr />
+<h2>2. 線上狀態</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服務位址</td>
+<td><code>https://catsapp.sporton.com.tw/upload/</code></td>
+</tr>
+<tr>
+<td>最後發布的 tag</td>
+<td><strong>v0.2.3</strong></td>
+</tr>
+<tr>
+<td>服務狀態</td>
+<td>🟢 <strong>正常</strong>——本文所述的阻塞<strong>不影響已上線的版本</strong>,只影響「發下一版」</td>
+</tr>
+<tr>
+<td>正式資料</td>
+<td>平台已上線使用中;🔴 任何動資料庫的操作,動手前必先備份並於 staging 演練</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ VM 上實際跑的版本以首頁頁尾顯示的版本號為準
+(T68 起版本號顯示在服務首頁;<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。
+本表寫的是<strong>最後打出去的 tag</strong>,不是遠端量測結果。</p>
+</blockquote>
+<hr />
+<h2>3. v0.3.0:做完了什麼</h2>
+<p><code>app/version.py</code> 的 <code>APP_VERSION</code> 已是 <strong>0.3.0</strong>(第八條 4:必須在打 tag 之前改好)。</p>
+<h3>3.1 🔴 這一版改變了既有行為</h3>
+<p><strong><code>POST /v1/releases/{id}/publish</code> 的語意變了。</strong>
+原本是「發布,馬上可下載」,現在是「<strong>送審</strong>,等管理員核准」。
+同一條端點、同樣回 200,但結果完全不同。</p>
+<p>作者按下「發布」之後,版本停在<strong>待審核</strong>;要管理員到 <code>/admin/reviews</code> 核准,
+其他人才下載得到。🔴 <strong>核准前沒有任何人會收到通知</strong>——平台沒有 email 也沒有推播,
+管理總覽的待辦區是唯一的提醒。這是已知的營運限制,不是被忽略的問題。</p>
+<p>這也是版本號從 0.2.x 跳到 0.3.0 的理由:用 patch 版發這種東西,
+等於對看 Release 頁的人說「只是小修正」,而他下一步就會發現自己發布的東西沒人下載得到。</p>
+<h3>3.2 四項新功能(2026-08-12 需求)</h3>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>資料影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T101</strong></td>
+<td>管理員指派入口(<code>/admin/users</code> 可直接設為/取消管理員)</td>
+<td>🟢 不動</td>
+</tr>
+<tr>
+<td><strong>T102</strong></td>
+<td>發布審核:<code>草稿 →(送審)→ 待審核 →(核准)→ 已發布</code></td>
+<td>🟡 加欄位</td>
+</tr>
+<tr>
+<td><strong>T103</strong></td>
+<td>專案留言板(專案頁的「使用回饋」)</td>
+<td>🟡 加表</td>
+</tr>
+<tr>
+<td><strong>T104</strong></td>
+<td>版本作者屬名(版本歷史每一版顯示建立者)</td>
+<td>🟢 不動</td>
+</tr>
+</tbody>
+</table>
+<p>三條刻意寫下的界線:
+- 🔴 <strong>不能取消自己的管理員身分</strong>(平台無 root 後門,手滑就沒人管得動系統)。
+- 🔴 <strong>退回必須寫理由</strong>——沒有理由的退回,作者只能猜,然後重傳一模一樣的東西。
+- 🔴 <strong>專案擁有者不能刪別人的留言</strong>,只有留言者本人與平台管理員可以。
+  擁有者若能刪掉評語,留言板就只會剩好話,而<strong>一個只留得住讚美的回饋區比沒有回饋區更糟</strong>。</p>
+<h3>3.3 修正與基礎工程</h3>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T94</strong></td>
+<td>🐛 <strong>中文文字檔上傳被擋</strong>——判型的 UTF-8 截斷補救砍過頭,超過 4KB 的中文 <code>.md</code> / <code>.py</code> 被判成 binary</td>
+</tr>
+<tr>
+<td><strong>T96</strong></td>
+<td>🐛 CI Trivy 紅燈:base image 被 self-hosted runner 的快取釘住(加 <code>--pull</code>)</td>
+</tr>
+<tr>
+<td><strong>T97 / T100</strong></td>
+<td>專案頁顯示擁有者 · 🐛 草稿版本回不去(補上編輯入口)</td>
+</tr>
+<tr>
+<td><strong>T98</strong></td>
+<td>本地 WSL 開發環境(dev compose + 本機跑 CI)</td>
+</tr>
+<tr>
+<td><strong>T93 / T99</strong></td>
+<td>憲法第九條(文件識別)、第十條(指令標明機器與目錄)</td>
+</tr>
+<tr>
+<td><strong>T105 / T106</strong></td>
+<td>版本號 → 0.3.0 · 🐛 openssl CVE(見 §4)</td>
+</tr>
+</tbody>
+</table>
+<h3>3.4 測試與演練</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全站測試</td>
+<td><strong>559 passed</strong>(本版新增 38 條;既有 21 條依新行為改寫)</td>
+</tr>
+<tr>
+<td><code>ruff check</code></td>
+<td>乾淨</td>
+</tr>
+<tr>
+<td><code>render_docs.py --check</code></td>
+<td>md / HTML 同步</td>
+</tr>
+<tr>
+<td>migration <code>0009</code></td>
+<td>🔴 <strong>真 PostgreSQL up→down→up 演練通過</strong></td>
+</tr>
+<tr>
+<td>migration <code>0010</code></td>
+<td>🔴 <strong>真 PostgreSQL up→down→up 演練通過</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 兩次演練都是<strong>空庫</strong>演練。證明的是 DDL 在 PostgreSQL 上跑得動
+(即本版的實際風險:<code>ALTER COLUMN TYPE</code> 與 VARCHAR 長度),<strong>不是</strong>資料搬遷邏輯。</p>
+</blockquote>
+<p>📌 值得記一筆:演練當場抓到<strong>兩個「559 條全綠也看不到」的 migration bug</strong>
+——pytest 用 <code>create_all</code>,<strong>根本不跑 migration</strong>。</p>
+<hr />
+<h2>4. 🔴 卡住的事:CI Trivy 紅燈(T106)</h2>
+<h3>4.1 現況</h3>
+<table>
+<thead>
+<tr>
+<th>CI job</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>測試 / lint / 文件同步</td>
+<td>✅ 綠(559 passed)</td>
+</tr>
+<tr>
+<td><strong>Build image + Trivy 掃描</strong></td>
+<td>❌ <strong>紅</strong></td>
+</tr>
+<tr>
+<td>Push GHCR(僅版本 tag)</td>
+<td>⏭ 因 <code>needs: build</code> 而跳過</td>
+</tr>
+</tbody>
+</table>
+<pre><code>upload-program:ci (debian 13.6)          Total: 3 (HIGH: 3, CRITICAL: 0)
+
+libssl3t64 / openssl / openssl-provider-legacy
+CVE-2026-14456  HIGH  fixed  3.5.6-1~deb13u2 → 3.5.7-1~deb13u2
+</code></pre>
+<p>三筆是<strong>同一個來源套件(openssl)的三個二進位套件</strong>,同一個 CVE。</p>
+<h3>4.2 為什麼我方修不掉</h3>
+<ul>
+<li>我方 image 的 runtime stage <strong>從頭到尾沒有任何 <code>apt-get</code></strong>,
+  OS 套件原封不動來自官方 <code>python:3.12-slim</code>。<strong><code>main</code> 現在建也會紅。</strong></li>
+<li>Debian 已發布修好的 <code>3.5.7-1~deb13u2</code>,但<strong>官方 image 尚未重建併入</strong>。
+  建置已帶 <code>--pull</code>(T96),但<strong>上游沒動,我們就沒得取</strong>。</li>
+<li>試過在 runtime stage 自己升 openssl → <strong>失敗</strong>:
+  <code>deb.debian.org</code> 從 CI runner 的容器網路 <strong>connection timed out</strong>
+  (三個 suite 全部),與 2026-07-30 run #85 同一堵牆。</li>
+</ul>
+<h3>4.3 📌 那次嘗試順便挖出一個更重要的東西</h3>
+<pre><code>W: Some index files failed to download. They have been ignored, or old ones used instead.
+libssl3t64 is already the newest version (3.5.6-1~deb13u2).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+#9 DONE 37.7s                    ← 建置「成功」
+</code></pre>
+<p>🔴 <strong><code>apt-get update</code> 抓不到索引時只印 <code>W:</code>,exit code 仍是 0。</strong>
+後續的 <code>--only-upgrade</code> 因此拿 base image 裡的<strong>舊索引</strong>比對,回報「已經是最新版」,
+整條 <code>&amp;&amp;</code> 鏈<strong>成功</strong>——建置產出一個<strong>看起來已修補、實際一個位元組都沒動</strong>的 image。</p>
+<p>當時特地寫了「刻意不加 <code>|| true</code>」來防這件事,<strong>護欄守錯了地方</strong>:
+防的是「指令回傳非 0 而我吞掉」,而 apt 根本不回傳非 0。
+<strong>真正抓到它的是 Trivy,不是任何一道自寫的保險。</strong></p>
+<p>一課:<strong><code>&amp;&amp;</code> 鏈只證明「每個指令都自稱成功」,不證明「事情做到了」。</strong>
+對「取得外部資源」這類步驟必須自己驗結果,不能把 exit code 當成事實。
+(與 T84 / T103 的假綠同病,只是載體從測試換成了 shell。)</p>
+<p>已回退,Dockerfile 不留任何無效的 apt——留著會讓下一個讀的人以為 openssl 有在升。</p>
+<h3>4.4 裁示與已採取的行動</h3>
+<p>Benny 2026-08-26 裁示:<strong>開通 apt</strong>(不等上游、不放寬掃描)。</p>
+<p>已備妥跨專案申請書並登記進索引(第 11 份),申請內容擇一:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>開通 <code>docker build</code> 網路對 <code>deb.debian.org</code> / <code>security.debian.org</code> 的 egress</td>
+</tr>
+<tr>
+<td><strong>B</strong></td>
+<td>提供<strong>公司內部 Debian 鏡像</strong>位址,我方改寫 <code>sources</code> 指過去(<strong>我方偏好</strong>)</td>
+</tr>
+</tbody>
+</table>
+<p>範圍刻意寫小:<strong>只在建置期</strong>、<strong>只要 Debian 官方兩個網域</strong>、<strong>只升不裝</strong>。</p>
+<blockquote>
+<p>誠實揭露:CVE-2026-14456 是 OpenSSL <strong>QUIC 伺服器</strong>的記憶體無限成長,
+本服務沒有任何 QUIC 伺服器路徑(TLS 在 gateway 終結;OpenSSL 只被 Python
+用在對外 client:JWKS、MinIO),<strong>幾乎確定不適用</strong>。
+<strong>仍然申請開通而不主張豁免</strong>,理由有二:判斷可能錯且會隨相依演進失效;
+更重要的是<strong>這次成不成立不影響下一次</strong>——真正的問題是
+「runtime stage 沒有 apt 就代表我方對 OS 層 CVE 完全無能為力」。</p>
+</blockquote>
+<p>📌 <strong>這是第三次</strong>被 base image 的 OS 套件擋(run #85 繞掉了、T96 上游剛好已重建、
+本次沒有運氣)。所以申請的是制度,不是這一個 CVE。</p>
+<hr />
+<h2>5. 誰的球</h2>
+<h3>5.1 🔴 卡在平台/網路側(<strong>唯一阻塞發版的</strong>)</h3>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>索引 #</th>
+<th>我方狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CI 容器網路開通 Debian 套件庫</strong></td>
+<td>#11</td>
+<td>Dockerfile 已回退;<strong>v0.3.0 發不出去</strong>。獲准後加回只升 openssl 的一層,並<strong>自行驗證 <code>apt-get update</code> 的結果</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>5.2 卡在 cats-portal(不阻塞發版)</h3>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>索引 #</th>
+<th>我方狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admin API service account 裁示(T73)</td>
+<td>#6</td>
+<td>程式與資料庫<strong>皆未動</strong>,等裁示後才決定是否移除落地快取</td>
+</tr>
+<tr>
+<td>front-channel logout 登記</td>
+<td>#7</td>
+<td>端點<strong>已實作</strong>(T74),等對方登記後依契約 §10 重跑 A→B 復現</td>
+</tr>
+<tr>
+<td>session 時序三問</td>
+<td>#9</td>
+<td>我方已排除「續期失敗」一路,剩兩種可能待對方資料收斂</td>
+</tr>
+<tr>
+<td>§4.2a L1 用途擴大(顯示名字)</td>
+<td>#10</td>
+<td>三處已以 <code>sub</code> 前 8 碼過渡,測試釘住「名字不得出現」,<strong>獲准後換字即可</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>📌 #9 與 #10 兩份文件<strong>尚未實際送出</strong>(檔案已備妥、已登記)。</p>
+<h1>10 是把專案頁擁有者、版本建立者、留言者三處 UUID 換成名字的<strong>唯一</strong>途徑。</h1>
+</blockquote>
+<h3>5.3 卡在 staging(不阻塞發版)</h3>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T27 還原演練</td>
+<td>runbook 文件已完成;<strong>還原本身尚未實際演練過</strong>——🔴 沒還原過的備份等於沒有備份</td>
+</tr>
+<tr>
+<td>J-07 回滾演練</td>
+<td>同上,尚未演練</td>
+</tr>
+</tbody>
+</table>
+<h3>5.4 未排入(MVP 外或待前置)</h3>
+<p>T46 病毒掃描(<code>infected</code> 處置政策待定案)、T29 接入冒煙清單全數通過。</p>
+<hr />
+<h2>6. v0.3.0 的下一步(Trivy 轉綠之後)</h2>
+<ol>
+<li>合併 PR #33</li>
+<li>打 <code>v0.3.0</code> tag(🔴 我方 tag push 得 403,<strong>這是政策,不繞過</strong>——由 Benny 推)</li>
+<li>Release 頁貼上四段內容(第八條 3:本版內容 / 資料影響 / 部署注意 / 測試)</li>
+<li>VM 換版:
+   - 🔴 <strong>必須跑 migration</strong>:<code>docker compose exec svc alembic upgrade head</code>
+   - <code>.env</code> <strong>無新增變數</strong>
+   - 🔴 換版重建容器後<strong>必須</strong> <code>docker exec portal-gateway nginx -s reload</code>,否則 502</li>
+<li>換版後驗證:
+   - <code>tools/smoke.sh --vm --expect v0.3.0</code>(⚠️ 本次請一併 scp 這支腳本上 VM)
+   - 🖐 <strong>人工必驗</strong>:超過 4KB 的<strong>中文 <code>.md</code></strong> 傳進「說明」卡片 → <strong>必須成功</strong>
+   - 🖐 送審 →<code>/admin/reviews</code> 核准 → 其他帳號下載得到,走一遍
+   - 🖐 反向:<code>.exe</code> 改名成 <code>.md</code> 傳進「說明」→ <strong>仍須被擋</strong></li>
+</ol>
+<h3>🔴 回滾的代價(runbook §B 已載明)</h3>
+<ul>
+<li>退 <code>0009</code> 會把<strong>待審中的版本一律當回草稿</strong>,退回理由整欄消失
+  → <strong>退版前請先清空審核佇列</strong>(全部核准或退回)。</li>
+<li>退 <code>0010</code> 會<strong>失去全部專案留言</strong>,無法重建。</li>
+</ul>
+<hr />
+<h2>7. 已知的營運限制(不是缺陷,是取捨)</h2>
+<ol>
+<li>🔴 <strong>平台沒有任何通知管道。</strong> 作者送審後、專案被留言後,對方都不會收到提醒。
+   審核靠管理員<strong>主動看</strong>管理總覽的待辦區。若實際運作上沒人天天看後台,
+   審核制度會製造比它解決的更多問題——<strong>這是要評估的營運現實,不是技術問題</strong>。</li>
+<li>🔴 <strong>三處顯示的是識別碼不是名字</strong>(專案擁有者、版本建立者、留言者)。
+   全部卡在同一份申請書(#10)。一串 UUID 的體驗確實不好,
+   這是<strong>誠實的過渡狀態,不是設計目標</strong>。</li>
+<li><strong>掃毒尚未接上</strong>,每個檔案誠實標示 <code>not_scanned</code>(T46)。</li>
+<li><strong>留言沒有分頁</strong>,少的時候沒問題,多起來要加。<strong>不預先做</strong>,但記在這裡。</li>
+<li><strong>requirements 仍是相容區間不是 lock 檔</strong>——建置不可重現(T82 遺留)。</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-26 08:20</td>
+<td>Claude(Benny:「目前狀態 寫成一份文件」)</td>
+<td>初版:狀態原本散在任務表、26 篇日誌、跨專案索引與 PR 四處,沒有一頁看得完。彙整線上狀態、v0.3.0 完成內容與測試/演練、🔴 T106 的 Trivy 阻塞與其根因、按「誰的球」重編的卡關清單(平台 / portal / staging)、Trivy 轉綠後的換版步驟與回滾代價、五項已知營運限制。🔴 明示本頁是摘要不是真相來源</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

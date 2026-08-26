@@ -57,6 +57,8 @@ TARGETS = [
     # 第九條格式:<發文專案>_致_<受文專案>_<類別>_<主題>_<YYYYMMDD-HHmm>
     "plans/upload-program_致_cats-portal_回覆_session時序_20260812-1140.md",
     "plans/upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md",
+    "plans/upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md",
+    "狀態總覽.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

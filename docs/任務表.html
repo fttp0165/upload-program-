@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-26 07:40
-<strong>版本:</strong> v1.86</p>
+<strong>最後更新:</strong> 2026-08-26 08:35
+<strong>版本:</strong> v1.87</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -712,6 +712,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>PR #33(v0.3.0)的 <code>Build image + Trivy 掃描</code> 紅:<code>libssl3t64</code> / <code>openssl</code> / <code>openssl-provider-legacy</code> 同一個 <strong>CVE-2026-14456</strong>(HIGH ×3,<code>3.5.6-1~deb13u2</code> → <code>3.5.7-1~deb13u2</code>)。<strong>與本 PR 的 diff 無關</strong>——runtime stage 沒有任何 <code>apt-get</code>,OS 套件原封不動來自 base image,main 現在建也會紅。🔍 <strong>這次不是 T96 的快取問題</strong>:<code>--pull</code> 確實生效了(掃到的就是 Debian 13.6 的當期版本),真正的原因是<strong>上游 <code>python:3.12-slim</code> 尚未重建</strong>——<code>--pull</code> 只能保證取到上游最新的那份,<strong>上游沒動就沒得取</strong>。處置正是 T96 日誌〈如果 <code>--pull</code> 之後還是紅〉那一節<strong>預先寫好</strong>的方案:runtime stage 只升 openssl 家族(不做整包 <code>apt-get upgrade -y</code>——那會讓「這個 image 裝了什麼」隨建置時間漂移,是 T82 遺留問題的 OS 版本)。🔴 <strong>仍然不用 <code>.trivyignore</code></strong>,而且這次誘惑比前兩次都大:CVE-2026-14456 是 OpenSSL <strong>QUIC 伺服器</strong>的記憶體無限成長,本服務沒有任何 QUIC 伺服器路徑(TLS 在 gateway 終結,OpenSSL 只被 Python 用在對外 client:JWKS、MinIO),<strong>幾乎確定不適用</strong>——但「我判斷用不到」不是關掉掃描的理由:判斷可能錯,而 ignore 檔留下的只有一行 CVE 編號、留不下今天這段推理;既然上游<strong>已經有修好的版本</strong>(<code>--ignore-unfixed</code> 一直開著,它出現就代表有得修),拿到它才是正解。⚠️ <strong>誠實記下一個風險</strong>:Dockerfile 第 12–16 行的歷史正是「apt 套件庫從 CI 網路不可達」(run #85)才把 apt 拿掉的,本次把 apt 加回來<strong>可能撞同一堵牆</strong>;若撞牆會<strong>大聲失敗</strong>(🔴 刻意不加 <code>\|\| true</code>——吞掉失敗等於發布一個自己以為修好的 image),❌ <strong>實測失敗,已回退</strong>——而且失敗的形狀與預期相反:牆還在(三個 suite 全部 connection timed out),但 🔴 <strong><code>apt-get update</code> 抓不到索引時只印 <code>W:</code>、exit code 仍是 0</strong>,<code>--only-upgrade</code> 拿 base image 的<strong>舊索引</strong>比對後回報「已經是最新版」,整條 <code>&amp;&amp;</code> 鏈<strong>成功</strong>,建置產出一個<strong>看起來已修好、實際一個位元組都沒動</strong>的 image。那條「刻意不加 <code>\|\| true</code>」的護欄立意正確但<strong>守錯了地方</strong>:我防的是「指令回傳非 0 而我吞掉」,而 apt 根本不回傳非 0——<strong>抓到這件事的是 Trivy,不是我寫的任何一道保險</strong>。📌 可帶走的一課:<strong><code>&amp;&amp;</code> 鏈只證明「每個指令都自稱成功」,不證明「事情做到了」</strong>;對「取得外部資源」這類步驟必須自己驗結果,不能把 exit code 當成事實——與 T84 / T103 的假綠同病,只是載體從測試換成了 shell。🔴 <strong>結論:我方修不掉,三條路都不在本 repo</strong>——A 等上游重建(ETA 未知)/ <strong>B 開通 CI 容器網路的 apt 或指向內部鏡像(建議,一勞永逸:這是第三次被 base image 的 OS 套件擋)</strong>/ C 放寬掃描(🔴 不建議,已立過兩次界線)。⚠️ <strong>此紅燈是 v0.3.0 的硬阻塞</strong>:<code>publish</code> job <code>needs: build</code>,Trivy 紅則 GHCR 推不上去,<strong>tag 打了也不會有 image</strong>。待 Benny 裁示</td>
 </tr>
 <tr>
+<td>T107</td>
+<td>狀態總覽頁 + 🐛 補上 HTML 覆蓋守門</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「目前狀態 寫成一份文件」。狀態原本散在<strong>四個地方</strong>——任務表(160+ 列,太細)、開發日誌(26 篇,一篇一件事拼不出全局)、跨專案索引(只涵蓋對外那一面)、GitHub PR(不含 staging 欠項與營運限制);四個都是對的,但<strong>沒有一頁看得完</strong>,於是「現在到底能不能發版」每次都要重查一遍。新增 <code>docs/狀態總覽.md</code> 七節,重點在按<strong>阻塞源</strong>重編的〈誰的球〉(平台網路 / cats-portal / staging),讓「<strong>唯一擋住發版的是 #11</strong>」變成一眼可見的事實而不是要推理出來的結論。🔴 開頭明示本頁是<strong>摘要不是真相來源</strong>——若讀者把摘要當權威,它就會變成第五份會漂移的真相,比沒有它更糟。🐛 <strong>彙整時順手抓到 <code>--check</code> 的盲點</strong>:它只掃 <code>render_docs.py</code> 自己的 TARGETS 清單,<strong>漏掉的東西不在清單裡,清單當然檢查不出來</strong>——前一天新建的第 11 份申請書因此沒有 HTML 版,而 CI 照樣綠。與 T96 / T106 同一形狀:<strong>檢查器只證明它檢查過的東西是對的,不證明該檢查的都檢查了</strong>;差別是這次的漏網之魚是文件,症狀更難察覺(沒有 HTML 版不會有任何錯誤訊息,只有對方收到 md 卻打不開時才發現,而那時已經寄出去了)。依第九條 7「規約若沒有測試,三個月後就是一句沒人記得的話」補守門第 9 條,🔴 <strong>判準綁索引不綁 glob</strong>(索引是「哪些算跨專案文件」的唯一登記處,綁 glob 等於讓規則散成兩份)。⚠️ 日誌計畫段為<strong>事後補記</strong>,已依第二條 2 明示。⚠️ 遺留:<strong>過期的狀態頁比沒有狀態頁更危險</strong>(看起來很權威),而測試查得出檔案在不在、抬頭齊不齊,<strong>查不出內容是否過期</strong>——建議每次發版與卡關項變動時更新。<strong>1 條紅→綠,全套 560</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1170,6 +1177,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-08-26 07:40</td>
 <td>Claude(CI 實測回報)</td>
 <td><strong>T106 方案失敗並回退</strong>:deb.debian.org 從 CI 容器網路仍不可達。🔴 真正的發現是第二個——<strong><code>apt-get update</code> 抓不到索引時 exit code 仍是 0</strong>,建置因此產出一個「看起來已修好、實際沒動過」的 image;護欄立意正確卻守錯地方,<strong>抓到的是 Trivy 不是護欄</strong>。一課:<code>&amp;&amp;</code> 鏈只證明每個指令自稱成功,不證明事情做到了。結論:我方修不掉,建議開通 apt(第三次被 base image 的 OS 套件擋);⚠️ 此紅燈是 <strong>v0.3.0 的硬阻塞</strong></td>
+</tr>
+<tr>
+<td>v1.87</td>
+<td>2026-08-26 08:35</td>
+<td>Claude(Benny:「目前狀態 寫成一份文件」)</td>
+<td><strong>T107 狀態總覽頁</strong>:狀態原本散在四處、沒有一頁看得完;重點在按阻塞源重編的〈誰的球〉,🔴 明示是摘要不是真相來源。🐛 順手抓到 <strong><code>--check</code> 的盲點</strong>——只掃 TARGETS 清單,漏掉的檔案不在清單裡就檢查不出來,第 11 份申請書因此沒有 HTML 版而 CI 照樣綠;補守門第 9 條(判準綁索引)。全套 560</td>
 </tr>
 <tr>
 <td>v1.77</td>

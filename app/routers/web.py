@@ -435,6 +435,8 @@ async def project_releases_page(
         offset=offset,
     )
 
+    creator_subs = await _subs_by_id(session, {r.created_by_id for r in releases})
+
     base = f"/projects/{project.slug}/releases"
     next_url = (
         _page_url(settings, base, q=None, tag=None, offset=offset + PAGE_SIZE)
@@ -467,6 +469,9 @@ async def project_releases_page(
             # 給他一個按下去必然 403 的連結,比不給更糟。
             can_edit_releases=may_manage_releases(role, identity.user),
             edit_url=lambda release: web_url(settings, f"/releases/{release.id}/upload"),
+            # T104:每一版的建立者。🔴 一次批次查完(見 `_subs_by_id`),
+            # 且刻意取 sub 不取名字——契約 §4.2a L1 的名稱快取僅限管理後台。
+            creator_sub8=lambda release: (creator_subs.get(release.created_by_id) or "")[:8],
         )
     )
 
@@ -944,6 +949,23 @@ async def admin_disable(
     log.info("停用使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
     return _redirect(request, "/admin/users")
 
+
+
+async def _subs_by_id(session: AsyncSession, ids: set) -> dict:
+    """批次取使用者的 `sub`(T104)。回傳 {user_id: sub}。副作用:無(唯讀,固定一次查詢)。
+
+    🔴 **一次 `IN` 查完,不逐列查**:版本歷史頁一次列 20 版,逐列查就是 20 次查詢。
+    比照 T84 的 `_display_names()`,而且同樣有一條測試以 `before_cursor_execute`
+    **實際計數**——查詢數必須與版本數無關,不能靠「應該不會慢」的直覺。
+
+    🔴 這裡取的是 `sub` 而**不是** `display_name_cache`:契約 §4.2a L1 的名稱快取
+    僅限管理後台顯示,版本歷史頁是一般使用者可見頁面(與 T97 專案頁同一個處境)。
+    已另送申請請 portal 擴大用途;獲准前以識別碼過渡。
+    """
+    if not ids:
+        return {}
+    rows = (await session.execute(select(User.id, User.sub).where(User.id.in_(ids)))).all()
+    return dict(rows)
 
 async def _display_names(session: AsyncSession, ids: set) -> dict:
     """批次取顯示名稱(T84)。回傳 {user_id: 名稱};查不到或沒有快取的**不放進字典**。

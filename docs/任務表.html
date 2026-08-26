@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-13 00:05
-<strong>版本:</strong> v1.81</p>
+<strong>最後更新:</strong> 2026-08-13 00:45
+<strong>版本:</strong> v1.82</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-13 00:05)</h2>
-<p>任務 102 項:<strong>✅ 95 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>548 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-13 00:45)</h2>
+<p>任務 102 項:<strong>✅ 96 / 🔵 1 / ⬜ 4</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>552 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -693,9 +693,9 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <tr>
 <td>T104</td>
 <td>版本作者屬名</td>
-<td>⬜</td>
+<td>✅</td>
 <td>🟢</td>
-<td><strong>待 Benny 澄清語意</strong>(計畫書 §4、§6-3)。好消息:<strong>資料早就在</strong>——<code>Release.created_by_id</code> 存在且必填,「初始版本 jack、v2 由 benny」資料庫現在就答得出來,只是沒顯示在任何地方。🔴 壞消息與 T97 同一個:顯示<strong>名字</strong>受契約 §4.2a L1 擋住(版本歷史頁是一般使用者可見頁面),申請書已送出且<strong>已把「上傳者」寫進請求範圍</strong>,獲准後一次補齊。分兩段:現在先顯示 <code>sub</code> 前 8 碼(格式與 T97 專案頁一致,🟢 不動資料)、獲准後換成名字(一行)。待澄清:「作者」指<strong>建版的人</strong>(已有,🟢)還是<strong>按發布鍵的人</strong>(要加 <code>published_by_id</code>,🟡 migration)</td>
+<td>依裁示施工(計畫書 §4、§6-3:採<strong>建版者</strong>)。好消息:<strong>資料早就在</strong>——<code>Release.created_by_id</code> 存在且必填,「初始版本 jack、v2 由 benny」資料庫現在就答得出來,只是沒顯示在任何地方。🔴 壞消息與 T97 同一個:顯示<strong>名字</strong>受契約 §4.2a L1 擋住(版本歷史頁是一般使用者可見頁面),申請書已送出且<strong>已把「上傳者」寫進請求範圍</strong>,獲准後一次補齊。分兩段:現在先顯示 <code>sub</code> 前 8 碼(格式與 T97 專案頁一致,🟢 不動資料)、獲准後換成名字(一行)。已裁示採<strong>建版的人</strong>(🟢 不動資料)。🔴 <strong>一次 <code>IN</code> 查完不逐列查</strong>——版本歷史頁一次列 20 版,逐列查就是 20 次查詢;比照 T84 有一條測試以 <code>before_cursor_execute</code> <strong>實際計數</strong>,1 版與 10 版必須相同。那條護欄<strong>實作前就綠</strong>,它真正的價值在<strong>實作後仍然綠</strong>:那才證明批次有效,而不是「有沒有做」。🐛 四條測試一開始都漏了上傳執行檔(<code>complete_kinds</code> 只補 source+doc),害兩條護欄以 422 誤紅——<strong>紅的原因不是功能</strong>,與 T101 的 <code>NameError</code> 同一課:先看清楚紅的理由再決定動不動程式。格式與 T97 專案頁擁有者<strong>刻意一致</strong>(同一件事不該長成兩種東西)。<strong>4 條紅→綠,全套 552</strong></td>
 </tr>
 <tr>
 <td>T76</td>

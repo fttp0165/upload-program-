@@ -459,6 +459,10 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 }
 .release-edit:hover { color: var(--ink-strong); }
 
+/* T104:版本建立者。與 T97 專案頁的擁有者同一個視覺分量——
+   它是輔助資訊,不該跟版本號搶。 */
+.release-author { font-size: .8rem; white-space: nowrap; }
+
 .artifact-list { list-style: none; margin: 0; padding: 0; }
 
 .artifact {

@@ -43,12 +43,12 @@ summary { cursor:pointer; color:#12228f; }
 <h1>施工計畫書:管理員權限、發布審核、專案回饋、版本屬名(T101–T104)</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 22:20
-<strong>最後更新:</strong> 2026-08-12 22:20
-<strong>版本:</strong> v1.0
-<strong>狀態:</strong> 📤 <strong>待 Benny 確認後才動工</strong>(憲法第二條 3)</p>
+<strong>最後更新:</strong> 2026-08-12 22:35
+<strong>版本:</strong> v1.1
+<strong>狀態:</strong> ✅ <strong>已裁示,開工中</strong>(裁示內容見 §6)</p>
 <blockquote>
 <p>依憲法<strong>第一條 4</strong>:需求變更不直接改程式,先更新計畫與任務表。
-本文件不是通知,是提案——<strong>四項裡有兩項需要你先裁示</strong>,見 §6。</p>
+提案時列了四個待裁示問題,<strong>已於 2026-08-12 22:35 全數裁示</strong>(見 §6),現依裁示施工。</p>
 </blockquote>
 <hr />
 <h2>0. 需求原文與盤點結果</h2>
@@ -125,7 +125,7 @@ summary { cursor:pointer; color:#12228f; }
 <h3>驗收</h3>
 <p>授權變更走既有 API 路徑(不另寫一套權限邏輯);三條防呆各一條測試。</p>
 <hr />
-<h2>2. T102 發布審核(規模:🔴 最大,需裁示)</h2>
+<h2>2. T102 發布審核(規模:🔴 最大)</h2>
 <h3>這一項改變的是系統的核心承諾</h3>
 <p>現在的模型是<strong>兩態</strong>:<code>draft</code>(作者的工作區)→ <code>published</code>(大家可下載)。
 你要的是<strong>三態</strong>:作者發布後先進「待審」,管理員准了才真的能下載。</p>
@@ -168,7 +168,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </tbody>
 </table>
-<h3>🔴 我方的兩個建議(但決定權在你,見 §6)</h3>
+<h3>兩項設計(提案時為建議,§6 已裁示採納)</h3>
 <p><strong>建議 A:退回時必須寫理由。</strong> 沒有理由的退回,作者只能猜,然後重傳一次一模一樣的東西。
 理由欄位不是裝飾,是這個流程能不能運轉的關鍵。</p>
 <p><strong>建議 B:待審版本對「非成員」直接隱藏,不是顯示但不能下載。</strong>
@@ -181,7 +181,7 @@ summary { cursor:pointer; color:#12228f; }
 但這仍然要求管理員<strong>主動去看</strong>。如果實際運作上沒人天天看後台,
 這個功能會製造比它解決的更多問題——<strong>這是要你評估的營運現實,不是技術問題</strong>。</p>
 <hr />
-<h2>3. T103 專案回饋(規模:中,需裁示範圍)</h2>
+<h2>3. T103 專案回饋(規模:中)</h2>
 <h3>現況</h3>
 <p>平台有<strong>問題回報系統</strong>(T76–T79),但那是「回報<strong>這個網站</strong>的問題」,
 只有本人與平台管理員看得到(🔴 404 不洩漏存在)。
@@ -235,7 +235,7 @@ summary { cursor:pointer; color:#12228f; }
 限制,<strong>僅限管理後台顯示</strong>。版本歷史頁是一般使用者可見頁面。</p>
 <p><strong>申請已送出</strong>(<code>upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md</code>),
 而且該申請書<strong>已經把「上傳者」寫進請求範圍</strong>——獲准後這一項可以一次補齊。</p>
-<h3>提案(分兩段,不等裁示也能先做一半)</h3>
+<h3>分兩段施工</h3>
 <table>
 <thead>
 <tr>
@@ -261,7 +261,7 @@ summary { cursor:pointer; color:#12228f; }
 <p>「作者屬名」是指<strong>建立這一版的人</strong>,還是<strong>按下發布鍵的人</strong>?
 現在只記前者(<code>created_by_id</code>)。若兩者可能不同(例如 jack 建版、benny 發布),
 要新增 <code>published_by_id</code> 欄位——<strong>那就從 🟢 變成 🟡 加欄位 + migration</strong>。
-見 §6 第 3 問。</p>
+<strong>§6-3 已裁示:採「建立這一版的人」</strong>,維持 🟢 不動資料。</p>
 <hr />
 <h2>5. 建議的施工順序</h2>
 <pre><code>T101 管理員權限(小、無依賴)
@@ -275,47 +275,46 @@ T103 專案回饋(獨立,可最後做)
 <p>🔴 <strong>T101 必須排在 T102 之前</strong>:審核制度需要「管理員」這個角色實際可指派,
 否則上線當天會發現只有 <code>.env</code> 裡那一個 bootstrap 管理員能審,全部卡在他身上。</p>
 <hr />
-<h2>6. 🔴 需要你裁示的四個問題</h2>
+<h2>6. Benny 的裁示(2026-08-12 22:35)</h2>
 <table>
 <thead>
 <tr>
 <th>#</th>
 <th>問題</th>
-<th>選項</th>
-<th>我方建議</th>
+<th><strong>裁示</strong></th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>1</td>
-<td><strong>審核範圍</strong></td>
-<td>(a) 所有專案的所有版本都要審 (b) 只有特定專案要審(專案設定開關)</td>
-<td>(a)——(b) 的開關本身會變成繞過審核的路</td>
+<td>審核範圍</td>
+<td>✅ <strong>做,所有版本都要審</strong>(無專案層開關——開關本身會變成繞過審核的路)</td>
 </tr>
 <tr>
 <td>2</td>
-<td><strong>既有已發布版本</strong></td>
-<td>(a) migration 時一律視為「已核准」 (b) 全部退回待審</td>
-<td>(a)——(b) 會讓正在用的東西當天全部不能下載</td>
+<td>既有已發布版本</td>
+<td>✅ 依建議:migration 時<strong>一律視為已核准</strong>(不讓正在用的東西當天全部不能下載)</td>
 </tr>
 <tr>
 <td>3</td>
-<td><strong>屬名指誰</strong></td>
-<td>(a) 建立這一版的人(資料已有,🟢) (b) 按下發布的人(要加欄位,🟡)</td>
-<td>先做 (a);若實務上兩者常不同再加 (b)</td>
+<td>屬名指誰</td>
+<td>✅ <strong>建立這一版的人</strong>(<code>created_by_id</code>,🟢 不動資料);日後若實務上常是 A 建版 B 發布,再加 <code>published_by_id</code></td>
 </tr>
 <tr>
 <td>4</td>
-<td><strong>回饋形態</strong></td>
-<td>(a) 專案留言板 (b) 版本層回饋 (c) 評分</td>
-<td>(a)</td>
+<td>回饋形態</td>
+<td>✅ <strong>專案留言板</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>另外一個不是選擇題、但要你評估的:</strong>
-🔴 平台<strong>沒有通知管道</strong>。審核佇列只能靠管理員主動看後台。
-如果實務上不會有人天天看,T102 會製造比它解決的更多問題。
-<strong>要不要做,取決於營運現實,不是技術可行性。</strong></p>
+<p>隨裁示確定的三項設計(原為建議,現為定案):</p>
+<ul>
+<li>退回<strong>必須寫理由</strong>;</li>
+<li>待審版本對<strong>非成員隱藏</strong>,專案成員看得到(他們要知道自己送審的東西卡在哪);</li>
+<li>🔴 <strong>通知缺口照實面對</strong>:管理總覽的待辦區加「待審版本」一項。
+  這仍要求管理員主動看後台——<strong>這是已知的營運限制,不是被忽略的問題</strong>,
+  上線後若發現版本常卡住,要回頭檢討的是流程不是程式。</li>
+</ul>
 <hr />
 <h2>版本歷史</h2>
 <table>
@@ -328,6 +327,12 @@ T103 專案回饋(獨立,可最後做)
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-12 22:35</td>
+<td>Claude(Benny 裁示)</td>
+<td>§6 由「待裁示」改為<strong>裁示紀錄</strong>:所有版本都要審、既有已發布視為已核准、屬名採建版者、回饋做留言板;三項建議轉為定案(退回須寫理由、待審對非成員隱藏、待辦區加審核項);狀態改為開工中</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-08-12 22:20</td>

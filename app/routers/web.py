@@ -32,6 +32,7 @@ from ..dashboard import (
 )
 from ..models import (
     AuditEvent,
+    PlatformRole,
     Project,
     ProjectRole,
     Release,
@@ -835,6 +836,72 @@ async def admin_activate(
         )
         await session.commit()
         log.info("開通使用者", extra={"user_id": str(user.id), "by": str(identity.user.id)})
+
+    return _redirect(request, "/admin/users")
+
+
+@router.post("/admin/users/{user_id}/role", summary="指派/取消管理員")
+async def admin_set_role(
+    user_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    role: Annotated[str, Form()],
+) -> Response:
+    """把一位使用者設為管理員或取回一般成員。
+
+    參數:user_id 目標使用者、role `admin` 或 `member`。
+    回傳:302 回使用者清單。副作用:改寫 `users.platform_role` 並留稽核。
+
+    T101:後端(`PATCH /v1/admin/users/{id}`)早就做得到這件事,本路由只是把
+    入口搬到網頁上——**會打 API 的人不需要這個系統的後台**,所以「只能打 API」
+    等於沒有。語意與該 API 完全相同,稽核也刻意產生**同一個 action**
+    (`user_set_role`):紀錄不該因為管理員用的是網頁還是 API 而長得不一樣。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    if role not in (PlatformRole.admin.value, PlatformRole.member.value):
+        raise problems.unprocessable("bad-role", "角色不正確", "只能是 admin 或 member。")
+    wanted = PlatformRole(role)
+
+    user = (
+        await session.execute(select(User).where(User.id == parse_uuid(user_id, "使用者")))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    # 🔴 防呆 1:不能取消自己。平台沒有 root 後門——最後一個管理員把自己降級,
+    # 就沒有人能再指派任何人,只剩改 `.env` 重啟容器才救得回來。一個手滑不該有這種代價。
+    # (刻意**不做**「最後一個管理員不能被降級」:那要數管理員人數,而計數在並行下
+    #  不可靠——兩人同時降對方,兩邊都讀到「還有 2 個」。本條只看「你是不是你」,永遠正確。)
+    if user.id == identity.user.id and wanted is PlatformRole.member:
+        raise problems.conflict(
+            "不能取消自己的管理員身分——請由另一位管理員操作,"
+            "否則可能沒有任何人能再指派管理員。"
+        )
+
+    # 🔴 防呆 2:待開通是 deny-by-default(契約 §3)。跳過開通直接給管理權,
+    # 等於用後門繞過自己的門禁。要給就先開通,兩個動作各留一筆稽核。
+    if wanted is PlatformRole.admin and user.status is not UserStatus.active:
+        raise problems.conflict("要先開通這個帳號,才能設為管理員。")
+
+    if user.platform_role is not wanted:
+        user.platform_role = wanted
+        record(
+            session,
+            action=AuditAction.user_set_role,
+            actor_id=identity.user.id,
+            target_type="user",
+            target_id=user.id,
+            target_label=wanted.value,
+        )
+        await session.commit()
+        log.info(
+            "調整平台角色",
+            extra={"user_id": str(user.id), "new_role": wanted.value, "by": str(identity.user.id)},
+        )
 
     return _redirect(request, "/admin/users")
 

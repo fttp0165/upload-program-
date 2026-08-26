@@ -112,6 +112,12 @@ class User(Base):
     # 🔴 claim 可能不存在(name 由 firstName+lastName 推導,皆空則無)→ 本欄為 NULL,
     # 畫面 fallback 到 sub——這是會真的走到的路徑,不是防禦性假設。
     display_name_cache: Mapped[str | None] = mapped_column(String(255), default=None)
+    # T99(契約 §4.2a **L1b 通知用信箱**,2026-08-12 通則化):寄通知信用的信箱快取。
+    # 🔴 **只從本人 ID token 取得、只信 `email_verified=true`、每次登入覆寫**;
+    #    不得顯示在任何頁面、不得進 log、不得作 join key 或授權依據
+    #    ——唯一鍵永遠是 `sub`(一個人可以換信箱,換信箱不該讓他變成另一個人)。
+    # 320 = RFC 5321 的地址上限(64 local + @ + 255 domain)。
+    notify_email: Mapped[str | None] = mapped_column(String(320), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

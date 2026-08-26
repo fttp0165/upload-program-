@@ -168,6 +168,33 @@ async def client(app) -> AsyncIterator[AsyncClient]:
         yield ac
 
 
+class FakeMailer:
+    """記憶體版寄件者(T99)。行為對齊 `app.mailer.Mailer`:**send 絕不拋**。
+
+    `fail = True` 模擬 SMTP 掛掉 —— 那條路徑要驗的是「回報照樣成立」,
+    而真的 Mailer 也是回 False 不拋(所以替身不該用拋例外來模擬失敗)。
+    """
+
+    def __init__(self, enabled: bool = True) -> None:
+        self.enabled = enabled
+        self.fail = False
+        self.sent: list[tuple[str, str, str]] = []
+
+    def send(self, to: str, subject: str, body: str) -> bool:
+        if self.fail:
+            return False
+        self.sent.append((to, subject, body))
+        return True
+
+
+@pytest.fixture
+def mailer(app) -> FakeMailer:
+    """把 app 的寄件者換成替身,並預設啟用(測試要驗的是寄了什麼)。"""
+    fake = FakeMailer()
+    app.state.mailer = fake
+    return fake
+
+
 @pytest.fixture
 def oidc(app) -> FakeOidc:
     return app.state.oidc

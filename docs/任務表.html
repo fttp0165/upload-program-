@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-25 06:15
-<strong>版本:</strong> v1.76</p>
+<strong>最後更新:</strong> 2026-08-25 09:15
+<strong>版本:</strong> v1.77</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-25 06:15)</h2>
-<p>任務 96 項:<strong>✅ 91 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-25 09:15)</h2>
+<p>任務 97 項:<strong>✅ 92 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>554 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -655,6 +655,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td><code>v0.2.3</code> 推 tag 後 <strong><code>Build image</code> 第一步就死</strong>(32 秒),Trivy 與 <code>Push GHCR</code> 全部 skipped ——<strong>發版被擋在最後一哩</strong>;根因不是程式:<code>failed to compute cache key … could not fetch content descriptor sha256:4857… from remote: not found</code>,即本機層快取指向<strong>已經不存在於 registry 的 base image layer</strong>(T93 加的 <code>--pull</code> 更新了 manifest,舊 blob 被回收 —— 這是那個正確決定的<strong>已知副作用</strong>,不是它的錯);修法:build 那步加 fallback,第一次失敗就以 <code>--no-cache</code> 重試一次(build 與 publish 兩處都加,<strong>發版那一步失敗的代價最大</strong>);🔴 <strong>不會遮蓋真正的建置錯誤</strong>——程式壞掉時第二次一樣失敗、job 照樣紅,只在第一次失敗時多花 1–2 分鐘;⚠ <strong>本次的 v0.2.3 不會因此變綠</strong>(重跑用的是 tag 那個 commit 的 workflow 檔),當下解法是 VM 上 <code>docker builder prune -f</code> 再重跑,本任務要的是<strong>下一次不必靠人記得清快取</strong>;<strong>不寫新測試</strong>(第三條 4):CI 建置環境無法在本機重現(無 docker daemon),宣稱測過會是假的</td>
 </tr>
 <tr>
+<td>T99</td>
+<td>回報寄信通知管理員 + 後台入口</td>
+<td>✅</td>
+<td>🟡</td>
+<td>Benny:「有人回報問題會寄信給 ADMIN,然後 ADMIN 要有後台介面」,裁示三題(寄給<strong>每位管理員</strong> / <strong>公司內部 relay</strong> / <strong>失敗只寫 log</strong>);獨立計畫書 <a href="plans/設計_回報通知信與管理後台.md">設計_回報通知信與管理後台</a> v1.1;🔴 <strong>先盤點才實作</strong>——管理員看全部回報 / 回覆 / 改狀態 T77 就有、待辦卡片 T79 就有,<strong>缺的只是側欄常設入口</strong>(待辦卡片沒有待辦時不會出現),當成「從零做後台」會做出第二套清單;寄信要知道管理員信箱,而本專案紅線是業務庫不存 email → 合法路徑是契約 <strong>§4.2a L1b 通知用信箱</strong>(2026-08-12 通則化,<strong>明文不必申請</strong>),逐條落地八項條件(只信 <code>email_verified=true</code>、<strong>缺席不等於通過</strong>、每次登入覆寫含成 NULL、不得顯示在任何頁面〔三頁掃描斷言〕、不進 log、不得作 join key/授權、nullable + <code>tools/purge_notify_email.py</code>、失敗不阻斷);<code>app/mailer.py</code> <strong>只用標準庫 <code>smtplib</code></strong>(不新增相依,比照自寫 <code>markdown_lite</code>)、<code>MAIL_ENABLED</code> 預設 <strong>false</strong>(沒設好就完全不寄,而不是每次回報都噴錯)、<code>BackgroundTasks</code> 在<strong>回應之後</strong>才寄、<strong>一人一封</strong>(不用 To 塞多人,管理員彼此看得到信箱是沒必要的外洩面)、信件<strong>不含回報全文</strong>(信箱不是稽核紀錄,內容可能含敏感資訊,只放標題 + 直達連結);migration <code>0009</code> up→down→up 演練過;⚠ <strong>施工中改正三件事</strong>(依 CI 紅線說明):①「<code>/v1/me</code> 不得含 email」的斷言<strong>是我寫錯的</strong>(那是 IdP claims、呼叫者自己的信箱,L1b 管的是快取副本),照它改程式會拆掉合法功能 ②log 測試層級 DEBUG→INFO(DEBUG 會打開 aiosqlite 的 SQL 參數輸出)→ 🔴 <strong>得出新結論:正式環境不得開 DEBUG,否則信箱隨 SQL 參數進 log</strong>,已寫進 <code>.env.example</code> ③🐛 <strong>截圖抓到側欄同時反白兩項</strong>(回報問題與回報管理都是 <code>startswith('/issues')</code>),已收窄並加「任何頁面反白 ≤ 1」的測試;<code>CLAUDE.md</code> 紅線同步升 <strong>v2.4</strong>(L1/L1b 是<strong>通則落地</strong>不是個案例外,密碼不落地那條原封不動);🔴 <strong>遺留:<code>MAIL_ENABLED</code> 仍 false,且沒人驗過那台 relay 連得到</strong> —— 上線前要在 VM 實測;<strong>14 條新增(10 紅→綠),全套 554</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -982,6 +989,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.77</td>
+<td>2026-08-25 09:15</td>
+<td>Claude(Benny 裁示三題)</td>
+<td><strong>T99 回報通知信 + 後台入口</strong>(全套 554,🟡 加欄位 migration 0009)。合法路徑是契約 §4.2a <strong>L1b 通則</strong>(不必申請),八項條件逐條落地並以反向測試釘住;<code>smtplib</code> 標準庫、<code>MAIL_ENABLED</code> 預設 false、失敗只寫 log。⚠ 施工中改正三件事,其中兩件是<strong>我的測試寫錯</strong>(<code>/v1/me</code> 的 email 來自 IdP claims、log 測試用 DEBUG 會抓到驅動層 SQL 參數)——後者反而得出一條新結論:<strong>正式環境不得開 DEBUG</strong>。🐛 截圖抓到側欄同時反白兩項。<code>CLAUDE.md</code> 升 v2.4</td>
+</tr>
 <tr>
 <td>v1.76</td>
 <td>2026-08-25 06:15</td>

@@ -19,7 +19,7 @@ from ..config import Settings
 from ..db import get_session
 from ..models import UserStatus
 from ..oidc import make_pkce
-from ..security import upsert_user
+from ..security import upsert_user, verified_email
 from ..session import LoginState, SessionData
 
 router = APIRouter(tags=["auth"])
@@ -128,7 +128,13 @@ async def callback(
         raise problems.unauthorized("token 缺少 sub")
 
     # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
-    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
+    user = await upsert_user(
+        session,
+        sub,
+        settings,
+        display_name=claims.get("name"),
+        notify_email=verified_email(claims),  # T99 / L1b:只信 email_verified=true
+    )
 
     # 🔴 T81 迴圈防線:停用者**不建立 session**,當場送回平台入口。
     #

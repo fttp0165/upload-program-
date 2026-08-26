@@ -121,8 +121,26 @@ async def _session_token(request: Request) -> str | None:
     return renewed.access_token
 
 
+def verified_email(claims: dict) -> str | None:
+    """從 token claims 取**已驗證**的信箱;未驗證或缺席一律回 None(T99 / L1b 第 13 條)。
+
+    參數:claims(ID/access token 的 claims)。回傳:地址或 None。副作用:無。
+
+    🔴 `email_verified` **缺席不等於通過**:未驗證的信箱可以是任何人打上去的字串,
+    拿它做任何事都是把「聲稱」當成「事實」。所以這裡要求它**恰好是 True**。
+    """
+    if claims.get("email_verified") is not True:
+        return None
+    email = claims.get("email")
+    return email if isinstance(email, str) and email.strip() else None
+
+
 async def upsert_user(
-    session: AsyncSession, sub: str, settings: Settings, display_name: str | None = None
+    session: AsyncSession,
+    sub: str,
+    settings: Settings,
+    display_name: str | None = None,
+    notify_email: str | None = None,
 ) -> User:
     """首登自動建 user:狀態 pending、零角色。之後由本服務管理員開通。
 
@@ -133,8 +151,11 @@ async def upsert_user(
     user = (await session.execute(select(User).where(User.sub == sub))).scalar_one_or_none()
     if user is not None:
         # §4.2a:每次登入覆寫(含覆寫成 NULL——IdP 拿掉名字,快取不得留舊值)。
-        if user.display_name_cache != display_name:
+        # T99:`notify_email`(L1b)走**完全相同**的語意,包括覆寫成 NULL
+        # ——信箱從已驗證變成未驗證時,舊值留著就等於拿「聲稱」當「事實」。
+        if user.display_name_cache != display_name or user.notify_email != notify_email:
             user.display_name_cache = display_name
+            user.notify_email = notify_email
             await session.commit()
             await session.refresh(user)
         # 🐛 首次上線實測(2026-07-29):bootstrap 原本只在**建號時**生效,但 T45 的
@@ -164,6 +185,7 @@ async def upsert_user(
     user = User(
         sub=sub,
         display_name_cache=display_name,
+        notify_email=notify_email,
         status=UserStatus.active if is_bootstrap else UserStatus.pending,
         platform_role=PlatformRole.admin if is_bootstrap else PlatformRole.member,
         activated_at=datetime.now(UTC) if is_bootstrap else None,
@@ -196,7 +218,13 @@ async def get_identity(
 
     settings: Settings = request.app.state.settings
     # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
-    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
+    user = await upsert_user(
+        session,
+        sub,
+        settings,
+        display_name=claims.get("name"),
+        notify_email=verified_email(claims),
+    )
     if user.status is UserStatus.disabled:
         raise problems.forbidden("此帳號已被停用,請聯絡平台管理員。")
 

@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>跨專案文件索引</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 17:20
-<strong>最後更新:</strong> 2026-08-12 19:40
-<strong>版本:</strong> v1.1</p>
+<strong>最後更新:</strong> 2026-08-26 07:55
+<strong>版本:</strong> v1.2</p>
 <blockquote>
 <p>依憲法<strong>第九條 5</strong>:每份跨專案文件都要登記在這裡。
 這一頁回答四個問題——<strong>發過什麼、給誰、什麼時候、對方回了沒</strong>。</p>
@@ -136,6 +136,13 @@ summary { cursor:pointer; color:#12228f; }
 <td><a href="upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md">擴大名稱快取用途至專案頁擁有者辨識</a></td>
 <td>⏳ <strong>待送出</strong>;第九條新命名</td>
 </tr>
+<tr>
+<td>11</td>
+<td>2026-08-26 07:50</td>
+<td>申請</td>
+<td><a href="upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md">開通 CI 容器網路對 Debian 套件庫的連線</a></td>
+<td>⏳ <strong>待送出</strong>;🔴 <strong>我方發版被此阻塞</strong></td>
+</tr>
 </tbody>
 </table>
 <h2>2. 對方發來(cats-portal → upload-program)</h2>
@@ -193,6 +200,11 @@ summary { cursor:pointer; color:#12228f; }
 <td>#10</td>
 <td>專案頁已以 <code>sub</code> 前 8 碼過渡,三條測試釘住「名字不得出現」,獲准後換字即可</td>
 </tr>
+<tr>
+<td>🔴 <strong>CI 容器網路連不到 Debian 套件庫</strong></td>
+<td>#11</td>
+<td>Dockerfile 已回退不留無效 apt;<strong>v0.3.0 發不出去</strong>(<code>publish</code> needs <code>build</code>,Trivy 紅則 GHCR 推不上去)。獲准後在 runtime stage 加回只升 openssl 家族的一層,並<strong>自行驗證 <code>apt-get update</code> 的結果</strong></td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -212,6 +224,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-08-12 19:40</td>
 <td>Claude(T97)</td>
 <td>登記第 10 份(申請擴大名稱快取用途);§3 加一列卡在對方的事項</td>
+</tr>
+<tr>
+<td>v1.2</td>
+<td>2026-08-26 07:55</td>
+<td>Claude(T106,Benny 裁示)</td>
+<td>登記第 11 份(<strong>申請開通 CI 容器網路的 Debian 套件庫連線</strong>)——這是第三次被 base image 的 OS 套件擋(T96 util-linux、本次 openssl),而 runtime stage 沒有 apt 就代表我方對 OS 層 CVE 完全無能為力;§3 加一列,且是目前<strong>唯一會阻塞發版</strong>的卡關項</td>
 </tr>
 <tr>
 <td>v1.0</td>

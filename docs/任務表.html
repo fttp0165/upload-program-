@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-24 17:40
-<strong>版本:</strong> v1.75</p>
+<strong>最後更新:</strong> 2026-08-26 17:05
+<strong>版本:</strong> v1.76</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -119,6 +119,9 @@ summary { cursor:pointer; color:#12228f; }
 <ol>
 <li><strong>SLO 聲明文</strong>送 portal → 對方登錄 <code>frontchannel.logout.url</code> 後,才能重跑契約 §10 的 A→B 復現步驟(T74 端點已實作)。</li>
 <li><strong>Admin API <code>view-users</code></strong> 申請(T73 前置)。</li>
+<li><strong>CI 容器網路開通 Debian 套件庫</strong>申請(2026-08-26 發文,緣起 T93):請 portal 確認
+   apt 可達是政策還是偶然、列入書面 allowlist、評估平台級 apt mirror。見
+   <a href="plans/uploadprogram_致_catsportal_申請_CI容器網路開通Debian套件庫_202608260750.md">plans/uploadprogram_致_catsportal_申請_CI容器網路開通Debian套件庫_202608260750.md</a>。</li>
 </ol>
 <h3>未結的收尾項目(v0.2.0 換版時未做完)</h3>
 <ul>
@@ -975,6 +978,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.76</td>
+<td>2026-08-26 17:05</td>
+<td>Claude(Benny 指示)</td>
+<td>「等外部回覆」新增第 3 項:<strong>CI 容器網路開通 Debian 套件庫申請</strong>已發 portal(緣起 T93——apt 可達性 07-30 不通、08-24 變通皆無通知,修補鏈踩在未登記的狀態上;三項:確認政策 / allowlist 文件化 / 建議平台級 mirror)。函件見 plans/,dev-log:2026-08-26_函件_CI容器網路開通Debian套件庫申請</td>
+</tr>
 <tr>
 <td>v1.75</td>
 <td>2026-08-24 17:40</td>

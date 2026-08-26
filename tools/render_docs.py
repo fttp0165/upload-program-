@@ -50,6 +50,7 @@ TARGETS = [
     "plans/設計_問題回報系統.md",
     "plans/施工計畫書_問題回報系統.md",
     "plans/故障通報_redirect_uri_給portal.md",
+    "plans/uploadprogram_致_catsportal_申請_CI容器網路開通Debian套件庫_202608260750.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

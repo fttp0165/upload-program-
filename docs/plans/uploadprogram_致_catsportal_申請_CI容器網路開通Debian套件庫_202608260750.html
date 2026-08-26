@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申請:CI 容器網路開通 Debian 套件庫(正式化 apt 存取)</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/uploadprogram_致_catsportal_申請_CI容器網路開通Debian套件庫_202608260750.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>申請:CI 容器網路開通 Debian 套件庫(正式化 apt 存取)</h1>
+<p><strong>From(發文專案):</strong> upload-program 維運(負責人 Benny)
+<strong>To(收文專案):</strong>   cats-portal 維運(Platform)
+<strong>發文日期時間:</strong>   2026-08-26 15:50 (UTC+8)——檔名時戳 <code>202608260750</code> 為 UTC,同一時刻
+<strong>回覆對象:</strong>       無(主動發文;緣起本專案 T93,2026-08-24)</p>
+<p><strong>建立日期:</strong> 2026-08-26 15:50
+<strong>最後更新:</strong> 2026-08-26 15:50
+<strong>版本:</strong> v1.0</p>
+<hr />
+<h2>0. 一句話請求</h2>
+<p>請把「<strong>CI 容器(VM self-hosted runner 上的 <code>docker build</code>)→ Debian 官方套件庫</strong>」
+這條網路路徑<strong>正式化</strong>:確認它是政策、列入 allowlist 文件,而不是像現在——
+<strong>能用,但沒人說得出為什麼能用、也沒人保證明天還能用</strong>。</p>
+<h2>1. 申請項目(依序裁示)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>性質</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>確認現況</strong>:VM 上 CI 容器目前可連 <code>deb.debian.org</code>(2026-08-24 實測 <code>APT_OK</code>),這是<strong>平台網路政策</strong>,還是<strong>未登記的開放</strong>?2026-07-30 同一條路是不通的(我方 CI run #85 實測),期間我方未收到任何變更通知</td>
+<td>詢問</td>
+</tr>
+<tr>
+<td>2</td>
+<td>若第 1 項答案是「政策」:請將 <code>deb.debian.org</code>、<code>security.debian.org</code>(80/443)列入<strong>書面 allowlist</strong>(《App服務對齊指南》或平台網路政策文件),讓後續變更走公告(如同 gateway 變更通知的慣例)</td>
+<td>申請</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>建議項(非必要)</strong>:平台提供 apt cache/mirror(如 <code>apt-cacher-ng</code> 容器,比照現行 dockerd 走 <code>mirror.gcr.io</code> 的安排),各 App 的 build 統一走它</td>
+<td>建議</td>
+</tr>
+</tbody>
+</table>
+<h2>2. 為什麼需要(不是「有比較方便」,是修補鏈踩在上面)</h2>
+<ol>
+<li><strong>base image 的 OS 套件 CVE,目前唯一修補路徑就是 build 時 apt 升級。</strong>
+   2026-08-24(T93)<code>python:3.12-slim</code> 帶出 util-linux 四支 CVE(2026-53612~53615,
+   HIGH ×36),上游 image 尚未重建;本專案散布可執行檔,Trivy
+   <code>HIGH,CRITICAL --exit-code 1</code> 是自我加嚴紅線,<code>.trivyignore</code> 放行已明文拒絕(T82)。
+   修法只剩 Dockerfile runtime 層 <code>apt-get --only-upgrade</code>——<strong>它需要連 Debian 套件庫</strong>。</li>
+<li><strong>這條路已經無聲變動過一次。</strong> 07-30 不通(builder 的 apt 因此整段移除)、
+   08-24 變通(<code>APT_OK</code>)。方向恰好是「變好」,所以沒炸;哪天反向再變一次,
+   CI 會紅在與當批改動無關的地方,再考古一輪。<strong>可用性沒有契約,就只是運氣。</strong></li>
+<li><strong>CDN 節點不一致已造成過無聲失敗。</strong> 08-24 實測:同一 commit 相隔 4 秒的兩次
+   build,一次抽到未同步 security 索引的節點——<code>apt-get</code> 回 0 <strong>而什麼都沒升級</strong>;
+   若非我方 Dockerfile 自帶版本驗證,一個未修補的 image 會帶著全綠 CI 推上 GHCR。
+   現以「版本判準 + 重試三次」workaround;<strong>平台級 mirror(申請項 3)可根治</strong>,
+   並讓全 VM 的 apt 流量不重複打外網。</li>
+</ol>
+<h2>3. 事實時間線</h2>
+<table>
+<thead>
+<tr>
+<th>時間(UTC+8)</th>
+<th>事實</th>
+<th>出處</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-07-30</td>
+<td>CI run #85:builder <code>apt-get</code> 不可達,炸;apt 整段移除</td>
+<td>Dockerfile 檔頭紀錄</td>
+</tr>
+<tr>
+<td>2026-08-11</td>
+<td>main 最後一次全綠(run #173)</td>
+<td>T93</td>
+</tr>
+<tr>
+<td>2026-08-24 14:35</td>
+<td>Trivy 紅:base image util-linux CVE ×36</td>
+<td>T93</td>
+</tr>
+<tr>
+<td>2026-08-24</td>
+<td>CI 診斷實測 <strong><code>APT_OK</code></strong>(<code>deb.debian.org/debian-security trixie-security</code> 可達)——與 07-30 相反,未收到變更通知</td>
+<td>T93 診斷步驟</td>
+</tr>
+<tr>
+<td>2026-08-24 15:22</td>
+<td>同 commit 兩 run 相隔 4 秒結果相反(CDN 索引不一致);版本驗證擋下無聲失敗</td>
+<td>T93 第五輪</td>
+</tr>
+<tr>
+<td>2026-08-24 15:33</td>
+<td>加重試迴圈後 CI 綠;此後修補鏈<strong>常態依賴</strong> apt 可達</td>
+<td>T93 收尾</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 影響範圍(給裁示者的邊界)</h2>
+<ul>
+<li><strong>只涉及 CI build</strong>(self-hosted runner 於 Cats VM 上的 <code>docker build</code>)。</li>
+<li><strong>runtime 容器不需要、也不申請</strong>對外連 apt——正式運行的容器維持現狀。</li>
+<li>不涉及 gateway、路由、<code>cats-edge</code>、任何正式站行為;🟢 對現有服務與資料無影響。</li>
+<li>若裁示為「不開放」:請一併告知,我方改走「等上游重建 + 期間不發版」或
+  「換 base image tag」路線(T93 已列),並把 Dockerfile 的 apt 層移除——
+  <strong>兩種答案都能執行,不能執行的是「不知道答案」。</strong></li>
+</ul>
+<h2>5. 需要 cats-portal 回覆的三件事</h2>
+<ol>
+<li>申請項 1:現況是政策還是偶然?(07-30 → 08-24 之間發生了什麼變更?)</li>
+<li>申請項 2:可否列入書面 allowlist,後續變更走公告?</li>
+<li>申請項 3(建議):是否評估平台級 apt cache/mirror?不做也請回個「不做」,
+   我方即保留現行重試 workaround 並停止等待。</li>
+</ol>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-26</td>
+<td>Claude(Benny 授權)</td>
+<td>初版:三項申請(確認政策 / allowlist 文件化 / 建議 mirror),緣起 T93</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

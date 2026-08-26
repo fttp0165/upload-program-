@@ -42,12 +42,12 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 狀態總覽</h1>
 <p><strong>建立日期:</strong> 2026-08-26 15:58
-<strong>最後更新:</strong> 2026-08-26 15:58
-<strong>版本:</strong> v1.0</p>
+<strong>最後更新:</strong> 2026-08-26 17:05
+<strong>版本:</strong> v1.1</p>
 <blockquote>
 <p>本文是專案現況的<strong>一頁總覽快照</strong>,給新加入者與回頭查看的人。
 🔴 <strong>權威來源是 <a href="任務表.md">任務表.md</a> 與 <a href="dev-logs/">dev-logs/</a></strong>——兩邊不一致時以任務表為準;
-本文新鮮度以檔頭「最後更新」判斷。本次快照對齊任務表 <strong>v1.75(2026-08-24 17:40)</strong>。</p>
+本文新鮮度以檔頭「最後更新」判斷。本次快照對齊任務表 <strong>v1.76(2026-08-26 17:05)</strong>。</p>
 </blockquote>
 <hr />
 <h2>1. 系統定位與部署現況</h2>
@@ -169,7 +169,9 @@ summary { cursor:pointer; color:#12228f; }
   首登「待開通」deny-by-default、PKCE;IdP 與各 App <strong>同源</strong>,§4.10 額外義務對本專案有強制力。</li>
 <li><strong>單一登出(SLO,契約 §10):</strong> front-channel logout 端點<strong>已實作(T74)</strong>;
   SLO 聲明文已送 portal,<strong>等對方登錄 <code>frontchannel.logout.url</code></strong> 後才能重跑 §10 的 A→B 復現步驟。</li>
-<li><strong>等外部回覆(不在本專案手上):</strong> ① 上述 SLO 登錄;② Admin API <code>view-users</code> 申請(T73 前置)。</li>
+<li><strong>等外部回覆(不在本專案手上):</strong> ① 上述 SLO 登錄;② Admin API <code>view-users</code> 申請(T73 前置);
+  ③ <strong>CI 容器網路開通 Debian 套件庫</strong>申請(2026-08-26 發文,緣起 T93,見
+  <a href="plans/uploadprogram_致_catsportal_申請_CI容器網路開通Debian套件庫_202608260750.md">plans/ 函件</a>)。</li>
 <li>gateway / 部署變更依 cats-portal 的《App服務對齊指南》;平台文件<strong>只引用、不複製維護</strong>。</li>
 </ul>
 <h2>6. 測試與品質</h2>
@@ -201,6 +203,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-26</td>
+<td>Claude(Benny 指示)</td>
+<td>§5 等外部回覆新增第 3 項(CI 容器 Debian 套件庫申請函已發 portal);對齊任務表 v1.76</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-08-26</td>

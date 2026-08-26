@@ -112,9 +112,12 @@ async def test_未上傳的卡片標示尚缺(client, active_user):
 # --- 🔴 已發布不得有上傳入口 -------------------------------------------------
 
 
-async def test_已發布版本沒有任何上傳卡片(client, active_user):
-    """🔴 既有規則:發布後不可再變更檔案。改版不是放寬它的機會。"""
-    from tests.conftest import complete_kinds
+async def test_已發布與審核中版本都沒有任何上傳卡片(client, active_user):
+    """🔴 既有規則:發布後不可再變更檔案。改版不是放寬它的機會。
+
+    T102 加嚴:**審核中(in_review)同樣凍結**——管理員核准的必須是他看到的那組檔案。
+    """
+    from tests.conftest import complete_kinds, submit_release
 
     _, token = active_user
     release_id = await _release(client, token)
@@ -124,11 +127,18 @@ async def test_已發布版本沒有任何上傳卡片(client, active_user):
         headers=auth(token),
     )
     await complete_kinds(client, token, release_id)
-    published = await client.post(
-        f"/releases/{release_id}/publish", headers={**BROWSER, **auth(token)}, follow_redirects=False
+    submitted = await client.post(
+        f"/releases/{release_id}/submit", headers={**BROWSER, **auth(token)}, follow_redirects=False
     )
-    assert published.status_code in (302, 303), published.text
+    assert submitted.status_code in (302, 303), submitted.text
 
+    # 審核中:凍結,無卡片
+    body = await _page(client, token, release_id)
+    assert _cards(body) == []
+    assert 'id="file-input"' not in body
+
+    # 核准後:已發布,同樣無卡片
+    await submit_release(client, token, release_id, approve=True)
     body = await _page(client, token, release_id)
     assert _cards(body) == []
     assert 'id="file-input"' not in body

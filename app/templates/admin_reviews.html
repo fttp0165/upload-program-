@@ -1,0 +1,81 @@
+{#
+  管理後台:版本審核佇列(T102)。
+
+  一列一個待審版本:專案 / 版本 / 送審時間 / 檔案數,右側「核准」與「退回」。
+  🔴 退回理由**必填**(Benny 裁示)——表單用 required 擋第一層,伺服器端
+  `admin_reject_release` 同規則兜底(前端檢查永遠只是體驗,不是防線)。
+
+  頁面同時放本人的通知訂閱開關(契約 §4.2b 第 4/8 條):預設關,按下開啟那一下
+  就是「明示訂閱」;同一顆鈕退訂。快取沒有信箱時誠實說明原因與解法。
+#}
+{% extends "base.html" %}
+
+{% block title %}版本審核 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>版本審核</h1>
+
+{% with current = "reviews" %}{% include "_admin_tabs.html" %}{% endwith %}
+
+{% if error == 'note-required' %}
+  <p class="notice error">退回必須寫理由——作者要靠這句話知道該改什麼。</p>
+{% endif %}
+
+<section class="card">
+  <h2>待審通知信</h2>
+  <p class="muted">
+    {% if notify_opt_in %}
+      你目前<strong>已訂閱</strong>:有版本送審時會寄信到你在帳號系統驗證過的信箱。
+    {% else %}
+      你目前<strong>未訂閱</strong>。訂閱後,有版本送審時會寄信通知你——
+      否則只有回到這一頁才會看到佇列。
+    {% endif %}
+    {% if not has_notify_email %}
+      ⚠ 你的帳號目前<strong>沒有可用的通知信箱</strong>(帳號系統沒有已驗證的
+      email,或你尚未在本站重新登入過)。訂閱仍可切換,但在信箱可用之前不會收到信。
+    {% endif %}
+  </p>
+  <form method="post" action="{{ url('/admin/reviews/notify') }}">
+    <button type="submit" class="btn btn-quiet">
+      {% if notify_opt_in %}取消訂閱{% else %}訂閱待審通知{% endif %}
+    </button>
+  </form>
+</section>
+
+<h2>待審版本({{ releases | length }})</h2>
+{% if releases %}
+  <ul class="project-list admin-list">
+    {% for release in releases %}
+      <li class="project">
+        <div class="project-head">
+          <strong>{{ release.project.slug }}</strong>
+          <span class="release-version">{{ release.version }}</span>
+          <span class="muted">
+            送審於 {{ release.submitted_at.strftime('%Y-%m-%d %H:%M') if release.submitted_at else '—' }}
+            · {{ release.artifacts | length }} 個檔案
+          </span>
+        </div>
+        {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
+        <p>
+          {# 審核者要看的是內容:檔案清單(含 SHA-256 與掃毒狀態)在上傳頁。 #}
+          <a href="{{ url('/releases/' ~ release.id ~ '/upload') }}">查看檔案內容 →</a>
+        </p>
+        <div class="form-actions">
+          <form method="post" action="{{ url('/admin/reviews/' ~ release.id ~ '/approve') }}">
+            <button type="submit" class="btn">核准發布</button>
+          </form>
+          <form method="post" action="{{ url('/admin/reviews/' ~ release.id ~ '/reject') }}" class="reject-form">
+            <input type="text" name="note" required maxlength="2000"
+                   placeholder="退回理由(必填,作者看得到)">
+            <button type="submit" class="btn btn-quiet">退回</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">目前沒有待審版本。</p>
+{% endif %}
+
+{% endblock %}

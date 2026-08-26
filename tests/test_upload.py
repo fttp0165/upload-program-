@@ -2,7 +2,7 @@
 
 import hashlib
 
-from tests.conftest import auth, complete_kinds
+from tests.conftest import auth, complete_kinds, submit_release
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 200
 ZIP = b"PK\x03\x04" + b"\x00" * 200
@@ -156,9 +156,9 @@ async def test_空版本不能發布發完就鎖住(client, active_user):
         headers=auth(token),
     )
     await complete_kinds(client, token, release_id)
-    published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert published.status_code == 200
-    assert published.json()["status"] == "published"
+    # T102:發布=送審+核准兩段式;核准後才是 published。
+    published = await submit_release(client, token, release_id, approve=True)
+    assert published["status"] == "published"
 
     # 已發布就不可再改檔案,避免「同一版內容被偷換」
     locked = await client.put(
@@ -178,10 +178,15 @@ async def test_重複發布是冪等的(client, active_user):
         headers=auth(token),
     )
     await complete_kinds(client, token, release_id)
-    first = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    second = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert first.status_code == second.status_code == 200
-    assert first.json()["published_at"] == second.json()["published_at"]
+    # T102:重複送審與重複核准都要冪等——按兩下不該變成錯誤或兩個時間戳。
+    first_submit = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    second_submit = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    assert first_submit.status_code == second_submit.status_code == 200
+    assert first_submit.json()["submitted_at"] == second_submit.json()["submitted_at"]
+
+    first = await submit_release(client, token, release_id, approve=True)
+    second = await submit_release(client, token, release_id, approve=True)
+    assert first["published_at"] == second["published_at"]
 
 
 async def test_專案容量上限(client, active_user, settings):

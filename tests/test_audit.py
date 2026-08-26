@@ -13,7 +13,7 @@
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, submit_release
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -64,8 +64,8 @@ async def _publish(client, token, slug, version="v1.0.0", filename="tool.bin"):
     )
     assert up.status_code == 201, up.text
     await complete_kinds(client, token, release_id)
-    done = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert done.status_code == 200, done.text
+    # T102:發布=送審+管理員核准兩段式。
+    await submit_release(client, token, release_id, approve=True)
     return release_id, up.json()["id"]
 
 
@@ -105,7 +105,9 @@ async def test_版本與檔案的建立刪除都有紀錄(client, active_user, a
     await _publish(client, token, "audit-tool")
 
     assert len(await _events(app, action="release.create")) == 1
-    assert len(await _events(app, action="release.publish")) == 1
+    # T102:release.publish 由 submit + approve 取代(舊資料裡的 publish 原樣保留)。
+    assert len(await _events(app, action="release.submit")) == 1
+    assert len(await _events(app, action="release.approve")) == 1
     # T65 之後發布需三類齊備:_publish 會傳 tool.bin + src.zip + notes.pdf 共三檔
     uploads = await _events(app, action="artifact.upload")
     assert len(uploads) == 3

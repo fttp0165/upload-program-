@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
@@ -58,9 +59,12 @@ from ..templating import render
 from ..web_urls import web_url
 from .releases import (
     REQUIRED_KINDS,
+    approve_release_action,
     latest_published_release,
     load_release,
     missing_required_kinds,
+    reject_release_action,
+    submit_for_review,
 )
 
 router = APIRouter(include_in_schema=False, tags=["web"])
@@ -675,28 +679,56 @@ async def upload_page(
     )
 
 
-@router.post("/releases/{release_id}/publish", summary="發布版本(送出)")
-async def publish_release_form(
+@router.post("/releases/{release_id}/submit", summary="送出審核(表單)")
+async def submit_release_form(
     release_id: str, request: Request, session: DbSession, identity: OptionalUser
 ) -> Response:
-    """發布。純表單 POST,不需要 JS。"""
+    """送審(T102)。純表單 POST,不需要 JS。
+
+    狀態機規則本體在 `releases.submit_for_review()`,與 API 共用——
+    三類齊備、清退回理由、稽核、通知信都只存在一份。
+    """
     if identity is None:
         return _login_redirect(request, f"/releases/{release_id}/upload")
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
 
-    if release.status is not ReleaseStatus.published:
+    if release.status is ReleaseStatus.draft:
         if not any(a.upload_status is UploadStatus.ready for a in release.artifacts):
-            # 與 API 同一條規則:空版本不可發布。
+            # 與 API 同一條規則:空版本不可送審。
             return _redirect(request, f"/releases/{release.id}/upload?error=empty")
         if missing_required_kinds(release):
             # T65:三類齊備(規則本體在 releases.missing_required_kinds,只存在一份)
             return _redirect(request, f"/releases/{release.id}/upload?error=missing-kinds")
-        release.status = ReleaseStatus.published
-        release.published_at = datetime.now(UTC)
-        await session.commit()
+        await submit_for_review(request, session, release, identity)
 
     return _redirect(request, f"/projects/{release.project.slug}")
+
+
+@router.post("/releases/{release_id}/withdraw", summary="撤回送審(表單)")
+async def withdraw_release_form(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """撤回(T102):作者把審核中的版本拿回來改,不必等管理員。"""
+    if identity is None:
+        return _login_redirect(request, f"/releases/{release_id}/upload")
+    release = await load_release(session, release_id)
+    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+
+    if release.status is ReleaseStatus.in_review:
+        release.status = ReleaseStatus.draft
+        release.submitted_at = None
+        record(
+            session,
+            action=AuditAction.release_withdraw,
+            actor_id=identity.user.id,
+            target_type="release",
+            target_id=release.id,
+            target_label=f"{release.project.slug}:{release.version}",
+        )
+        await session.commit()
+
+    return _redirect(request, f"/releases/{release.id}/upload")
 
 
 # --- T66 使用教學頁 ----------------------------------------------------------
@@ -927,6 +959,101 @@ async def _display_names(session: AsyncSession, ids: set) -> dict:
         )
     ).all()
     return {uid: name for uid, name in rows if name}
+
+
+# --- T102 版本審核佇列 --------------------------------------------------------
+
+
+@router.get("/admin/reviews", summary="管理後台:版本審核佇列")
+async def admin_reviews_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """審核佇列(T102):列出全部待審版本,核准 / 退回(理由必填)。
+
+    沒有這一頁的話「所有版本都要審」等於「所有版本都卡死」——管理員得手打 API
+    才放得行任何一版(與 T45 管理頁同一個理由)。
+
+    頁面同時放本人的通知訂閱開關(§4.2b 第 4/8 條):**預設關**,按下開啟那一下
+    就是條文要的「明示訂閱」;同一顆鈕就是退訂。放這裡而不是總覽,因為訂的就是
+    「這個佇列有新東西」。
+
+    參數:無。回傳:HTML。副作用:無(唯讀查詢)。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+
+    rows = (
+        await session.execute(
+            select(Release)
+            .options(selectinload(Release.artifacts), selectinload(Release.project))
+            .where(Release.status == ReleaseStatus.in_review)
+            # 先送先審:佇列依送審時間正序,最久沒被處理的排最上面。
+            .order_by(Release.submitted_at.asc())
+        )
+    ).scalars().all()
+
+    return HTMLResponse(
+        render(
+            request,
+            "admin_reviews.html",
+            identity=identity,
+            releases=rows,
+            notify_opt_in=identity.user.review_email_opt_in,
+            has_notify_email=identity.user.notify_email_cache is not None,
+            error=request.query_params.get("error"),
+        )
+    )
+
+
+@router.post("/admin/reviews/{release_id}/approve", summary="核准發布(表單)")
+async def admin_approve_release(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """核准。規則本體在 `releases.approve_release_action()`,與 API 共用。"""
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    release = await load_release(session, release_id)
+    await approve_release_action(session, release, identity)
+    return _redirect(request, "/admin/reviews")
+
+
+@router.post("/admin/reviews/{release_id}/reject", summary="退回(表單,理由必填)")
+async def admin_reject_release(
+    release_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    note: Annotated[str, Form()] = "",
+) -> Response:
+    """退回。裁示:**退回必須寫理由**——空白理由帶錯誤參數回佇列,狀態不動。"""
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    if not note.strip():
+        return _redirect(request, "/admin/reviews?error=note-required")
+    release = await load_release(session, release_id)
+    await reject_release_action(session, release, identity, note.strip())
+    return _redirect(request, "/admin/reviews")
+
+
+@router.post("/admin/reviews/notify", summary="切換本人的待審通知訂閱")
+async def admin_toggle_review_notify(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """訂閱開關(§4.2b 第 4/8 條)。
+
+    切的是**本人**的訂閱——管理員不能替別人訂閱(把別人的信箱簽進一份
+    他沒同意的通知,正是「明示訂閱」要擋的事)。
+    副作用:寫 `users.review_email_opt_in`。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    identity.user.review_email_opt_in = not identity.user.review_email_opt_in
+    await session.commit()
+    return _redirect(request, "/admin/reviews")
 
 
 @router.get("/admin/audit", summary="管理後台:稽核紀錄")

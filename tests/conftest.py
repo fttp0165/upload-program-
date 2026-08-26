@@ -123,6 +123,27 @@ class FakeStorage:
             del self.objects[key]
 
 
+class FakeMailer:
+    """假寄信器(T102):記下寄了什麼,供測試斷言;fail=True 模擬 SMTP 掛掉。
+
+    介面對齊 app.mailer.Mailer——替身與真實行為的落差本身就是風險(T52 的教訓),
+    所以連「寄失敗會拋例外」這件事都要能模擬。
+    """
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[tuple[str, ...], str, str]] = []
+        self.fail = False
+
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    async def send(self, recipients, subject: str, body: str) -> None:
+        if self.fail:
+            raise RuntimeError("SMTP down(測試模擬)")
+        self.sent.append((tuple(recipients), subject, body))
+
+
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     return Settings(
@@ -150,6 +171,7 @@ async def app(settings):
     application = create_app(settings)
     application.state.oidc = FakeOidc()
     application.state.storage = FakeStorage(settings.magic_sniff_bytes)
+    application.state.mailer = FakeMailer()
 
     async with application.state.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -176,6 +198,11 @@ def oidc(app) -> FakeOidc:
 @pytest.fixture
 def storage(app) -> FakeStorage:
     return app.state.storage
+
+
+@pytest.fixture
+def mailer(app) -> FakeMailer:
+    return app.state.mailer
 
 
 async def make_user(app, sub: str, status: UserStatus = UserStatus.active, admin: bool = False):
@@ -227,3 +254,39 @@ async def complete_kinds(client, token, release_id):
             headers=auth(token),
         )
         assert resp.status_code == 201, resp.text
+
+
+# T102 之後「發布」是兩段式:作者送審 + 管理員核准。既有測試要鋪「已發布」的資料,
+# 一律走這個助手——測試裡自己 POST /publish 只會得到 in_review。
+ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 120
+
+# 專職審核的假管理員。獨立一個 sub,不與各測試自建的管理員撞名;
+# 有些測試會數使用者/管理員數量,牽涉到的再自行調整預期值。
+REVIEWER_SUB = "sub-t102-reviewer"
+
+
+async def submit_release(client, token, release_id, *, approve: bool = False):
+    """送審(T102);approve=True 再以審核管理員核准,回傳最後一次回應的 JSON。
+
+    副作用:approve=True 時若審核管理員不存在會建立一個(sub=REVIEWER_SUB)。
+    """
+    resp = await client.post(f"/v1/releases/{release_id}/submit", headers=auth(token))
+    assert resp.status_code == 200, resp.text
+    if not approve:
+        return resp.json()
+
+    app = client._transport.app  # ASGITransport 持有 app;測試替身內部取用
+    from sqlalchemy import select
+
+    async with app.state.sessionmaker() as session:
+        existing = (
+            await session.execute(select(User).where(User.sub == REVIEWER_SUB))
+        ).scalar_one_or_none()
+    if existing is None:
+        await make_user(app, REVIEWER_SUB, admin=True)
+    reviewer_token = app.state.oidc.issue(REVIEWER_SUB)
+    approved = await client.post(
+        f"/v1/releases/{release_id}/approve", headers=auth(reviewer_token)
+    )
+    assert approved.status_code == 200, approved.text
+    return approved.json()

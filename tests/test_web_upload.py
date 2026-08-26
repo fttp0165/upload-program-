@@ -10,7 +10,7 @@
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, submit_release
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -65,13 +65,14 @@ async def test_不需curl即可完成一輪上傳與發布(client, active_user):
     assert up.status_code == 201, up.text
     await complete_kinds(client, token, release_id)  # T65:發布需三類齊備
 
-    # 4. 發布(HTML 表單 POST)
-    published = await client.post(
-        f"/releases/{release_id}/publish", headers=headers, follow_redirects=False
+    # 4. 送審(HTML 表單 POST;T102 起發布要再經管理員核准)
+    submitted = await client.post(
+        f"/releases/{release_id}/submit", headers=headers, follow_redirects=False
     )
-    assert published.status_code in (302, 303), published.text
+    assert submitted.status_code in (302, 303), submitted.text
 
-    # 驗:專案頁看得到已發布的版本與下載按鈕
+    # 5. 管理員核准後,專案頁才看得到已發布的版本與下載按鈕
+    await submit_release(client, token, release_id, approve=True)
     page = await client.get("/projects/round-trip", headers=headers)
     assert "v1.0.0" in page.text
     assert "tool.bin" in page.text
@@ -227,11 +228,7 @@ async def test_已發布的版本不給上傳(client, active_user):
         headers=auth(token),
     )
     await complete_kinds(client, token, release_id)  # T65:發布需三類齊備
-    await client.post(
-        f"/releases/{release_id}/publish",
-        headers={**BROWSER, **auth(token)},
-        follow_redirects=False,
-    )
+    await submit_release(client, token, release_id, approve=True)  # T102:送審+核准
 
     body = (await client.get(f"/releases/{release_id}/upload", headers={**BROWSER, **auth(token)})).text
     assert "已發布" in body

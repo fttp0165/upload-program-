@@ -17,6 +17,7 @@ from .branding import SITE_NAME
 from .config import Settings, get_settings
 from .db import create_engine, create_sessionmaker
 from .logging_setup import setup_logging
+from .mailer import Mailer
 from .middleware import (
     SecurityHeadersMiddleware,
     SessionRenewalMiddleware,
@@ -90,6 +91,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.oidc = OidcClient(settings)
     app.state.storage = ObjectStorage(settings)
     app.state.cookies = CookieCodec(settings)
+    # T102:送審通知信。SMTP 未設定時 enabled=False,審核流程照常。
+    app.state.mailer = Mailer(settings)
 
     # 續期的 cookie 要寫進最終回應,所以掛在最外層(最後執行 dispatch 的後半段)。
     app.add_middleware(SessionRenewalMiddleware)

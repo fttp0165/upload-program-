@@ -42,17 +42,19 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-24 17:40
-<strong>版本:</strong> v1.75</p>
+<strong>最後更新:</strong> 2026-08-26 12:55
+<strong>版本:</strong> v1.76</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-24 17:40)</h2>
-<p>任務 95 項:<strong>✅ 90 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>527 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-26 12:55)</h2>
+<p>任務 96 項:<strong>✅ 91 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>567 passed</strong>、<code>ruff check</code> 乾淨。
+⚠ 編號說明:T98–T101 為 2026-08-26 同批裁示的其他項目,尚未開工、屆時各自入表
+——編號先佔用,表上暫缺不是漏記。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -648,6 +650,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>v0.2.2 的常數在 T94 就備好,但 <strong>tag 一直沒推</strong>(本 session 憑證推 tag 回 403,需 Benny 手動;在那之前 T96 先合併進 main)→ main 的內容變成 T89–T95 <strong>+ T96</strong>;🔴 這時推 <code>v0.2.2</code> 會讓 tag 指到<strong>含 T96</strong> 的 commit 而常數與 Release 都說 0.2.2,<strong>正是第八條 4 要防的「對使用者說謊」</strong>;Benny 裁示發 <strong>0.2.3 一版含 T89–T96</strong>(少發一次版、VM 只換一次);⚠ <strong><code>v0.2.2</code> 就此跳過永遠不會存在</strong> —— 它的內容沒有單獨出貨過,補發一個指向舊 commit 的 tag 只會多一份沒人跑過的版本(Release 需交代一句,否則看 tag 列表的人會找它);<strong>不寫新測試</strong>(第三條 4,同 T83/T94);🔴 <strong>這是第二次因版本號記載卡住發版</strong>(T94 是任務表寫錯最新 tag),守門建議(CI 比對常數與最新 tag)更該做 —— <strong>兩次都是靠人臨場發現,那不是機制</strong></td>
 </tr>
 <tr>
+<td>T102</td>
+<td>發布審核(兩態→三態)+ 送審 email 通知</td>
+<td>✅</td>
+<td>🟡</td>
+<td>Benny 2026-08-26 裁示四條:<strong>所有版本都要審</strong>、既有已發布 migration 時視為已核准、待審對非成員隱藏、退回必寫理由;追加「email 跟 Keycloak 要」;大任務,計畫在 <a href="plans/計畫_T102_發布審核.md">plans/計畫_T102_發布審核.md</a>。<code>draft → in_review → published</code>:作者送審(<code>/publish</code> 留作別名不斷舊腳本)、管理員核准/退回(理由存 <code>review_note</code> 回作者眼前,🔴 不進稽核——target_label 不收自由文字)、作者可撤回;in_review 凍結(不可動檔/改說明)且對非成員 404;「最新版」(F26)仍只認 published,<code>published_at</code> 語意改為<strong>核准時刻</strong>;後台新分頁「版本審核」+ 總覽待辦「待審版本」;<strong>email 通知依契約 §4.2b</strong>:僅本人登入 token 且 <code>email_verified=true</code> 才落地 <code>notify_email_cache</code>(🔴 無 unique/index)、訂閱 <strong>opt-in 預設關</strong>(開那一下=明示訂閱,同鈕退訂)、寄失敗不阻斷送審、信只含 slug/版本/後台連結、<code>tools/purge_notify_email.py</code>(--all/--sub)、已到契約 §4.2b 登記表掛號;migration <strong>0009</strong> 🟡 加欄位零 UPDATE(既有 published 視為已核准、reviewed_<em> 誠實留 NULL),downgrade 先把 in_review 改回 draft 再 drop,SQLite </em><em>up→down→up 演練通過</em><em>;⚠ 一條測試中途改斷言對象(/v1/me 回本人 claim email 是既有合規行為,改釘「後台不得露別人的快取信箱」)、3 條既有測試契約隨審核流更新,dev-log 逐條說明;🔴 流程風險已明載:通知要生效,管理員得登入過且自行開訂閱;上線後版本常態卡審要檢討的是流程不是程式;</em><em>28 條新增(紅起步),全套 567</em>*</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -975,6 +984,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.76</td>
+<td>2026-08-26 12:55</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T102 發布審核</strong>(全套 567):ReleaseStatus 三態、待審對非成員隱藏、退回必寫理由、<code>/publish</code> 留作送審別名;migration 0009 🟡 加欄位零 UPDATE(既有 published 視為已核准);送審 email 通知走契約 §4.2b(本人 token、verified 才落地、opt-in 預設關、purge 工具、登記表已掛號)。編號註記:T98–T101 為同批裁示其他項目,未開工暫不入表</td>
+</tr>
 <tr>
 <td>v1.75</td>
 <td>2026-08-24 17:40</td>

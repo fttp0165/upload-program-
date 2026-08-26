@@ -50,6 +50,10 @@
               <span class="release-version">{{ release.version }}</span>
               {% if release.status.value == 'draft' %}
                 <span class="badge badge-warn">草稿</span>
+              {% elif release.status.value == 'in_review' %}
+                {# T102:待審徽章。只有成員看得到這一列(非成員的查詢端已濾掉),
+                   published_at 這時還是空的——走到 else 會直接 500。 #}
+                <span class="badge badge-warn">審核中</span>
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}

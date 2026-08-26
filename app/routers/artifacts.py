@@ -79,6 +79,9 @@ async def upload_artifact(
 
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+    # T102:只有 draft 可動檔——in_review 凍結(審核對象不得中途變動),published 定版。
+    if release.status is ReleaseStatus.in_review:
+        raise problems.conflict("審核中的版本不可變更檔案;要改請先撤回送審。")
     if release.status is ReleaseStatus.published:
         raise problems.conflict("已發布的版本不可再變更檔案;請建立新版本。")
 
@@ -221,7 +224,8 @@ async def download_artifact(
 ) -> StreamingResponse:
     release = await load_release(session, release_id)
     role = await require_project_read(session, release.project, identity)
-    if release.status is ReleaseStatus.draft and role is None and not identity.user.is_admin:
+    # T102:非 published(draft、in_review)對非成員一律 404——待審不是公開狀態。
+    if release.status is not ReleaseStatus.published and role is None and not identity.user.is_admin:
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
@@ -299,6 +303,9 @@ async def delete_artifact(
 ) -> Response:
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+    # T102:同上傳——只有 draft 可動檔。
+    if release.status is ReleaseStatus.in_review:
+        raise problems.conflict("審核中的版本不可刪除檔案;要改請先撤回送審。")
     if release.status is ReleaseStatus.published:
         raise problems.conflict("已發布的版本不可刪除檔案;請建立新版本。")
 

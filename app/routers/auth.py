@@ -128,7 +128,11 @@ async def callback(
         raise problems.unauthorized("token 缺少 sub")
 
     # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
-    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
+    # §4.2b 第 2 條(T102):email 只信 `email_verified=true`,未驗證視同沒有。
+    verified_email = claims.get("email") if claims.get("email_verified") is True else None
+    user = await upsert_user(
+        session, sub, settings, display_name=claims.get("name"), notify_email=verified_email
+    )
 
     # 🔴 T81 迴圈防線:停用者**不建立 session**,當場送回平台入口。
     #

@@ -10,7 +10,7 @@
 import re
 from datetime import UTC, datetime, timedelta
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, make_user, submit_release
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -96,7 +96,9 @@ async def test_KPI數字等於實際資料(client, app, oidc, active_user):
             headers=auth(token),
         )
         assert up.status_code == 201, up.text
-    assert (await client.post(f"/v1/releases/{rid}/publish", headers=auth(token))).status_code == 200
+    # T102:發布=送審+核准兩段式。⚠ 助手會建立一位審核管理員,下方 users 相關
+    # 斷言若以「總數」計就要把他算進去(本測試只斷言 pending 數,不受影響)。
+    assert (await submit_release(client, token, rid, approve=True))["status"] == "published"
 
     # dash-b:1 個 draft
     await client.post(

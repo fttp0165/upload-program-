@@ -13,6 +13,9 @@
   {% if current == 'users' %}<span class="current">使用者</span>
   {% else %}<a href="{{ url('/admin/users') }}">使用者</a>{% endif %}
 
+  {% if current == 'reviews' %}<span class="current">版本審核</span>
+  {% else %}<a href="{{ url('/admin/reviews') }}">版本審核</a>{% endif %}
+
   {% if current == 'audit' %}<span class="current">稽核紀錄</span>
   {% else %}<a href="{{ url('/admin/audit') }}">稽核紀錄</a>{% endif %}
 </nav>

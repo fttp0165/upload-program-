@@ -1,4 +1,9 @@
-"""版本(release):一次發布 = 一組檔案。draft 可改可刪,published 定版。"""
+"""版本(release):一次發布 = 一組檔案。
+
+T102 起發布走審核流(Benny 2026-08-26 裁示:**所有版本都要審**):
+draft(作者工作區)→ in_review(送審,凍結)→ published(管理員核准,定版)。
+退回必寫理由、作者可撤回;非 published 對非成員一律 404。
+"""
 
 import logging
 from dataclasses import dataclass
@@ -12,10 +17,12 @@ from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
+from ..mailer import notify_review_submitted
 from ..models import ArtifactKind, ProjectRole, Release, ReleaseStatus, UploadStatus
 from ..queries import query_releases
-from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
+from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate, ReviewReject
 from ..security import (
+    AdminUser,
     CurrentUser,
     DbSession,
     get_project,
@@ -154,7 +161,8 @@ async def create_release(
 async def get_release(release_id: str, session: DbSession, identity: CurrentUser) -> ReleaseOut:
     release = await load_release(session, release_id)
     role = await require_project_read(session, release.project, identity)
-    if release.status is ReleaseStatus.draft and role is None and not identity.user.is_admin:
+    # T102:in_review 與 draft 同一待遇——**非 published 對非成員一律 404**(裁示 3)。
+    if release.status is not ReleaseStatus.published and role is None and not identity.user.is_admin:
         raise problems.not_found("找不到該版本")
     return ReleaseOut.model_validate(release)
 
@@ -165,6 +173,9 @@ async def update_release(
 ) -> ReleaseOut:
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+    if release.status is ReleaseStatus.in_review:
+        # T102:審核對象不得中途變動——管理員核准的必須是他看到的那一版說明。
+        raise problems.conflict("審核中的版本不可修改;要改請先撤回送審。")
     if payload.notes is not None:
         release.notes = payload.notes
     await session.commit()
@@ -208,34 +219,48 @@ def missing_required_kinds(release: Release) -> list[str]:
     return [item.label for item in REQUIRED_KINDS if item.kind not in present]
 
 
-@router.post("/releases/{release_id}/publish", response_model=ReleaseOut, summary="發布版本")
-async def publish_release(
-    release_id: str, session: DbSession, identity: CurrentUser
-) -> ReleaseOut:
-    release = await load_release(session, release_id)
-    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+def check_submittable(release: Release) -> None:
+    """送審前的內容檢查(T65 三類齊備規則,T102 起提前到送審時把關)。
 
-    if release.status is ReleaseStatus.published:
-        return ReleaseOut.model_validate(release)  # 冪等:重複發布不算錯
-    ready = [a for a in release.artifacts if a.upload_status is UploadStatus.ready]
-    if not ready:
+    管理員審的必須是完整交付——缺類別的版本連佇列都不該進。
+    參數:release(需已載入 artifacts)。回傳:無;不合格拋 422。副作用:無。
+    """
+    if not any(a.upload_status is UploadStatus.ready for a in release.artifacts):
         raise problems.unprocessable(
-            "empty-release", "版本沒有檔案", "至少要有一個上傳完成的檔案才能發布。"
+            "empty-release", "版本沒有檔案", "至少要有一個上傳完成的檔案才能送審。"
         )
     missing = missing_required_kinds(release)
     if missing:
         raise problems.unprocessable(
             "release-missing-kinds",
-            "發布內容不齊",
+            "送審內容不齊",
             "每一版發布必須包含:更新文件(doc)、執行檔(binary)、原始碼包(source)"
             f"各至少一個;目前缺:{'、'.join(missing)}。",
         )
 
-    release.status = ReleaseStatus.published
-    release.published_at = datetime.now(UTC)
+
+async def submit_for_review(request: Request, session, release: Release, identity) -> Release:
+    """把 draft 送審(T102),API 與網頁共用——狀態機規則只能有一份。
+
+    參數:request(取 mailer/settings)、session、release(需已載入 artifacts 與
+    project)、identity(操作者,需 maintainer,由呼叫端先驗)。
+    回傳:更新後的 release。副作用:寫 DB、寫稽核、寄通知信(失敗不阻斷)。
+    """
+    if release.status is ReleaseStatus.in_review:
+        return release  # 冪等:重複送審不算錯
+    if release.status is ReleaseStatus.published:
+        # 冪等,沿襲舊 /publish 對 published 回 200 的行為——既有腳本重跑不該爆炸;
+        # 已發布的版本「再送審」也沒有任何意義可言,不值得一個錯誤。
+        return release
+    check_submittable(release)
+
+    release.status = ReleaseStatus.in_review
+    release.submitted_at = datetime.now(UTC)
+    # 上一輪的退回理由是針對上一版內容,留著會誤導這一輪的審核者與作者。
+    release.review_note = ""
     record(
         session,
-        action=AuditAction.release_publish,
+        action=AuditAction.release_submit,
         actor_id=identity.user.id,
         target_type="release",
         target_id=release.id,
@@ -243,8 +268,142 @@ async def publish_release(
     )
     await session.commit()
     await session.refresh(release)
-    log.info("發布版本", extra={"release_id": str(release.id), "artifacts": len(ready)})
+    log.info("版本送審", extra={"release_id": str(release.id)})
+    # 通知放在 commit 之後:信寄不寄得出去都不該影響「已送審」這個事實。
+    await notify_review_submitted(
+        session, request.app.state.mailer, request.app.state.settings, release
+    )
+    return release
+
+
+@router.post(
+    "/releases/{release_id}/submit", response_model=ReleaseOut, summary="送出審核(T102)"
+)
+@router.post(
+    "/releases/{release_id}/publish",
+    response_model=ReleaseOut,
+    summary="送出審核(/submit 的舊名別名)",
+)
+async def submit_release_endpoint(
+    release_id: str, request: Request, session: DbSession, identity: CurrentUser
+) -> ReleaseOut:
+    """T102:作者只能「送審」;published 只能由管理員核准產生。
+
+    `/publish` 保留為別名——既有腳本不斷線,但拿到的是 in_review,不再是直接發布。
+    """
+    release = await load_release(session, release_id)
+    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+    release = await submit_for_review(request, session, release, identity)
     return ReleaseOut.model_validate(release)
+
+
+@router.post(
+    "/releases/{release_id}/withdraw", response_model=ReleaseOut, summary="撤回送審"
+)
+async def withdraw_release(
+    release_id: str, session: DbSession, identity: CurrentUser
+) -> ReleaseOut:
+    """作者把 in_review 撤回 draft——送錯了不必等管理員處理。"""
+    release = await load_release(session, release_id)
+    await require_project_role(session, release.project, identity, ProjectRole.maintainer)
+    if release.status is not ReleaseStatus.in_review:
+        raise problems.conflict("只有審核中的版本可以撤回。")
+
+    release.status = ReleaseStatus.draft
+    release.submitted_at = None
+    record(
+        session,
+        action=AuditAction.release_withdraw,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
+    await session.commit()
+    await session.refresh(release)
+    return ReleaseOut.model_validate(release)
+
+
+async def approve_release_action(session, release: Release, identity) -> Release:
+    """核准(T102):in_review → published,API 與後台網頁共用。
+
+    `published_at` = 核准當下——T102 起它的語意就是「核准時刻」,F26 與歷史頁
+    排序沿用本欄。副作用:寫 DB、寫稽核。
+    ⚠ 管理員可核准自己送審的版本(平台只有一兩位管理員,禁止自審會把管理員的
+    專案鎖死);稽核留有「誰送審、誰核准」,自審看得見、不禁止。
+    """
+    if release.status is ReleaseStatus.published:
+        return release  # 冪等:重複核准不算錯
+    if release.status is not ReleaseStatus.in_review:
+        raise problems.conflict("只有審核中的版本可以核准;請先請作者送審。")
+
+    now = datetime.now(UTC)
+    release.status = ReleaseStatus.published
+    release.published_at = now
+    release.reviewed_by_id = identity.user.id
+    release.reviewed_at = now
+    record(
+        session,
+        action=AuditAction.release_approve,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
+    await session.commit()
+    await session.refresh(release)
+    log.info("版本核准發布", extra={"release_id": str(release.id)})
+    return release
+
+
+async def reject_release_action(session, release: Release, identity, note: str) -> Release:
+    """退回(T102):in_review → draft,理由必填,API 與後台網頁共用。
+
+    理由存 `release.review_note` 給作者看;🔴 **不進稽核**——AuditEvent 的
+    target_label 不收使用者自由文字(個資紅線)。副作用:寫 DB、寫稽核。
+    """
+    if release.status is not ReleaseStatus.in_review:
+        raise problems.conflict("只有審核中的版本可以退回。")
+
+    now = datetime.now(UTC)
+    release.status = ReleaseStatus.draft
+    release.review_note = note
+    release.reviewed_by_id = identity.user.id
+    release.reviewed_at = now
+    record(
+        session,
+        action=AuditAction.release_reject,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
+    await session.commit()
+    await session.refresh(release)
+    log.info("版本退回", extra={"release_id": str(release.id)})
+    return release
+
+
+@router.post(
+    "/releases/{release_id}/approve", response_model=ReleaseOut, summary="核准發布(管理員)"
+)
+async def approve_release(
+    release_id: str, session: DbSession, identity: AdminUser
+) -> ReleaseOut:
+    release = await load_release(session, release_id)
+    return ReleaseOut.model_validate(await approve_release_action(session, release, identity))
+
+
+@router.post(
+    "/releases/{release_id}/reject", response_model=ReleaseOut, summary="退回(管理員,理由必填)"
+)
+async def reject_release(
+    release_id: str, payload: ReviewReject, session: DbSession, identity: AdminUser
+) -> ReleaseOut:
+    release = await load_release(session, release_id)
+    return ReleaseOut.model_validate(
+        await reject_release_action(session, release, identity, payload.note)
+    )
 
 
 @router.delete(

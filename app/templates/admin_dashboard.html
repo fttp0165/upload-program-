@@ -78,6 +78,16 @@
       </div>
     {% endif %}
 
+    {% if todos.pending_reviews %}
+      <div class="todo card">
+        <h3>待審版本({{ todos.pending_reviews }})</h3>
+        {# T102:通知信是 opt-in 且可能寄不到,這裡是保底提醒——
+           核准之前,作者的版本對其他人是看不見的。 #}
+        <p class="muted">作者已送審,等待核准。核准之前這些版本不會出現在任何人的清單裡。</p>
+        <p><a href="{{ url('/admin/reviews') }}">前往審核 →</a></p>
+      </div>
+    {% endif %}
+
     {% if todos.open_issues %}
       <div class="todo card">
         <h3>未處理的回報(<span data-metric="issues-open">{{ todos.open_issues }}</span>)</h3>

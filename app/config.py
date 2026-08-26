@@ -101,6 +101,16 @@ class Settings(BaseSettings):
     max_project_extended_bytes: int = 10 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096
 
+    # --- SMTP(T102 送審通知;契約 §4.2b)---
+    # 🔴 SMTP_HOST 留空 = 停用寄信,審核流程照常走(通知是加分,不是流程的一部分)。
+    # 🔴 SMTP_FROM **只填信箱位址,不得帶顯示名稱**——公司 Exchange 會把帶顯示名稱的
+    #    From 靜默丟棄(契約 §5.3 坑表:每一層都回報成功,信永遠不到)。
+    smtp_host: str = ""
+    smtp_port: int = 25
+    smtp_from: str = ""
+    # 逾時要短:寄信在送審請求裡同步送出,SMTP 卡住不該讓作者的送審跟著卡。
+    smtp_timeout_seconds: float = 5.0
+
     # --- 稽核紀錄(F54 / T38)---
     # 🔴 保留期是 T37 承諾的一部分:當時刻意不做下載事件表,理由是「誰下載了什麼」
     # 屬於稽核,而稽核「有自己的保存期限與存取權限」。沒有保留期的話,那就只是

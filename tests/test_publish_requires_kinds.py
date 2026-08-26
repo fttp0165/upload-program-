@@ -57,7 +57,8 @@ async def test_只有執行檔不能發布_並列出缺哪幾類(client, active_
     assert "執行檔(binary)" not in body["detail"].split("目前缺:")[-1]
 
 
-async def test_三類齊備即可發布(client, active_user):
+async def test_三類齊備即可送審(client, active_user):
+    """T102 起 /publish 是送審的別名——三類齊備規則不變,結果從 published 改為 in_review。"""
     _, token = active_user
     release_id = await _project_and_release(client, token)
     await _put(client, token, release_id, "tool.bin", "binary", ELF)
@@ -65,7 +66,7 @@ async def test_三類齊備即可發布(client, active_user):
 
     resp = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert resp.status_code == 200
-    assert resp.json()["status"] == "published"
+    assert resp.json()["status"] == "in_review"
 
 
 async def test_網頁表單發布缺類_退回上傳頁且仍是draft(client, active_user):
@@ -74,8 +75,9 @@ async def test_網頁表單發布缺類_退回上傳頁且仍是draft(client, ac
     await _put(client, token, release_id, "tool.bin", "binary", ELF)
 
     headers = {**BROWSER, **auth(token)}
+    # T102:網頁表單的路由改為 /submit(按鈕=「送出審核」)。
     resp = await client.post(
-        f"/releases/{release_id}/publish", headers=headers, follow_redirects=False
+        f"/releases/{release_id}/submit", headers=headers, follow_redirects=False
     )
     assert resp.status_code in (302, 303)
     assert resp.headers["location"].endswith(
@@ -100,9 +102,9 @@ async def test_上傳頁缺類_顯示缺項且發布鈕停用(client, active_use
     # 發布鈕停用(提示性;真正的兜底在伺服器端)
     assert "disabled" in page.text
 
-    # 補齊三類後:缺項提示消失、發布鈕恢復可按
+    # 補齊三類後:缺項提示消失、送審鈕恢復可按(T102:按鈕=「送出審核」)
     await complete_kinds(client, token, release_id)
     page = await client.get(f"/releases/{release_id}/upload", headers=headers)
     assert "目前還缺" not in page.text
-    assert ">發布這個版本</button>" in page.text
+    assert ">送出審核</button>" in page.text
     assert "disabled" not in page.text

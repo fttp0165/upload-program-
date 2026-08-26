@@ -55,7 +55,13 @@ class AuditAction(enum.StrEnum):
 
     # 版本與檔案(F54:「建了/刪了什麼」「上傳與下載了什麼」)
     release_create = "release.create"
-    release_publish = "release.publish"
+    # T102 起發布拆成審核流:submit(送審)→ approve(核准)/ reject(退回)/
+    # withdraw(撤回)。舊資料裡的 "release.publish" 原樣保留(action 欄是字串,
+    # 稽核記的是當時的事實),新程式不再寫入該值。
+    release_submit = "release.submit"
+    release_withdraw = "release.withdraw"
+    release_approve = "release.approve"
+    release_reject = "release.reject"
     release_delete = "release.delete"
     artifact_upload = "artifact.upload"
     artifact_delete = "artifact.delete"

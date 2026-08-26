@@ -197,6 +197,21 @@ class ReleaseUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=20000)
 
 
+class ReviewReject(BaseModel):
+    """退回版本的請求(T102)。Benny 裁示:**退回必須寫理由**,空白不受理。"""
+
+    note: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def note_not_blank(cls, value: str) -> str:
+        # min_length 擋不住「只有空白」——那對作者跟沒理由一樣。
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("退回必須寫理由")
+        return stripped
+
+
 class ArtifactOut(ORMModel):
     id: uuid.UUID
     release_id: uuid.UUID
@@ -221,6 +236,11 @@ class ReleaseOut(ORMModel):
     created_by_id: uuid.UUID
     created_at: datetime
     published_at: datetime | None
+    # T102 審核欄位。review_note 是退回理由,給作者(成員才查得到這個物件)看;
+    # reviewed_by_id 刻意不出——「哪位管理員審的」屬稽核,不是 API 資料。
+    submitted_at: datetime | None = None
+    reviewed_at: datetime | None = None
+    review_note: str = ""
     artifacts: list[ArtifactOut] = []
     # 版本的下載次數是底下所有檔案的加總,**不另存欄位**(F43):
     # 兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來。

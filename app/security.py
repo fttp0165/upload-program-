@@ -122,19 +122,30 @@ async def _session_token(request: Request) -> str | None:
 
 
 async def upsert_user(
-    session: AsyncSession, sub: str, settings: Settings, display_name: str | None = None
+    session: AsyncSession,
+    sub: str,
+    settings: Settings,
+    display_name: str | None = None,
+    notify_email: str | None = None,
 ) -> User:
     """首登自動建 user:狀態 pending、零角色。之後由本服務管理員開通。
 
     副作用:首登建立資料列;既有 pending 帳號在 bootstrap 清單內時升級並寫稽核;
     T59(契約 §4.2a):每次登入以本人 token 的 `name` claim 覆寫顯示名稱快取
-    (claim 不存在 → 寫 NULL,畫面 fallback 到 sub)。
+    (claim 不存在 → 寫 NULL,畫面 fallback 到 sub);
+    T102(契約 §4.2b):同一時機覆寫通知信箱快取——呼叫端只在
+    `email_verified=true` 時傳入 email,其餘一律 None(未驗證視同沒有)。
     """
     user = (await session.execute(select(User).where(User.sub == sub))).scalar_one_or_none()
     if user is not None:
-        # §4.2a:每次登入覆寫(含覆寫成 NULL——IdP 拿掉名字,快取不得留舊值)。
-        if user.display_name_cache != display_name:
+        # §4.2a/§4.2b:每次登入覆寫(含覆寫成 NULL——IdP 拿掉名字或信箱轉為未驗證,
+        # 快取不得留舊值)。兩個快取共用一次 commit,不多跑一趟。
+        if (
+            user.display_name_cache != display_name
+            or user.notify_email_cache != notify_email
+        ):
             user.display_name_cache = display_name
+            user.notify_email_cache = notify_email
             await session.commit()
             await session.refresh(user)
         # 🐛 首次上線實測(2026-07-29):bootstrap 原本只在**建號時**生效,但 T45 的
@@ -164,6 +175,7 @@ async def upsert_user(
     user = User(
         sub=sub,
         display_name_cache=display_name,
+        notify_email_cache=notify_email,
         status=UserStatus.active if is_bootstrap else UserStatus.pending,
         platform_role=PlatformRole.admin if is_bootstrap else PlatformRole.member,
         activated_at=datetime.now(UTC) if is_bootstrap else None,
@@ -196,7 +208,12 @@ async def get_identity(
 
     settings: Settings = request.app.state.settings
     # §4.2a:快取來源**僅限 name claim**(裁決原文;preferred_username 不在准許範圍)。
-    user = await upsert_user(session, sub, settings, display_name=claims.get("name"))
+    # §4.2b 第 2 條:email **只信 `email_verified=true`**——未驗證的信箱可以是任何人
+    # 打上去的字串,拿它寄信是把「聲稱」當「事實」;false / 缺 claim 一律視同沒有。
+    verified_email = claims.get("email") if claims.get("email_verified") is True else None
+    user = await upsert_user(
+        session, sub, settings, display_name=claims.get("name"), notify_email=verified_email
+    )
     if user.status is UserStatus.disabled:
         raise problems.forbidden("此帳號已被停用,請聯絡平台管理員。")
 

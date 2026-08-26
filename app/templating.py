@@ -17,6 +17,20 @@ from .markdown_lite import render_markdown
 from .version import APP_VERSION
 from .web_urls import web_url
 
+# T102:版本狀態的中文標籤。集中一份——歷史頁、上傳頁、審核佇列都用它,
+# 各寫各的話,同一狀態在兩頁叫不同名字只是時間問題。
+RELEASE_STATUS_LABELS = {
+    "draft": "草稿",
+    "in_review": "審核中",
+    "published": "已發布",
+}
+
+
+def release_status_label(status) -> str:
+    """版本狀態 → 人看的中文;未知值原樣回傳(誠實顯示,不假裝認識)。"""
+    value = getattr(status, "value", status)
+    return RELEASE_STATUS_LABELS.get(value, str(value))
+
 _env = Environment(
     loader=FileSystemLoader(Path(__file__).parent / "templates"),
     autoescape=select_autoescape(["html"]),
@@ -53,5 +67,7 @@ def render(request, template: str, **context) -> str:
         # T77:使用者寫的 Markdown 轉安全 HTML。回傳 Markup,模板照常 {{ }}——
         # 輸入在轉譯器裡已全數逸出,`|safe` 的禁令維持不變(見 markdown_lite.py)。
         render=render_markdown,
+        # T102:版本狀態標籤(草稿/審核中/已發布),單一來源見上方常數。
+        status_label=release_status_label,
         **context,
     )

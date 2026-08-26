@@ -28,13 +28,26 @@
   <h1>{{ release.version }}</h1>
   <p class="muted">
     專案:<a href="{{ url('/projects/' ~ project.slug) }}">{{ project.name }}</a>
-    · 狀態:{{ release.status.value }}
+    · 狀態:{{ status_label(release.status) }}
   </p>
 
   {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
+  {# T102:退回理由要擺在作者眼前——它是作者這一刻最需要的一句話。 #}
+  {% if release.status.value == 'draft' and release.review_note %}
+    <p class="notice review-note">審核未通過,管理員的退回理由:<strong>{{ release.review_note }}</strong>
+      修改後可再次送審。</p>
+  {% endif %}
+
   {% if release.status.value == 'published' %}
     <p class="notice">此版本**已發布**,不可再變更檔案。要調整請建立新版本。</p>
+  {% elif release.status.value == 'in_review' %}
+    {# T102:審核中凍結——不給上傳卡片;要改就先撤回。 #}
+    <p class="notice">此版本<strong>審核中</strong>,等待平台管理員核准;期間不可變更檔案與說明。</p>
+    <form method="post" action="{{ url('/releases/' ~ release.id ~ '/withdraw') }}" class="publish-form">
+      <button type="submit" class="btn btn-quiet">撤回送審</button>
+      <span class="muted">撤回後回到草稿,可修改再重新送審。</span>
+    </form>
   {% else %}
     {#
       T86:三格卡片,一格一類。
@@ -98,19 +111,20 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="muted">還沒有檔案。版本至少要有一個檔案才能發布。</p>
+      <p class="muted">還沒有檔案。版本至少要有一個檔案才能送審。</p>
     {% endif %}
   </section>
 
-  {% if release.status.value != 'published' %}
-    {# T65:發布需三類齊備——缺項列出來、按鈕停用;伺服器端同規則兜底。 #}
+  {% if release.status.value == 'draft' %}
+    {# T65:送審需三類齊備——缺項列出來、按鈕停用;伺服器端同規則兜底。
+       T102:按鈕從「發布」改為「送出審核」——發布是管理員核准後的事。 #}
     {% if missing_kinds %}
-      <p class="notice">發布前每一版必須包含<strong>更新文件、執行檔、原始碼包</strong>各至少一個。
+      <p class="notice">送審前每一版必須包含<strong>更新文件、執行檔、原始碼包</strong>各至少一個。
         目前還缺:<strong>{{ missing_kinds | join('、') }}</strong>。</p>
     {% endif %}
-    <form method="post" action="{{ url('/releases/' ~ release.id ~ '/publish') }}" class="publish-form">
-      <button type="submit" class="btn" {% if not artifacts or missing_kinds %}disabled{% endif %}>發布這個版本</button>
-      <span class="muted">發布後不可再變更檔案。</span>
+    <form method="post" action="{{ url('/releases/' ~ release.id ~ '/submit') }}" class="publish-form">
+      <button type="submit" class="btn" {% if not artifacts or missing_kinds %}disabled{% endif %}>送出審核</button>
+      <span class="muted">送審後由平台管理員核准才會發布;審核期間不可變更檔案。</span>
     </form>
   {% endif %}
 {% endif %}

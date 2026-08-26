@@ -67,7 +67,16 @@ class ProjectRole(enum.StrEnum):
 
 
 class ReleaseStatus(enum.StrEnum):
+    """版本狀態(T102 起三態)。
+
+    T102(Benny 2026-08-26 裁示):**所有版本都要審**——作者只能把 draft 送審,
+    published 只能由平台管理員核准產生。in_review 的可見性與 draft 同一待遇
+    (非成員 404),「最新版」(F26)只認 published。
+    既有已發布版本於 migration 0009 視為已核准,原樣保留。
+    """
+
     draft = "draft"
+    in_review = "in_review"  # 待審:作者已送出,等平台管理員核准/退回
     published = "published"
 
 
@@ -112,6 +121,15 @@ class User(Base):
     # 🔴 claim 可能不存在(name 由 firstName+lastName 推導,皆空則無)→ 本欄為 NULL,
     # 畫面 fallback 到 sub——這是會真的走到的路徑,不是防禦性假設。
     display_name_cache: Mapped[str | None] = mapped_column(String(255), default=None)
+    # T102(契約 §4.2b):通知用信箱快取——僅自本人登入 token、僅 `email_verified=true`
+    # 才落地、每次登入覆寫、只用於寄「待審版本」通知、不顯示於任何頁面、不進 log。
+    # 🔴 **刻意無 unique、無 index**(§4.2b 第 9 條):email 不得作查詢鍵,
+    # 留了索引這個口,快取會慢慢長成第二個使用者索引。清除:tools/purge_notify_email.py。
+    notify_email_cache: Mapped[str | None] = mapped_column(String(255), default=None)
+    # T102(契約 §4.2b 第 4/8 條):待審通知的訂閱開關,**預設關**——
+    # 打開那一下就是條文要的「明示訂閱」,同一顆鈕就是退訂。只有平台管理員用得到,
+    # 但放在 users 上而不是另立表:它就是「這個人要不要收信」一個布林,不值得一張表。
+    review_email_opt_in: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
@@ -219,7 +237,20 @@ class Release(Base):
     )
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # T102 起 `published_at` 的語意=**管理員核准的時刻**(不再是作者按發布的時刻);
+    # F26「最新版」與歷史頁排序沿用本欄,語意換了但排序自動一致。
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # --- T102 審核欄位 ---
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # 核准/退回者。⚠ 0009 之前的 published 列此欄為 NULL=「上線前發布,當年沒人審過」
+    # ——誠實留白,不偽造審核紀錄。
+    reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, default=None
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # 退回理由(Benny 裁示:退回必填)。存在版本列上給作者看;
+    # 🔴 不進稽核——AuditEvent 的 target_label 不收使用者自由文字。重送時清空。
+    review_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="releases")
     # 🐛 根本原因(T50):原本是預設的 lazy="select",序列化 ReleaseOut 時才去碰 artifacts,

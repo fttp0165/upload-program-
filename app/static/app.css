@@ -780,6 +780,37 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 }
 .version-hint-list li { display: flex; align-items: center; gap: .25rem; }
 
+/* T100:查看權限區塊(成員清單與候選清單)。
+   每一列是「名字 + 角色 + 一個小表單」,所以用 flex 而不是表格
+   —— 表格裡塞 <form> 在窄欄位下會擠爆。 */
+.member-title { font-size: .95rem; margin: 1rem 0 .35rem; }
+.member-list { list-style: none; margin: 0; padding: 0; }
+.member-list li {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .35rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: .9rem;
+}
+.member-list form { display: inline; margin: 0; }
+.member-name { font-weight: 600; color: var(--fg-strong); }
+.inline-form { display: flex; align-items: flex-end; gap: .5rem; flex-wrap: wrap; }
+.btn-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--green);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link:hover { color: var(--ink); }
+.btn-sm { padding: .35rem .9rem; font-size: .85rem; }
+.small { font-size: .8rem; }
+
 /* --- 麵包屑(T61,Bootstrap breadcrumb 佈景成本站配色) --- */
 
 .breadcrumb { font-size: .85rem; margin: 0 0 .4rem; }

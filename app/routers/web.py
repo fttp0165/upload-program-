@@ -30,6 +30,7 @@ from ..dashboard import (
     collect_todos,
     human_bytes,
 )
+from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
     AuditEvent,
     Project,
@@ -322,7 +323,11 @@ async def create_project_form(
 
 @router.get("/projects/{slug}", summary="專案頁")
 async def project_page(
-    slug: str, request: Request, session: DbSession, identity: OptionalUser
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    member_q: Annotated[str, Query(max_length=64)] = "",
 ) -> Response:
     """專案頁:資訊 + **最新已發布版本置頂**(F72)。
 
@@ -355,6 +360,16 @@ async def project_page(
     project = await get_project(session, slug)
     await require_project_read(session, project, identity)
 
+    # T100:只有擁有者(或平台管理員)看得到「查看權限」區塊。
+    # 🔴 與 API 同一條界線:成員異動是 owner 的職權;maintainer 能發版但不能改誰看得到。
+    can_manage = project.owner_id == identity.user.id or identity.user.is_admin
+    members = await project_members(session, project) if can_manage else []
+    candidates = (
+        await search_active_users(session, member_q, exclude={m["user_id"] for m in members})
+        if can_manage
+        else []
+    )
+
     # `latest_published_release()` 沿用 T35 的判定(以 published_at、draft 不算);
     # 它在「尚未發布任何版本」時拋 404,但那對網頁不是錯誤,接起來改成提示。
     try:
@@ -366,6 +381,10 @@ async def project_page(
         render(
             request,
             "project.html",
+            can_manage=can_manage,
+            members=members,
+            candidates=candidates,
+            member_q=member_q,
             identity=identity,
             project=project,
             release=release,
@@ -383,6 +402,95 @@ async def project_page(
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
         )
     )
+
+
+@router.post("/projects/{slug}/visibility", summary="改可見性(誰看得到)")
+async def set_visibility(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    visibility: Annotated[str, Form()] = "",
+) -> Response:
+    """切換 internal / private。
+
+    參數:slug、visibility 表單值。回傳:303 回專案頁。
+    副作用:改 `projects.visibility` + 一筆稽核。
+
+    🔴 這個動作改變的是「誰看得到」,所以**必須留痕**:事後問「這個專案什麼時候
+    變成全公司可見的」,沒有紀錄就等於沒有答案。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    # 🔴 與 API 同一條界線:owner(admin 視同 owner)才能改誰看得到。
+    await require_project_role(session, project, identity, ProjectRole.owner)
+
+    try:
+        wanted = Visibility(visibility)
+    except ValueError:
+        return _redirect(request, f"/projects/{slug}?error=bad-visibility")
+
+    if wanted is not project.visibility:
+        project.visibility = wanted
+        record(
+            session,
+            action=AuditAction.project_set_visibility,
+            actor_id=identity.user.id,
+            target_type="project",
+            target_id=project.id,
+            target_label=f"{project.slug}:{wanted.value}",
+        )
+        await session.commit()
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/members", summary="加入或調整成員(誰看得到)")
+async def add_member_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    user_id: Annotated[str, Form()] = "",
+    role: Annotated[str, Form()] = "viewer",
+) -> Response:
+    """把某人加進專案(或調整角色)。
+
+    參數:slug、user_id、role。回傳:303 回專案頁。副作用:見 `members.set_member()`。
+
+    規則與稽核都在 `app/members.py` —— 網頁不另寫一套(兩套權限規則遲早分岔)。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.owner)
+
+    try:
+        wanted_role = ProjectRole(role)
+    except ValueError:
+        return _redirect(request, f"/projects/{slug}?error=bad-role")
+    # 🔴 owner 不從這裡指派:那會產生「沒有 owner 的專案」,而權限判斷全靠 owner。
+    if wanted_role is ProjectRole.owner:
+        return _redirect(request, f"/projects/{slug}?error=owner-transfer-only")
+
+    await set_member(session, project, identity.user, parse_uuid(user_id, "成員"), wanted_role)
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/members/{user_id}/remove", summary="移除成員")
+async def remove_member_form(
+    slug: str, user_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """移除成員。private 專案的人被移除後就看不到了 —— 這正是本功能的意義。
+
+    參數:slug、user_id。回傳:303 回專案頁。副作用:見 `members.remove_member()`。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.owner)
+    await remove_member(session, project, identity.user, parse_uuid(user_id, "成員"))
+    return _redirect(request, f"/projects/{slug}")
 
 
 @router.get("/projects/{slug}/releases", summary="專案歷史(版本列表)")

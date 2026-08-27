@@ -96,6 +96,85 @@
   </div>
 
   <div class="col-lg-4">
+  {#
+    T100:查看權限(只有擁有者 / 平台管理員看得到這一段)。
+    🔴 純 HTML,沒有 JS:搜尋是一個 **GET 表單**回本頁(`?member_q=`),
+       候選清單每筆兩個 POST 按鈕。CSP `default-src 'self'` 擋 inline script,
+       而本專案的表單一律零 JS(T44 的決定)。
+    🔴 這一段**不顯示任何 email**(契約 §4.2a L1b 第 14 條)。
+  #}
+  {% if can_manage %}
+  <section class="project-info">
+    <h2>查看權限</h2>
+
+    <form method="post" action="{{ url('/projects/' ~ project.slug ~ '/visibility') }}" class="inline-form">
+      <label>
+        <span>誰看得到這個專案</span>
+        <select name="visibility">
+          <option value="internal" {% if project.visibility.value == 'internal' %}selected{% endif %}>
+            internal —— 所有已開通同仁可看
+          </option>
+          <option value="private" {% if project.visibility.value == 'private' %}selected{% endif %}>
+            private —— 僅下列成員可看
+          </option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-sm">儲存</button>
+    </form>
+    <p class="muted small">平台管理員一律看得到所有專案(稽核與維運需要)。</p>
+
+    <h3 class="member-title">成員</h3>
+    <ul class="member-list">
+      {% for m in members %}
+        <li>
+          <span class="member-name" title="{{ m.sub }}">
+            {{ m.display_name or (m.sub[:8] ~ '…') }}
+          </span>
+          <span class="badge">{{ m.role.value }}</span>
+          {% if not m.is_owner %}
+            <form method="post" action="{{ url('/projects/' ~ project.slug ~ '/members/' ~ m.user_id ~ '/remove') }}">
+              <button type="submit" class="btn-link">移除</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    <h3 class="member-title">加入成員</h3>
+    <form method="get" action="{{ url('/projects/' ~ project.slug) }}" class="inline-form">
+      <label>
+        <span>搜尋名字</span>
+        <input type="search" name="member_q" value="{{ member_q or '' }}" maxlength="64"
+               placeholder="輸入姓名片段">
+      </label>
+      <button type="submit" class="btn btn-sm">搜尋</button>
+    </form>
+
+    {% if member_q and member_q.strip() %}
+      {% if candidates %}
+        <ul class="member-list">
+          {% for c in candidates %}
+            <li>
+              <span class="member-name" title="{{ c.sub }}">
+                {{ c.display_name or (c.sub[:8] ~ '…') }}
+              </span>
+              <form method="post" action="{{ url('/projects/' ~ project.slug ~ '/members') }}">
+                <input type="hidden" name="user_id" value="{{ c.user_id }}">
+                <button type="submit" name="role" value="viewer" class="btn-link">加為可看</button>
+                <button type="submit" name="role" value="maintainer" class="btn-link">加為可發布</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted small">找不到符合的已開通帳號(對方需先登入過一次)。</p>
+      {% endif %}
+    {% else %}
+      <p class="muted small">最多顯示 5 筆;只找得到**已開通**的帳號。</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="project-info">
     <h2>專案資訊</h2>
     <dl class="info-grid">

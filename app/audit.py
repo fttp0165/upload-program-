@@ -50,6 +50,10 @@ class AuditAction(enum.StrEnum):
     project_delete = "project.delete"
     project_transfer_owner = "project.transfer_owner"
     project_set_quota = "project.set_quota"
+    # T100:發布者自行改可見性(internal ↔ private)。
+    # 🔴 這個動作會改變「誰看得到」,所以它必須留痕 —— 事後問「這個專案什麼時候
+    #    變成公開的」時,沒有紀錄就等於沒有答案。
+    project_set_visibility = "project.set_visibility"
     member_set = "member.set"
     member_remove = "member.remove"
 

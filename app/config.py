@@ -101,6 +101,15 @@ class Settings(BaseSettings):
     max_project_extended_bytes: int = 10 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096
 
+
+    # --- 寄信(T99:問題回報通知管理員)---
+    # 🔴 預設 **false**:沒設好 SMTP 就完全不寄,而不是每次有人回報都在 log 噴錯。
+    # 🔴 收件地址來自 §4.2a L1b 的 `notify_email` 快取,只寄給**有已驗證信箱的管理員**。
+    mail_enabled: bool = Field(default=False, description="是否寄送回報通知信")
+    smtp_host: str = Field(default="", description="公司內部 relay 主機(不需帳密)")
+    smtp_port: int = Field(default=25, description="SMTP port")
+    mail_from: str = Field(default="upload-program@sporton.com.tw", description="寄件者")
+
     # --- 稽核紀錄(F54 / T38)---
     # 🔴 保留期是 T37 承諾的一部分:當時刻意不做下載事件表,理由是「誰下載了什麼」
     # 屬於稽核,而稽核「有自己的保存期限與存取權限」。沒有保留期的話,那就只是

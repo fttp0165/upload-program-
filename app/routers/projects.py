@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import problems
 from ..audit import AuditAction, record
+from ..members import remove_member, set_member
 from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User
 from ..queries import query_projects
 from ..quota import limit_for
@@ -119,7 +120,16 @@ async def update_project(
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.maintainer)
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    # 🔴 T101 修正一條**內容外洩路徑**:本端點只要 maintainer,而 `ProjectUpdate`
+    # 含 `visibility` —— 於是 maintainer 打一次 API 就能把 private 專案改成全公司可見,
+    # 繞過 T100 剛把可見性定為 owner 專屬的介面。
+    # 🔴 這是**收窄**權限:唯一的行為變化是「maintainer 用 API 改可見性」從成功變 403,
+    #    而那正是該被擋掉的事。name / summary 維持 maintainer 可改。
+    if "visibility" in changes:
+        await require_project_role(session, project, identity, ProjectRole.owner)
+
+    for field, value in changes.items():
         setattr(project, field, value)
     await session.commit()
     await session.refresh(project)
@@ -359,38 +369,12 @@ async def put_member(
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.owner)
 
-    if payload.user_id == project.owner_id:
-        raise problems.conflict("擁有者的角色不能在成員清單調整;請先轉移擁有權。")
-
-    user = (
-        await session.execute(select(User).where(User.id == payload.user_id))
-    ).scalar_one_or_none()
-    if user is None:
-        raise problems.not_found("找不到該使用者(對方需先登入過一次才會有帳號)")
-
-    member = (
-        await session.execute(
-            select(ProjectMember).where(
-                ProjectMember.project_id == project.id, ProjectMember.user_id == user.id
-            )
-        )
-    ).scalar_one_or_none()
-    if member is None:
-        member = ProjectMember(project_id=project.id, user_id=user.id, role=payload.role)
-        session.add(member)
-    else:
-        member.role = payload.role
-    record(
-        session,
-        action=AuditAction.member_set,
-        actor_id=identity.user.id,
-        target_type="project",
-        target_id=project.id,
-        # 🔴 label 存的是**被異動的成員 id 與角色**,不是姓名——業務庫本來就沒有姓名。
-        target_label=f"{project.slug}:{user.id}:{payload.role.value}",
-    )
-    await session.commit()
-    await session.refresh(member)
+    # T100:成員異動的規則只有一份(`app/members.py`),API 與網頁共用。
+    # 🔴 網頁自己寫一套的話就有兩套權限規則,而兩套遲早分岔 —— 那是 private 專案
+    #    外洩的典型起點。授權仍在上面那行 `require_project_role`(它也處理
+    #    「admin 視同 owner」與「private 非成員 404 不 403」)。
+    member = await set_member(session, project, identity.user, payload.user_id, payload.role)
+    user = (await session.execute(select(User).where(User.id == payload.user_id))).scalar_one()
     return MemberOut(
         user_id=user.id, sub=user.sub, role=member.role, created_at=member.created_at
     )
@@ -407,25 +391,6 @@ async def delete_member(
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.owner)
 
-    member = (
-        await session.execute(
-            select(ProjectMember).where(
-                ProjectMember.project_id == project.id,
-                ProjectMember.user_id == parse_uuid(user_id, "成員"),
-            )
-        )
-    ).scalar_one_or_none()
-    if member is None:
-        raise problems.not_found("該使用者不是本專案成員")
-    member_user_id = member.user_id
-    await session.delete(member)
-    record(
-        session,
-        action=AuditAction.member_remove,
-        actor_id=identity.user.id,
-        target_type="project",
-        target_id=project.id,
-        target_label=f"{project.slug}:{member_user_id}",
-    )
-    await session.commit()
+    # T100:同上,共用 `app/members.py`(含「不是成員就 404」與稽核、commit)。
+    await remove_member(session, project, identity.user, parse_uuid(user_id, "成員"))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

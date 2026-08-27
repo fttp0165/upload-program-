@@ -17,7 +17,17 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -25,11 +35,20 @@ from sqlalchemy.orm import selectinload
 from .. import problems
 from ..audit import AuditAction, record
 from ..filetypes import sniff
-from ..models import Issue, IssueAttachment, IssueComment, IssueStatus
+from ..models import (
+    Issue,
+    IssueAttachment,
+    IssueComment,
+    IssueStatus,
+    PlatformRole,
+    User,
+    UserStatus,
+)
 from ..security import DbSession, OptionalUser
 from ..storage import TooLarge
 from ..templating import render
 from ..version import APP_VERSION
+from ..web_urls import web_url
 from .web import _login_redirect, _redirect
 
 router = APIRouter(include_in_schema=False, tags=["issues"])
@@ -99,9 +118,57 @@ async def new_issue_form(request: Request, identity: OptionalUser) -> Response:
     )
 
 
+async def _notify_admins(request: Request, session, background: BackgroundTasks, issue) -> None:
+    """把新回報通知每一位**有已驗證信箱**的平台管理員(T99)。
+
+    參數:request(取 settings / mailer)、session、background、issue。
+    回傳:None。副作用:排一個背景任務寄信(不在本函式內連線 SMTP)。
+
+    🔴 **信件內容刻意不含回報全文**:信箱不是稽核紀錄,而使用者可能在描述裡
+       貼上截圖說明、路徑、甚至客戶資訊。信裡只放標題 + 直達連結,
+       要看內容請登入 —— 那條路上有權限判斷,信箱沒有。
+    🔴 **一人一封**:不用 To 塞多人,管理員彼此看得到對方的信箱是沒必要的外洩面。
+    🔴 收件地址**不進 log**(L1b 第 5 條),所以這裡連「寄給誰」都不記。
+    """
+    mailer = request.app.state.mailer
+    if not mailer.enabled:
+        return
+
+    settings = request.app.state.settings
+    rows = (
+        (
+            await session.execute(
+                select(User.notify_email).where(
+                    User.platform_role == PlatformRole.admin,
+                    User.status == UserStatus.active,
+                    User.notify_email.is_not(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return
+
+    link = f"{settings.external_base}{web_url(settings, f'/issues/{issue.id}')}"
+    subject = f"[upload-program] 新的問題回報:{issue.title[:80]}"
+    body = (
+        "有人在 upload-program 送出問題回報。\n\n"
+        f"標題:{issue.title}\n"
+        f"版本:{issue.app_version}\n"
+        f"發生頁面:{issue.page_url or '(未提供)'}\n\n"
+        f"內容請到平台查看(需登入):\n{link}\n\n"
+        "—— 本信由系統自動寄出,請勿直接回覆。"
+    )
+    for address in rows:
+        background.add_task(mailer.send, address, subject, body)
+
+
 @router.post("/issues/new", summary="回報問題(送出)")
 async def create_issue(
     request: Request,
+    background: BackgroundTasks,
     session: DbSession,
     identity: OptionalUser,
     title: Annotated[str, Form()] = "",
@@ -150,6 +217,12 @@ async def create_issue(
         target_label=issue.title[:255],
     )
     await session.commit()
+
+    # T99:通知管理員。
+    # 🔴 在 **commit 之後**、用 BackgroundTasks 排到**回應之後**才寄:
+    #    使用者的回應不等 SMTP,而寄信失敗絕不能讓已經寫進 DB 的回報看起來像失敗
+    #    (Benny 2026-08-25 裁示 + 契約 §4.2a L1b 第 16 條)。
+    await _notify_admins(request, session, background, issue)
     return _redirect(request, f"/issues/{issue.id}")
 
 

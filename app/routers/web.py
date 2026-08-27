@@ -30,6 +30,7 @@ from ..dashboard import (
     collect_todos,
     human_bytes,
 )
+from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
     AuditEvent,
     Project,
@@ -43,12 +44,13 @@ from ..models import (
 )
 from ..queries import query_projects, query_releases
 from ..quota import project_limit
-from ..schemas import ProjectCreate, ReleaseCreate
+from ..schemas import ProjectCreate, ProjectUpdate, ReleaseCreate
 from ..security import (
     DbSession,
     OptionalUser,
     get_project,
     parse_uuid,
+    project_role,
     require_admin,
     require_project_read,
     require_project_role,
@@ -322,7 +324,11 @@ async def create_project_form(
 
 @router.get("/projects/{slug}", summary="專案頁")
 async def project_page(
-    slug: str, request: Request, session: DbSession, identity: OptionalUser
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    member_q: Annotated[str, Query(max_length=64)] = "",
 ) -> Response:
     """專案頁:資訊 + **最新已發布版本置頂**(F72)。
 
@@ -355,6 +361,19 @@ async def project_page(
     project = await get_project(session, slug)
     await require_project_read(session, project, identity)
 
+    # T100:只有擁有者(或平台管理員)看得到「查看權限」區塊。
+    # 🔴 與 API 同一條界線:成員異動是 owner 的職權;maintainer 能發版但不能改誰看得到。
+    can_manage = project.owner_id == identity.user.id or identity.user.is_admin
+    # T101:改標題 / 簡介是 maintainer 的職權(與 API 同線);改「誰看得到」是 owner 的。
+    member_role = await project_role(session, project, identity.user)
+    can_edit = can_manage or member_role is ProjectRole.maintainer
+    members = await project_members(session, project) if can_manage else []
+    candidates = (
+        await search_active_users(session, member_q, exclude={m["user_id"] for m in members})
+        if can_manage
+        else []
+    )
+
     # `latest_published_release()` 沿用 T35 的判定(以 published_at、draft 不算);
     # 它在「尚未發布任何版本」時拋 404,但那對網頁不是錯誤,接起來改成提示。
     try:
@@ -366,6 +385,11 @@ async def project_page(
         render(
             request,
             "project.html",
+            can_manage=can_manage,
+            can_edit=can_edit,
+            members=members,
+            candidates=candidates,
+            member_q=member_q,
             identity=identity,
             project=project,
             release=release,
@@ -383,6 +407,159 @@ async def project_page(
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
         )
     )
+
+
+@router.post("/projects/{slug}/edit", summary="改專案標題與簡介")
+async def edit_project_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    name: Annotated[str, Form()] = "",
+    summary: Annotated[str, Form()] = "",
+) -> Response:
+    """改標題與簡介(maintainer 以上,與 API 同一條界線)。
+
+    參數:slug、name、summary。回傳:303 回專案頁;驗證失敗回 200 顯示錯誤。
+    副作用:改 `projects.name/summary` + 一筆稽核。
+
+    🔴 **短名(slug)刻意不可改**:它在網址裡,而本平台沒有轉址 ——
+    改它會讓別人已經貼出去的連結直接死掉(T96 已載明這個代價)。
+    🔴 **可見性不在這裡**:那是 owner 的職權(T100),走 `/visibility`。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.maintainer)
+
+    # 驗證沿用 API 的同一份 schema,介面不得比它寬鬆。
+    try:
+        payload = ProjectUpdate(name=name.strip(), summary=summary.strip())
+    except Exception as exc:
+        return HTMLResponse(
+            render(
+                request,
+                "project.html",
+                identity=identity,
+                project=project,
+                release=None,
+                quota_bytes=project_limit(request.app.state.settings, project),
+                can_manage=project.owner_id == identity.user.id or identity.user.is_admin,
+                can_edit=True,
+                members=await project_members(session, project),
+                candidates=[],
+                member_q="",
+                error=f"欄位不正確:{exc}",
+                latest_url=lambda filename: "",
+                download_url=lambda artifact: "",
+                tag_url=lambda tag_name: "",
+            ),
+            status_code=200,
+        )
+
+    before = project.name
+    project.name = payload.name
+    project.summary = payload.summary or ""
+    record(
+        session,
+        action=AuditAction.project_update,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        # 舊名字放進 label:業務庫只留最新值,「以前叫什麼」只有稽核回答得出來。
+        target_label=f"{project.slug}:{before} → {payload.name}",
+    )
+    await session.commit()
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/visibility", summary="改可見性(誰看得到)")
+async def set_visibility(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    visibility: Annotated[str, Form()] = "",
+) -> Response:
+    """切換 internal / private。
+
+    參數:slug、visibility 表單值。回傳:303 回專案頁。
+    副作用:改 `projects.visibility` + 一筆稽核。
+
+    🔴 這個動作改變的是「誰看得到」,所以**必須留痕**:事後問「這個專案什麼時候
+    變成全公司可見的」,沒有紀錄就等於沒有答案。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    # 🔴 與 API 同一條界線:owner(admin 視同 owner)才能改誰看得到。
+    await require_project_role(session, project, identity, ProjectRole.owner)
+
+    try:
+        wanted = Visibility(visibility)
+    except ValueError:
+        return _redirect(request, f"/projects/{slug}?error=bad-visibility")
+
+    if wanted is not project.visibility:
+        project.visibility = wanted
+        record(
+            session,
+            action=AuditAction.project_set_visibility,
+            actor_id=identity.user.id,
+            target_type="project",
+            target_id=project.id,
+            target_label=f"{project.slug}:{wanted.value}",
+        )
+        await session.commit()
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/members", summary="加入或調整成員(誰看得到)")
+async def add_member_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    user_id: Annotated[str, Form()] = "",
+    role: Annotated[str, Form()] = "viewer",
+) -> Response:
+    """把某人加進專案(或調整角色)。
+
+    參數:slug、user_id、role。回傳:303 回專案頁。副作用:見 `members.set_member()`。
+
+    規則與稽核都在 `app/members.py` —— 網頁不另寫一套(兩套權限規則遲早分岔)。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.owner)
+
+    try:
+        wanted_role = ProjectRole(role)
+    except ValueError:
+        return _redirect(request, f"/projects/{slug}?error=bad-role")
+    # 🔴 owner 不從這裡指派:那會產生「沒有 owner 的專案」,而權限判斷全靠 owner。
+    if wanted_role is ProjectRole.owner:
+        return _redirect(request, f"/projects/{slug}?error=owner-transfer-only")
+
+    await set_member(session, project, identity.user, parse_uuid(user_id, "成員"), wanted_role)
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/members/{user_id}/remove", summary="移除成員")
+async def remove_member_form(
+    slug: str, user_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """移除成員。private 專案的人被移除後就看不到了 —— 這正是本功能的意義。
+
+    參數:slug、user_id。回傳:303 回專案頁。副作用:見 `members.remove_member()`。
+    """
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    project = await get_project(session, slug)
+    await require_project_role(session, project, identity, ProjectRole.owner)
+    await remove_member(session, project, identity.user, parse_uuid(user_id, "成員"))
+    return _redirect(request, f"/projects/{slug}")
 
 
 @router.get("/projects/{slug}/releases", summary="專案歷史(版本列表)")

@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-25 11:30
-<strong>版本:</strong> v1.79</p>
+<strong>最後更新:</strong> 2026-08-27 07:05
+<strong>版本:</strong> v1.80</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-25 11:30)</h2>
-<p>任務 99 項:<strong>✅ 94 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-27 07:05)</h2>
+<p>任務 100 項:<strong>✅ 94 / 🔵 2 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>574 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -676,6 +676,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「專案標題與內容 發布者都可以編輯」;專案頁新增「編輯專案」區塊(標題 + 內容,<strong>maintainer 以上</strong>,與 API 同一條界線),驗證沿用 <code>ProjectUpdate</code>(介面不得比 schema 寬鬆);🔴 <strong>本任務真正的價值是施工前讀 API 時發現的一條外洩路徑</strong>:<code>PATCH /v1/projects/{slug}</code> 只要 maintainer,而 <code>ProjectUpdate</code> <strong>含 <code>visibility</code></strong> —— T100 昨天把「誰看得到」定為 owner 專屬<strong>但只在介面與 web 路由上</strong>,於是 <strong>maintainer 打一次 API 就能把 private 專案改成全公司可見</strong>;T100 的計畫書寫過「介面比 API 寬鬆等於開第二套規則」,這次是<strong>反過來:API 比介面寬鬆,而寬的那邊才是真正生效的那邊</strong>;修法是 PATCH 收到 <code>visibility</code> 時要求 owner(<strong>收窄</strong>,唯一行為變化是那條路徑從成功變 403),三條測試(maintainer 403 / owner 200 / 只收窄 visibility 不連坐 name);新增稽核 <code>project.update</code>(業務庫只留最新值,「以前叫什麼」只有稽核答得出來);🔴 <strong>短名刻意不可改</strong>(在網址裡、平台無轉址,改了會讓已分享的連結死掉,T96 已載明),畫面明寫這句而不是讓人試了才發現;🔴 <strong>可見性不放進這張表單</strong>(混兩種權限遲早被一起放寬);⚠ 施工中兩個小坑都被抓到:<code>project_limit</code> 參數順序寫反(測試當場紅)、瀏覽器看不到新區塊其實是<strong>舊 devserver 程序在跑舊程式碼</strong>(下次先確認跑的是新版);<strong>8 條新增(5 紅→綠,其中「maintainer 不能用 API 改可見性」一開始是紅的 —— 那條路徑當時真的是通的),全套 574</strong></td>
 </tr>
 <tr>
+<td>T102</td>
+<td>base image 改全量升級 + 驗證無殘留</td>
+<td>🔵</td>
+<td>🟢</td>
+<td>T101 那輪 CI:測試/lint/文件 ✅(574)、image/non-root/冒煙 ✅,<strong>只有 Trivy 紅</strong> —— <code>libssl3t64</code> / <code>openssl</code> / <code>openssl-provider-legacy</code> 的 <strong>CVE-2026-14456</strong>(OpenSSL QUIC server 記憶體無上限成長 → DoS),3.5.6-1~deb13u2 → 修版 3.5.7-1~deb13u2;🔴 <strong>根因不是這支 CVE,是 T93 的白名單設計在收費</strong>:T93 明列八個 util-linux 套件並在 dev-log 寫「日後其他來源的 CVE 就再開一個任務、再加一行」——<strong>三天後就來了第二次</strong>,而 base image 的 CVE 是<strong>持續發生的環境漂移不是偶發事件</strong>;每支新 CVE 都要改程式 + 一輪 CI + 一個任務編號,而 🔴 <strong>常態紅燈的下一步是「先合併再說」,那才是真正的風險</strong>;改為 <code>apt-get upgrade -y</code> 全量升級,並<strong>保留 T93 最有價值的那一半:驗證不相信離開碼</strong> —— 形式從「比對某個版本號」換成「<strong>升級後不得還有可升級的套件</strong>」(<code>apt-get -s upgrade</code> 的 <code>Inst</code> 計數必須為 0),不必知道有哪些 CVE、不必維護清單,同樣擋得住 T93 第五輪那個「apt 回 0 卻什麼都沒做」的無聲失敗;⚠ <strong>誠實記下放棄的東西</strong>:「diff 上看得見升了哪些套件」不再成立(要看 build log)——這是交換不是忽略;<strong>不寫新測試</strong>(第三條 4,同 T93/T98):CI 建置環境無法在本機重現,宣稱測過會是假的;<strong>狀態 🔵:CI 綠才轉 ✅</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1003,6 +1010,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.80</td>
+<td>2026-08-27 07:05</td>
+<td>Claude(CI 紅)</td>
+<td><strong>新開 T102(🔵)</strong>:Trivy 又紅 —— openssl CVE-2026-14456。🔴 根因是 <strong>T93 的白名單設計</strong>:三天內第二次「為一支新 CVE 改一行 + 跑一輪 CI + 開一個任務」,而 base image 的 CVE 是持續漂移。改為全量 <code>apt-get upgrade</code> 並把驗證從「比對版本號」換成「<strong>升級後不得還有可升級套件</strong>」;⚠ 放棄的是「diff 上看得見升了什麼」,這是交換不是忽略</td>
+</tr>
 <tr>
 <td>v1.79</td>
 <td>2026-08-25 11:30</td>

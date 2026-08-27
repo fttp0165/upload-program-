@@ -32,54 +32,37 @@ ENV PYTHONUNBUFFERED=1 \
 # 🔴 non-root:UID 1000
 RUN useradd -m -u 1000 app
 
-# 🔴 T93(2026-08-24):升級 base image 帶來的 util-linux 系列套件。
+# 🔴 T102(2026-08-27):**全量升級 OS 套件**,並驗證升級後沒有殘留。
 #
-# 為什麼要在這裡動 apt,而檔頭寫著「apt 不可達」:
-# **那則紀錄已經過期。** 2026-08-24 在 CI 上實測(診斷步驟,見 dev-log T93)得到
-# `APT_OK` —— 網路條件與 2026-07-30 run #85 當時不同了。憲法第二條 5:發現計畫與
-# 現實不符要回寫,不是繼續照著錯的前提做決定。
+# 歷史(讀這段之前先知道它換掉了什麼):
+# - T93(08-24)為了修 util-linux 的 36 條 HIGH,選擇**明列八個套件**升級,
+#   理由是「明列讓『這次修了什麼』在 diff 上看得見」。
+# - ⚠ **三天後就來了第二次**(openssl CVE-2026-14456,3 條 HIGH)。
+#   白名單的代價於是現形:**每一支新 CVE 都要改程式、跑一輪 CI、開一個任務編號**,
+#   而 base image 的 CVE 是**持續發生的環境漂移**,不是偶發事件。
+#   🔴 常態紅燈的下一步是「先合併再說」—— 那才是真正的風險。
+# - 所以改為全量升級。**放棄的是「diff 上看得見升了什麼」**(現在要看 build log),
+#   換到的是不必逐支追 CVE。這是交換,不是忽略。
 #
-# 為什麼非升級不可:Trivy(`--severity HIGH,CRITICAL --ignore-unfixed`)在
-# base image `python:3.12-slim`(建立於 **2026-07-14**,`--pull` 後仍是同一個 digest
-# → 上游未重建)裡抓到 **36 條 HIGH,全部來自 src:util-linux**:
-#   CVE-2026-53612/53613 mount 的 TOCTOU、53614 SUID mount 繞過 nosuid/noexec、
-#   53615 libblkid 整數溢位。Installed 2.41-5 → Debian 修版 2.41.5-0+deb13u1。
-# 🔴 **不用 `.trivyignore` 換綠燈**(T82 立下的界線:本服務散布可執行檔,
-#    調鬆掃描是拿紅線換方便),也不等上游重建(那會讓這批改動無限期不能上線)。
-#
-# 套件清單為什麼寫死而不是 `apt-get upgrade`:這八個就是 Trivy 表列出的全部,
-# 明列讓「這次修了什麼」在 diff 上看得見;`upgrade` 會把不相關的套件一起動,
-# 出問題時分不出是誰。日後其他來源的 CVE 就再開一個任務、再加一行。
-# 🔴 在 `USER app` **之前**(apt 需要 root),裝完刪 lists 不留快取。
-#
-# 🔴 **升級必須當場驗證,不能只相信 apt 的離開碼**(2026-08-24 第四輪的教訓):
-# 實測 `apt-get` 回 0、build 一路過關,而 image 裡仍是舊版 2.41-5
-# ——**它靜靜地什麼都沒做**,然後由 Trivy 在下一步才告發,看起來像掃描的問題。
-#
-# 🔴 而重試要以**版本**為判準,不是 apt 的離開碼(2026-08-24 第五輪的教訓):
-# 同一個 commit、同樣的旗標、相隔 4 秒的兩次建置結果相反 —— 一次沒升級、一次升級了。
-# 根因是 `deb.debian.org` 是 CDN,節點之間的 Packages 索引**不一致**:抽到還沒同步
-# security 更新的節點,`apt-get install --only-upgrade` 就會回 0 而什麼都不做。
-# 🔴 **沒有這裡的版本檢查,那次就會產生一個未修補的 image 而 CI 全綠。**
-# 版本比較用 `dpkg --compare-versions ge`,不寫死等於某一版 —— Debian 之後再出
-# 新修版時不必回來改這裡(寫死會讓「更新的版本」被誤判成不合格)。
-RUN FIXED=2.41.5-0+deb13u1 \
-    && for attempt in 1 2 3; do \
-         apt-get update \
-         && apt-get install -y --no-install-recommends --only-upgrade \
-            util-linux mount login bsdutils \
-            libblkid1 libmount1 libsmartcols1 libuuid1 liblastlog2-2 ; \
-         INSTALLED=$(dpkg-query -W -f='${Version}' util-linux); \
-         if dpkg --compare-versions "$INSTALLED" ge "$FIXED"; then break; fi; \
-         echo "第 ${attempt} 次沒拿到修版(現在 ${INSTALLED},需要 >= ${FIXED})——換節點重試"; \
-         rm -rf /var/lib/apt/lists/*; \
-         sleep 5; \
-       done \
+# 🔴 保留 T93 最有價值的那一半:**驗證,不相信離開碼**。
+#    T93 第五輪實測過 `apt-get` 回 0 而什麼都沒升級(Debian CDN 節點的 Packages
+#    索引不一致),那次就是靠驗證擋下來的 —— 沒有它,一個未修補的 image 會帶著
+#    全綠的 CI 上線。驗證的形式從「比對某個版本號」換成
+#    **「升級後不得還有可升級的套件」**:不必知道有哪些 CVE、不必維護清單。
+# 🔴 在 `USER app` 之前(apt 需要 root),裝完刪 lists 不留快取。
+RUN for attempt in 1 2 3; do \
+        apt-get update && apt-get upgrade -y --no-install-recommends && break; \
+        echo "第 ${attempt} 次 apt 失敗或未完成,清 lists 換節點重試"; \
+        rm -rf /var/lib/apt/lists/*; \
+        sleep 5; \
+    done \
     && rm -rf /var/lib/apt/lists/* \
-    && INSTALLED=$(dpkg-query -W -f='${Version}' util-linux) \
-    && echo "util-linux 最終版本:${INSTALLED}" \
-    && { dpkg --compare-versions "$INSTALLED" ge "$FIXED" \
-         || { echo "::error::util-linux 仍是 ${INSTALLED},未達修版 ${FIXED}(CVE-2026-53612~53615)"; exit 1; }; }
+    && apt-get update \
+    && REMAINING=$(apt-get -s upgrade | grep -c '^Inst ' || true) \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "升級後仍可升級的套件數:${REMAINING}" \
+    && { [ "${REMAINING}" = "0" ] \
+         || { echo "::error::OS 套件升級未完成,仍有 ${REMAINING} 個可升級 —— 拒絕產生這個 image"; exit 1; }; }
 
 COPY --from=builder /opt/venv /opt/venv
 

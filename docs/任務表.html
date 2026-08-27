@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-25 10:40
-<strong>版本:</strong> v1.78</p>
+<strong>最後更新:</strong> 2026-08-25 11:30
+<strong>版本:</strong> v1.79</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-25 10:40)</h2>
-<p>任務 98 項:<strong>✅ 93 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>566 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-25 11:30)</h2>
+<p>任務 99 項:<strong>✅ 94 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>574 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -669,6 +669,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「發布者可以設定使用者查看權限」+「ADMIN 則都可以看到」,裁示<strong>輸入名字搜尋</strong> + <strong>沿用三種角色</strong>;獨立計畫書 <a href="plans/設計_專案查看權限管理.md">設計_專案查看權限管理</a> v1.1;🔴 <strong>盤點出兩件事決定了任務形狀</strong>:①權限模型與 API 早就齊備(<code>visibility</code> / <code>ProjectMember</code> / <code>require_project_read</code> / 成員 API / 稽核字彙),<strong>缺的只是介面</strong> —— 從零設計會做出第二套規則而兩套遲早分岔,那是 private 專案外洩的起點,所以把邏輯抽成 <code>app/members.py</code> 讓 <strong>API 與網頁共用一份</strong>(API 那份重複的程式碼直接刪掉);②<strong>「ADMIN 都看得到」施工前就成立但沒有任何測試</strong>(只靠兩行 <code>is_admin</code>),使用者明確要求的行為沒有守門 = 下次有人「優化」那兩行不會有東西攔他,補 3 條;介面:專案頁「查看權限」區塊(可見性下拉 + 成員清單 + <strong>純 HTML GET 搜尋表單</strong>,零 JS 因 CSP 擋 inline script);🔴 <strong>搜尋是唯一的新外洩面</strong>,五條約束逐一有測試(空白 q 不列全部 —— 少了這條它就是「整份名單匯出」API、最多 5 筆、只回 active、<strong>絕不回 email</strong>〔L1b 第 14 條〕、只有 owner 能用);新增稽核 <code>project.set_visibility</code>(改「誰看得到」必須留痕,事後問「什麼時候變成公開的」沒紀錄就等於沒答案);🐛 <strong>重構時字串定位吃掉了 <code>transfer_owner</code></strong>(<code>if payload.user_id == project.owner_id:</code> 在兩支處理器裡都有),既有測試 30 秒內抓到並還原 —— 值得記的不是我改錯,而是那 41 條測試就是為此存在;🟢 <strong>無 migration</strong>;<strong>12 條新增(5 紅→綠 + 3 條補守門),全套 566</strong></td>
 </tr>
 <tr>
+<td>T101</td>
+<td>專案標題與簡介可編輯 + 修一條權限不一致</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「專案標題與內容 發布者都可以編輯」;專案頁新增「編輯專案」區塊(標題 + 內容,<strong>maintainer 以上</strong>,與 API 同一條界線),驗證沿用 <code>ProjectUpdate</code>(介面不得比 schema 寬鬆);🔴 <strong>本任務真正的價值是施工前讀 API 時發現的一條外洩路徑</strong>:<code>PATCH /v1/projects/{slug}</code> 只要 maintainer,而 <code>ProjectUpdate</code> <strong>含 <code>visibility</code></strong> —— T100 昨天把「誰看得到」定為 owner 專屬<strong>但只在介面與 web 路由上</strong>,於是 <strong>maintainer 打一次 API 就能把 private 專案改成全公司可見</strong>;T100 的計畫書寫過「介面比 API 寬鬆等於開第二套規則」,這次是<strong>反過來:API 比介面寬鬆,而寬的那邊才是真正生效的那邊</strong>;修法是 PATCH 收到 <code>visibility</code> 時要求 owner(<strong>收窄</strong>,唯一行為變化是那條路徑從成功變 403),三條測試(maintainer 403 / owner 200 / 只收窄 visibility 不連坐 name);新增稽核 <code>project.update</code>(業務庫只留最新值,「以前叫什麼」只有稽核答得出來);🔴 <strong>短名刻意不可改</strong>(在網址裡、平台無轉址,改了會讓已分享的連結死掉,T96 已載明),畫面明寫這句而不是讓人試了才發現;🔴 <strong>可見性不放進這張表單</strong>(混兩種權限遲早被一起放寬);⚠ 施工中兩個小坑都被抓到:<code>project_limit</code> 參數順序寫反(測試當場紅)、瀏覽器看不到新區塊其實是<strong>舊 devserver 程序在跑舊程式碼</strong>(下次先確認跑的是新版);<strong>8 條新增(5 紅→綠,其中「maintainer 不能用 API 改可見性」一開始是紅的 —— 那條路徑當時真的是通的),全套 574</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -996,6 +1003,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.79</td>
+<td>2026-08-25 11:30</td>
+<td>Claude(Benny 回報)</td>
+<td><strong>T101 專案標題與簡介可編輯</strong>(全套 574,🟢 無 migration)+ 🔴 <strong>修一條真的外洩路徑</strong>:<code>PATCH</code> 只要 maintainer 卻能改 <code>visibility</code>,而 T100 剛把可見性定為 owner 專屬 —— <strong>API 比介面寬鬆,而寬的那邊才是生效的那邊</strong>。收窄後 maintainer 改可見性 403、owner 不受影響。短名刻意不可改(網址裡沒有轉址)</td>
+</tr>
 <tr>
 <td>v1.78</td>
 <td>2026-08-25 10:40</td>

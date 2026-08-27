@@ -120,7 +120,16 @@ async def update_project(
     project = await get_project(session, slug)
     await require_project_role(session, project, identity, ProjectRole.maintainer)
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    # 🔴 T101 修正一條**內容外洩路徑**:本端點只要 maintainer,而 `ProjectUpdate`
+    # 含 `visibility` —— 於是 maintainer 打一次 API 就能把 private 專案改成全公司可見,
+    # 繞過 T100 剛把可見性定為 owner 專屬的介面。
+    # 🔴 這是**收窄**權限:唯一的行為變化是「maintainer 用 API 改可見性」從成功變 403,
+    #    而那正是該被擋掉的事。name / summary 維持 maintainer 可改。
+    if "visibility" in changes:
+        await require_project_role(session, project, identity, ProjectRole.owner)
+
+    for field, value in changes.items():
         setattr(project, field, value)
     await session.commit()
     await session.refresh(project)

@@ -42,16 +42,16 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-27 07:55
-<strong>版本:</strong> v1.83</p>
+<strong>最後更新:</strong> 2026-08-27 08:50
+<strong>版本:</strong> v1.84</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-27 07:55)</h2>
-<p>任務 101 項:<strong>✅ 96 / 🔵 1 / ⬜ 3</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-27 08:50)</h2>
+<p>任務 103 項:<strong>✅ 97 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>574 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -65,29 +65,26 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td><code>app/version.py</code></td>
-<td><strong>0.2.4</strong></td>
-<td>依第八條 4 於打 tag <strong>之前</strong>改好(T103);這一版含 <strong>T98–T102</strong>,🟡 <strong>有 migration <code>0009</code></strong></td>
+<td><strong>0.2.5</strong></td>
+<td>T104 補救用的版號。內容與 v0.2.4 預定要發的完全相同(T98–T103),差別只有版號</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
-<td><strong>v0.2.3</strong></td>
-<td>指向 <code>46d265f</code>(T89–T96)。⚠ 其 CI 的 build 一度因 VM 層快取失效而紅,清快取 + 重跑後 image 已上 GHCR(見 T98);<code>v0.2.2</code> 跳過不發、永遠不會存在(見 T97)</td>
+<td><strong>v0.2.4 ⚠ 作廢</strong></td>
+<td>🔴 <strong>打在 <code>6dabe7d</code>(PR #34 的合併,PR #35 之前),該 commit 的 <code>APP_VERSION</code> 是 <code>0.2.3</code></strong> —— 於是 <code>ghcr.io/fttp0165/upload-program:v0.2.4</code> 的首頁會顯示 v0.2.3(run #256 已 success 推上 GHCR)。依第八條 5 <strong>不刪不重推</strong>(image 已流出,重推會讓同一個 tag 在不同人手上是不同的東西),改發 v0.2.5;其 Release 說明須標明作廢並指向 v0.2.5</td>
 </tr>
 <tr>
 <td>VM 執行中</td>
 <td><strong>v0.2.3</strong></td>
-<td>2026-08-27 換版並實測側欄顯示 <code>upload-program v0.2.3</code>;⚠ 換到 v0.2.4 之前<strong>必須先跑 <code>alembic upgrade head</code></strong>(T99 的 <code>0009</code>)</td>
+<td>🔴 <strong>不要換到 v0.2.4</strong>(版號錯的 image)。等 v0.2.5,且換版前必須 <code>alembic upgrade head</code>(T99 的 <code>0009</code>)</td>
 </tr>
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>PR #34 已於 2026-08-27 07:16 合併</strong>(T98–T102,合併在 <code>4d1c061</code>)。
-⚠ <strong>T103 沒有進那個 PR</strong> —— 常數改動是在合併之後才推的,故另開 PR 送 <code>main</code>。
-🔴 於是此刻 <code>main</code> 的內容是 T98–T102 而 <code>APP_VERSION</code> 仍是 <code>0.2.3</code>(已發布過的版號),
-<strong>T103 合併前不得打 tag</strong> —— 那正是第八條 4 要防的「tag 與內容對不起來」。
-🔴 T99 的 migration <code>0009_notify_email</code>(🟡 加 nullable 欄位、可 down)已在 <code>main</code>:
-換版時必須跑 <code>alembic upgrade head</code>。</p>
-<h3>未完成的任務(4 項)</h3>
+<p><strong>T104</strong>(<code>APP_VERSION</code> → 0.2.5,發版補救)。PR #34 與 #35 皆已合併,
+<code>main</code> = <code>5a5e866</code>(T98–T103,含 migration <code>0009</code>)。
+🔴 合併 T104 後才可打 <code>v0.2.5</code>;打之前先在 <code>main</code> 上 <code>grep APP_VERSION</code> 確認是 <code>0.2.5</code>。</p>
+<h3>未完成的任務(6 項)</h3>
 <table>
 <thead>
 <tr>
@@ -97,6 +94,11 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>T105 ⬜</td>
+<td><strong>CI 守門:<code>APP_VERSION</code> 不得 ≤ GitHub 最新 tag</strong></td>
+<td>🔴 <strong>不是建議,是下一個要做的任務</strong>。三次卡在版本號(T94 文件寫錯最新 tag、T97 tag 沒推而 main 前進、<strong>T104 時序交錯讓錯的 image 上了 GHCR</strong>),前兩次的結論都只寫成「建議」而<strong>建議不會執行自己</strong>。本次事故它會直接擋下:<code>v0.2.4</code> 打在常數為 <code>0.2.3</code> 的 commit 上 → 那個 commit 的 CI 紅 → <code>Push GHCR</code> 不執行 → <strong>錯的 image 不會存在</strong>。⚠ 刻意不夾在發版 PR 裡做(守門本身要一輪 CI 驗證)</td>
+</tr>
 <tr>
 <td>T27 🔵</td>
 <td>換版 runbook + 備份<strong>還原演練</strong></td>
@@ -694,6 +696,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「發 0.2.4」;第八條 4 常數必須在<strong>打 tag 之前</strong>隨 PR 改好,本任務就是那一步;🔴 <strong>為什麼是 0.2.4</strong>:<code>v0.2.3</code> 已經發布過(tag 指向 <code>46d265f</code>,內容 T89–T96),第八條 5 同版不重發;<strong>為什麼是 patch 而非 minor</strong>:這一批沒有改變任何既有介面的契約 —— T99 是新增功能、T100/T101 是把既有權限模型接上介面、T98/T102 是建置面,唯一的行為變化是 T101 的<strong>收窄</strong>(<code>PATCH</code> 收到 <code>visibility</code> 要求 owner),那是修補外洩路徑不是使用者會依賴的介面;🔴 <strong>本任務 🟢 不動資料,但這一版整體是 🟡</strong> —— 同批 T99 含 migration <code>0009_notify_email</code>,<strong>換版必須跑 <code>alembic upgrade head</code></strong>,已寫進 Release 的「部署注意」;<strong>不寫新測試</strong>(第三條 4,同 T83/T94/T97):既有版本號測試全部讀同一常數(T68 的單一真相),再抄一遍字面值抓不到任何錯;🔴 <strong>守門仍不存在,而這是第三次提</strong>(T94 任務表寫錯最新 tag、T97 tag 沒推而 main 前進、本次靠人記得 0.2.3 已用過)—— 建議 T104:CI 比對 <code>APP_VERSION</code> 與 GitHub 最新 tag,常數 ≤ 已發布最新 tag 就紅;⚠ 刻意<strong>不夾在發版 PR 裡做</strong>(同 T94 判斷):守門本身要一輪 CI 驗證,混進發版會讓「發版被自己的新守門擋住」變成可能</td>
 </tr>
 <tr>
+<td>T104</td>
+<td>發版補救:<code>APP_VERSION</code> → 0.2.5</td>
+<td>✅</td>
+<td>🟢</td>
+<td>🔴 <strong><code>v0.2.4</code> 的 tag 打在 <code>6dabe7d</code></strong>(PR #34 的合併,<strong>PR #35 之前</strong>),而該 commit 的 <code>APP_VERSION</code> 是 <strong><code>0.2.3</code></strong> —— tag 那輪 CI(run #256)success,所以 <strong><code>ghcr.io/…:v0.2.4</code> 已經推上 GHCR 而它的首頁會顯示 v0.2.3</strong>,正是第八條 4 要防的「對使用者說謊」,而且換版驗證(看側欄版號)會判成換版失敗、實際上是版號本身錯的;🔴 <strong>不刪 tag 重推</strong>:①第八條 5 同版不重發(原文結論來自 v0.1.3 事故)②image 已流出,重推會讓<strong>同一個 tag 在不同人手上是不同的東西</strong>,比錯一次更難查 ③刪已發布的 tag/Release 是破壞性動作,換到的只是「版號數字漂亮」;故走既定解<strong>發下一個 patch 版 v0.2.5</strong>,內容與 v0.2.4 預定要發的完全相同(T98–T103),差別只有版號;⚠ <code>v0.2.4</code> 的 tag 與 Release <strong>保留不刪但須標明作廢並指向 v0.2.5</strong>(不標的話後來的人會照它部署);🔴 <strong>根因不是誰不小心 —— 這是第三次卡在版本號上,而形狀一次比一次糟</strong>(T94 文件寫錯最新 tag → 部署到非預期版本;T97 tag 沒推而 main 前進 → 版號與內容分家;<strong>本次 PR 合併與 tag 的時序交錯 → 錯的 image 真的上了 GHCR</strong>),而<strong>前兩次的結論都只寫成「建議」,建議不會執行自己</strong>,三次都靠人臨場發現(這次是靠截圖裡那行 <code>6dabe7d</code>);故守門升為<strong>下一個要做的任務 T105</strong>,不再是一句建議;<strong>不寫新測試</strong>(第三條 4)⚠ 但誠實講一句:那個慣例對「常數與 tag 對不上」<strong>本來就無效</strong>,它不是測試抓得到的東西,得由 CI 拿 GitHub 的 tag 來比 —— 那正是 T105</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1021,6 +1030,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.84</td>
+<td>2026-08-27 08:50</td>
+<td>Claude(Benny:「做 T104」)</td>
+<td><strong>T104 發版補救:<code>APP_VERSION</code> → 0.2.5</strong>。🔴 <code>v0.2.4</code> 的 tag 打在 <code>6dabe7d</code>(PR #35 之前),該 commit 的常數是 <code>0.2.3</code>,而 tag 那輪 CI success → <strong>錯的 image 已在 GHCR</strong>。依第八條 5 不刪不重推(image 已流出),改發 v0.2.5;<code>v0.2.4</code> 須在 Release 說明標明作廢。「三個版本號」表據實記入此事並標注 <strong>VM 不要換到 v0.2.4</strong>。🔴 第三次卡在版本號,且前兩次的結論都只寫成建議 —— 守門升為 <strong>T105</strong>(待辦),不再是建議</td>
+</tr>
 <tr>
 <td>v1.83</td>
 <td>2026-08-27 07:55</td>

@@ -199,3 +199,60 @@ def test_登記在案的對外文件都有HTML版():
     assert not missing, (
         f"對外文件已登記進索引卻沒有 HTML 版(請加進 tools/render_docs.py 的 TARGETS):{missing}"
     )
+
+
+# --- 第十一條 5:佔位符不得混在可貼的指令裡 --------------------------------
+#
+# 🔴 2026-08-31 實際踩到:`<拿新token>` 被整段貼上,**`<` 被 bash 當成重導向**,
+# 指令當場炸掉。尖括號是程式文件的佔位符慣例,而**那個慣例在 shell 裡會產生語法**。
+#
+# 憲法要求:區塊要嘛整段可以直接貼,要嘛把要替換處寫成不會被 shell 解讀的
+# 顯眼中文詞(例 `貼token`),並在區塊外交代。
+#
+# ⚠ 註解行(以 # 起頭)不在此限:`# /opt/<服務名>` 貼上去只是註解,不會做任何事。
+#   規則要擋的是**會被執行的那一行**,不是把所有尖括號逐出文件。
+
+_PLACEHOLDER = re.compile(r"<[^<>\s/][^<>]{0,40}>")
+_SHELL_LANGS = ("bash", "sh", "shell", "console", "cron", "zsh")
+
+
+def _shell_lines(path: Path) -> list[tuple[int, str]]:
+    """回傳 runbook 裡**會被執行**的 shell 行(行號, 內容)。
+
+    參數:文件路徑。回傳:(行號, 該行) 清單。副作用:無(只讀檔)。
+    略過:非 shell 語言的區塊、註解行、空行。
+    """
+    out: list[tuple[int, str]] = []
+    lang: str | None = None
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            fence = stripped[3:].strip().lower()
+            lang = None if lang is not None else (fence or "text")
+            continue
+        if lang is None or lang not in _SHELL_LANGS:
+            continue
+        if not stripped or stripped.startswith("#"):
+            continue
+        # 行尾註解同樣不在此限:`cd /opt/x  # 慣例 /opt/<服務名>` 貼上去,
+        # `#` 之後的東西 bash 根本不看。⚠ 這裡刻意只切「空白 + #」而不是任何 `#`
+        # (`#` 也可能出現在字串裡);寧可少切一點,讓守門偏嚴而不是偏鬆。
+        executable = re.split(r"\s#", stripped, maxsplit=1)[0]
+        if not executable.strip():
+            continue
+        out.append((lineno, executable))
+    return out
+
+
+def test_可貼的指令裡不得有尖括號佔位符():
+    offenders: dict[str, list[str]] = {}
+    for name in RUNBOOKS:
+        path = ROOT / "docs" / name
+        hits = [f"{no}: {text[:80]}" for no, text in _shell_lines(path) if _PLACEHOLDER.search(text)]
+        if hits:
+            offenders[name] = hits
+    assert not offenders, (
+        f"可貼指令裡出現尖括號佔位符:{offenders}\n"
+        "🔴 憲法第十一條 5:`<` 會被 bash 當成重導向 —— 2026-08-31 已經炸過一次。\n"
+        "改成不會被 shell 解讀的中文詞(例 `貼token`),並在區塊外交代怎麼取得。"
+    )

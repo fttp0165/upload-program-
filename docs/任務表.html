@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 14:45
-<strong>版本:</strong> v1.90</p>
+<strong>最後更新:</strong> 2026-08-31 15:25
+<strong>版本:</strong> v1.91</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 14:45)</h2>
-<p>任務 126 項:<strong>✅ 120 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>647 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 15:25)</h2>
+<p>任務 127 項:<strong>✅ 121 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>648 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -883,6 +883,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 照 <code>runbook_本地開發與CI.md</code> §4.1 實跑,得到「❌ 踩到 SSO 紅線」,而同一個 commit 的 CI 那一步<strong>是綠的</strong>;根因:runbook 上的是<strong>簡化版</strong>,<code>ci.yml</code> 實際有三層排除而它一層都沒有 —— ①<code>--exclude='test_sso_contract.py'</code>(<strong>那支測試自己就是掃描器,必須寫得出被禁的字</strong>)②HS256 <strong>只掃 <code>app/</code></strong>(測試會刻意產生 HS256 token 來驗「必須被拒絕」,那是正確用法)③排除 <code>不接受/一律拒/禁</code> 這類<strong>說明</strong>用法的行,並以 <code>--include</code> 避開 <code>__pycache__</code> 的 binary 命中;🔴 <strong>與 T109 同一類(文件寫得出來、照做卻得到錯的結果)但更陰險</strong>:T109 是 <code>No such file</code>,當場知道有問題;這一支給的是<strong>看起來很嚴重的假警報</strong>,後果是有人去找一個不存在的問題,或更糟 —— <strong>學會忽略紅字,而下次是真的</strong>;已改為與 <code>ci.yml</code> 逐字相同並列出每個排除的理由(不寫理由,下一個人會覺得排除很可疑而順手拿掉);<strong>不寫新測試</strong>(第三條 4):<code>test_sso_contract.py</code> 已在驗這件事本身,⚠ 但遺留 T130 —— <strong>同一句指令出現在兩個地方遲早分岔</strong>,這次是文件比 CI 嚴格(假警報),下次可能是文件比 CI 寬鬆(本機綠、CI 紅)</td>
 </tr>
 <tr>
+<td>T131</td>
+<td>憲法第十一條入憲(彩色標示 + 佔位符紅線)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 指示把三層指令標示規則入憲;盤點後<strong>第一、二層已經在第十條裡</strong>,真正缺的是第三層與佔位符規則 → 新增<strong>第十一條</strong>(七項:圖例先給、對映整條線不變且已完成標 ✅ 並<strong>明說不會再叫你進去</strong>、🟩 固定保留給 GitHub 網頁、步驟標題=<strong>三連</strong>色塊+目標名+路徑+執行處、佔位符紅線、顏色本身不帶語意、治理範圍限對話與 runbook);🔴 <strong>放在第十條之後不插進去</strong>:第十條已被測試與多篇 dev-log 逐條引用(「第十條 2」),插隊會讓引用悄悄指到別的東西;🔴 <strong>第十一條 5 有守門測試不是一句期許</strong> —— <code>test_可貼的指令裡不得有尖括號佔位符</code> 掃 runbook 的 shell/cron 區塊,<strong>會被執行的行</strong>出現 <code>&lt;…&gt;</code> 就紅,起因是 2026-08-31 實踩 <code>&lt;拿新token&gt;</code> 整段被貼上、<strong><code>&lt;</code> 被 bash 當重導向</strong>而炸掉(尖括號是文件慣例,而<strong>那個慣例在 shell 裡會產生語法</strong>);⚠ 兩個刻意邊界:註解豁免(<code># /opt/&lt;服務名&gt;</code> 貼上去 bash 根本不看,要擋的是會被執行的那行)、行尾註解只切「空白+#」不切任何 <code>#</code>(<strong>寧可偏嚴不偏鬆</strong>);<strong>反向驗證做過</strong>(塞佔位符→紅、還原→綠,沒這步新測試可能只是裝飾);同步 cats-portal 憲法 v1.22(依它自己「往後加」的規矩寫成附則最後一節);⚠ <strong><code>workOrder</code> repo 不在本 session,那本沒改也沒假裝改</strong>;<strong>1 條新增,全套 648</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1210,6 +1217,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.91</td>
+<td>2026-08-31 15:25</td>
+<td>Claude(Benny 指示入憲)</td>
+<td><strong>T131 憲法第十一條入憲</strong>:多目標工作線的彩色標示 + 🔴 佔位符不得混進可貼指令(附守門測試與反向驗證)。CLAUDE.md 升 v2.7、cats-portal 憲法升 v1.22。⚠ <code>workOrder</code> repo 不在本 session,那本未改</td>
+</tr>
 <tr>
 <td>v1.90</td>
 <td>2026-08-31 14:45</td>

@@ -41,6 +41,13 @@ class AuditAction(enum.StrEnum):
     """
 
     # 帳號(F54:「開通了誰」)
+    # T108:登入本身。`users.last_login_at` 只答得出「最後一次」,而「這個帳號
+    # 這個月登入過幾次、上次是什麼時候」要有事件才查得到。
+    user_login = "user.login"
+    # 🔴 比成功登入更值得記:契約 §1.1 明載「離職不會自動停用 IdP 帳號」,
+    # 我方的 deny-by-default 是第二道防線 —— 那道防線擋下了誰,
+    # 原本只留在**會滾掉的 stdout log** 裡。
+    user_login_denied = "user.login_denied"
     user_activate = "user.activate"
     user_disable = "user.disable"
     user_set_role = "user.set_role"
@@ -62,9 +69,14 @@ class AuditAction(enum.StrEnum):
 
     # 版本與檔案(F54:「建了/刪了什麼」「上傳與下載了什麼」)
     release_create = "release.create"
-    release_publish = "release.publish"
+    release_publish = "release.publish"   # T123 起語意為「送審」
+    release_approve = "release.approve"   # T123 管理員核准,版本正式可下載
+    release_reject = "release.reject"     # T123 管理員退回(必附理由)
     release_delete = "release.delete"
     artifact_upload = "artifact.upload"
+    # T107:被擋下的上傳。🔴 刪了殘骸列之後,這是唯一還留著「有人試著傳一個
+    # 不被接受的檔」的地方 —— 對散布可執行檔的平台,反覆被拒收本身就是訊號。
+    artifact_upload_rejected = "artifact.upload_rejected"
     artifact_delete = "artifact.delete"
     artifact_download = "artifact.download"
 

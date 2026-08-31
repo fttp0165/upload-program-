@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upload-program 測試項目清單</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/測試項目清單.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>upload-program 測試項目清單</h1>
+<p><strong>建立日期:</strong> 2026-08-12 00:10
+<strong>最後更新:</strong> 2026-08-12 01:20
+<strong>版本:</strong> v1.1
+<strong>對應任務:</strong> T111
+<strong>適用對象:</strong> 測試工程師(與所有做驗收的人)</p>
+<blockquote>
+<p>這份回答「<strong>測什麼</strong>」——依這個系統的實際功能逐項列出;流程規矩(怎麼測)見
+<a href="測試SOP.md">測試SOP</a>。</p>
+<p><strong>怎麼用:</strong>
+- <strong>換版冒煙</strong>:只跑「冒煙」欄打 ✓ 的項目,15–20 分鐘。
+- <strong>全回歸</strong>:大版本(次版號跳動)或動到登入/權限時跑全表。
+- <strong>新功能驗收</strong>:跑該區全部 + 〈安全跨切面〉。
+- 結果逐項記 ✅ / ❌ / <strong>未驗</strong>(含原因)——「沒驗到」不得記成「驗過了」。</p>
+<p><strong>分工:</strong> 方式欄 ✅ = 自動測試已覆蓋(CI 每次跑,人工抽查即可);
+<strong>🖐 = 人工項,是測試工程師的主力</strong>——真實 Keycloak、貼上/拖放/取消這類瀏覽器
+行為、跨 App 登出、視覺版面、VM 上的 cron 與備份,自動化構不到。</p>
+</blockquote>
+<figure class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 330" width="900" height="330"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="330" fill="#ffffff"/>
+
+  <text x="34" y="38" font-size="14" font-weight="bold" fill="#12228f">使用者旅程(依序測)</text>
+
+  <!-- 旅程七格 -->
+  <rect x="34" y="54" width="112" height="86" rx="9" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="90" y="88" font-size="13" font-weight="bold" fill="#12228f" text-anchor="middle">登入・SSO</text>
+  <text x="90" y="118" font-size="12" fill="#6b7280" text-anchor="middle">13 項</text>
+
+  <rect x="154" y="54" width="112" height="86" rx="9" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="210" y="88" font-size="13" font-weight="bold" fill="#12228f" text-anchor="middle">帳號開通</text>
+  <text x="210" y="118" font-size="12" fill="#6b7280" text-anchor="middle">7 項</text>
+
+  <rect x="274" y="54" width="112" height="86" rx="9" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="330" y="88" font-size="13" font-weight="bold" fill="#12228f" text-anchor="middle">專案</text>
+  <text x="330" y="118" font-size="12" fill="#6b7280" text-anchor="middle">10 項</text>
+
+  <rect x="394" y="54" width="112" height="86" rx="9" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="450" y="88" font-size="13" font-weight="bold" fill="#12228f" text-anchor="middle">版本發布</text>
+  <text x="450" y="118" font-size="12" fill="#6b7280" text-anchor="middle">8 項</text>
+
+  <rect x="514" y="54" width="112" height="86" rx="9" fill="#eaf6ef" stroke="#2f9e5b" stroke-width="2.5"/>
+  <text x="570" y="88" font-size="13" font-weight="bold" fill="#1f6b3f" text-anchor="middle">上傳</text>
+  <text x="570" y="118" font-size="12" fill="#6b7280" text-anchor="middle">10 項・人工重點</text>
+
+  <rect x="634" y="54" width="112" height="86" rx="9" fill="#eef1fb" stroke="#12228f" stroke-width="2"/>
+  <text x="690" y="88" font-size="13" font-weight="bold" fill="#12228f" text-anchor="middle">下載</text>
+  <text x="690" y="118" font-size="12" fill="#6b7280" text-anchor="middle">6 項</text>
+
+  <rect x="754" y="54" width="112" height="86" rx="9" fill="#eaf6ef" stroke="#2f9e5b" stroke-width="2.5"/>
+  <text x="810" y="88" font-size="13" font-weight="bold" fill="#1f6b3f" text-anchor="middle">問題回報</text>
+  <text x="810" y="118" font-size="12" fill="#6b7280" text-anchor="middle">13 項・人工重點</text>
+
+  <!-- 旅程箭頭 -->
+  <polygon points="152,97 146,92 146,102" fill="#334"/>
+  <polygon points="272,97 266,92 266,102" fill="#334"/>
+  <polygon points="392,97 386,92 386,102" fill="#334"/>
+  <polygon points="512,97 506,92 506,102" fill="#334"/>
+  <polygon points="632,97 626,92 626,102" fill="#334"/>
+  <polygon points="752,97 746,92 746,102" fill="#334"/>
+
+  <text x="34" y="182" font-size="14" font-weight="bold" fill="#12228f">跨切面(每次都在)</text>
+
+  <rect x="34" y="196" width="196" height="64" rx="9" fill="#f7f8fc" stroke="#9aa3c0" stroke-width="2"/>
+  <text x="132" y="222" font-size="13" font-weight="bold" fill="#334" text-anchor="middle">管理後台</text>
+  <text x="132" y="244" font-size="12" fill="#6b7280" text-anchor="middle">8 項</text>
+
+  <rect x="246" y="196" width="196" height="64" rx="9" fill="#fdf0ef" stroke="#b3372f" stroke-width="2"/>
+  <text x="344" y="222" font-size="13" font-weight="bold" fill="#b3372f" text-anchor="middle">安全跨切面</text>
+  <text x="344" y="244" font-size="12" fill="#6b7280" text-anchor="middle">9 項</text>
+
+  <rect x="458" y="196" width="196" height="64" rx="9" fill="#f7f8fc" stroke="#9aa3c0" stroke-width="2"/>
+  <text x="556" y="222" font-size="13" font-weight="bold" fill="#334" text-anchor="middle">部署與維運</text>
+  <text x="556" y="244" font-size="12" fill="#6b7280" text-anchor="middle">7 項(多為人工)</text>
+
+  <rect x="670" y="196" width="196" height="64" rx="9" fill="#f7f8fc" stroke="#9aa3c0" stroke-width="2"/>
+  <text x="768" y="222" font-size="13" font-weight="bold" fill="#334" text-anchor="middle">介面</text>
+  <text x="768" y="244" font-size="12" fill="#6b7280" text-anchor="middle">6 項</text>
+
+  <!-- 圖例 -->
+  <rect x="34" y="282" width="832" height="34" rx="8" fill="#eef1fb"/>
+  <text x="450" y="304" font-size="12.5" fill="#334" text-anchor="middle">✅ 自動:CI 每次跑,人工只抽查 ・ 🖐 人工:測試工程師的主力 ・ ✓ 冒煙:每次換版必跑(15–20 分鐘)</text>
+</svg></figure><details><summary>同一張圖的文字版(md 版採用)</summary><pre><code>旅程:登入SSO(13) → 帳號開通(7) → 專案(10) → 版本(8) → 上傳(10) → 下載(6) → 回報(13)
+跨切面:管理後台(8)・安全(9)・部署維運(7)・介面(6)      合計 97 項
+</code></pre></details>
+
+<hr />
+<h2>A. 登入與 SSO(13)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目(條件 → 動作 → 預期)</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-01</td>
+<td>未登入,從 portal 卡片點進 <code>/upload/</code> → <strong>直接到 Keycloak 登入畫面</strong>,不停任何中間頁</td>
+<td>✅+🖐(302 由 smoke.sh 驗;IdP 畫面人工)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>A-02</td>
+<td>先登入 portal(IdP 已有 session)再進 <code>/upload/</code> → <strong>免按登入</strong>直接進專案總覽</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>A-03</td>
+<td>帳密正確登入 → 302 回站內;登入狀態顯示名字與登出鈕</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>A-04</td>
+<td>未登入直開深層頁(<code>/projects/xxx</code>)→ 302 登入 → 登入後<strong>回到原頁</strong></td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>A-05</td>
+<td>竄改 <code>next</code> 為外部網址 → 登入後<strong>不得</strong>轉出站外(只收站內相對路徑)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>A-06</td>
+<td>登入後停留 6 分鐘再操作(access token 300 秒已過期)→ <strong>無感續期</strong>,不被登出</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>A-07</td>
+<td>IdP 端已終止(停權/登出)後再操作 → 視為未登入 → 送登入頁,不是錯誤頁</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>A-08</td>
+<td>待開通者開首頁 → 302 回平台入口;直開 <code>/pending</code> → 看到<strong>自己的 sub</strong> 可複製</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>A-09</td>
+<td>停用者嘗試登入 → <strong>不建立 session</strong>、302 回入口,不會無限彈跳</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>A-10</td>
+<td>按登出 → 導向 IdP 登出 → 回站內;<strong>開另一個 App 驗證也已登出</strong>(單一登出)</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>A-11</td>
+<td>在<strong>別的 App</strong> 按登出 → 本服務 session 一併清除(front-channel;待 portal 登錄後驗)</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>A-12</td>
+<td><code>curl</code>(非瀏覽器)打首頁 → <strong>200 落地頁</strong>(監控判準,不隨登入改動而變)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>A-13</td>
+<td>DevTools → Application:localStorage / sessionStorage <strong>無任何 token</strong></td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>B. 帳號與開通(7)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B-01</td>
+<td>全新帳號首次登入 → 建為待開通;開通前所有功能頁都進不去</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>B-02</td>
+<td><code>/admin/users</code> 待開通清單:<strong>名字</strong>(IdP 有給時)+ <strong>申請時間</strong> + 完整 sub</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>B-03</td>
+<td>按「開通」→ 對方立即可用;稽核出現一筆 <code>user.activate</code>(含操作者名字)</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>B-04</td>
+<td>停用使用者 → 對方<strong>下一個請求</strong>即被擋,不必等 cookie 過期</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>B-05</td>
+<td>管理員嘗試停用<strong>自己</strong> → 被拒且有明確訊息</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>B-06</td>
+<td>bootstrap 名單內的 sub 首登 → 自動 active + admin(解第一個管理員的死結)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>B-07</td>
+<td>IdP 改名後重新登入 → 後台顯示新名;IdP 拿掉名字 → 顯示退回 sub(不留舊名)</td>
+<td>✅</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>C. 專案(10)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-01</td>
+<td>建立專案(合法 slug + 名稱)→ 出現在總覽與搜尋</td>
+<td>✅+🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>C-02</td>
+<td>slug 重複 → 明確錯誤;slug 不合法(大寫/空白/中文)→ 拒收</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-03</td>
+<td>private 專案:非成員<strong>列表看不到、直開 404</strong>(不洩漏存在)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-04</td>
+<td>internal 專案:所有已開通者可讀;只有 maintainer 以上可建版本/上傳</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-05</td>
+<td>加成員(viewer / maintainer)、移除成員 → 權限<strong>即時</strong>生效</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-06</td>
+<td>轉移擁有權 → 新 owner 可管理;稽核留 <code>project.transfer_owner</code></td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-07</td>
+<td>關鍵字搜尋、標籤篩選(含<strong>中文標籤</strong>)、超過 20 筆分頁</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>C-08</td>
+<td>設定/修改標籤 → 專案卡片與篩選連結同步更新</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-09</td>
+<td>上傳至專案用量 ≥80% → 管理總覽出現配額警示</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>C-10</td>
+<td>超過專案容量上限(2 GB/擴充 10 GB)→ 上傳被拒,訊息說明原因</td>
+<td>✅</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>D. 版本發布(8)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-01</td>
+<td>建 draft 版本;同專案同版本號重複 → 409</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-02</td>
+<td>draft 對非成員<strong>不可見</strong>(歷史列表與直開皆是)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-03</td>
+<td>三類不齊 → 發布鈕鎖住 + 列出缺哪類;<strong>直接打 API 發布也被 422 擋下</strong></td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-04</td>
+<td>doc + source + binary 齊備 → 發布成功;發布後<strong>上傳卡片消失</strong>、檔案不可再變更</td>
+<td>✅+🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>D-05</td>
+<td>重複按發布(重整後再送)→ 冪等,不報錯不重複</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-06</td>
+<td>latest 指向<strong>最新發布</strong>的版本(先建後發不影響;v9 / v10 不被字串排序騙)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-07</td>
+<td>歷史頁依<strong>發布時間</strong>倒序</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>D-08</td>
+<td>版本說明含特殊字元(<code>&lt;b&gt;</code> 等)→ 顯示為純文字,不被執行</td>
+<td>✅</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>E. 上傳(10)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E-01</td>
+<td>上傳頁為<strong>三格卡片</strong>(說明→程式碼→執行檔),各格自帶選檔與上傳鈕,無類型下拉</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>E-02</td>
+<td>三類各傳一件正確檔(PDF→說明、zip→程式碼、執行檔→執行檔)→ 各格 ✓ 檔名、頂線轉綠</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>E-03</td>
+<td>型別錯配(zip 丟「說明」格)→ 被退回,訊息說出原因(magic bytes,不信副檔名)</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>E-04</td>
+<td>HTML / SVG 一律拒收——<strong>含改副檔名偽裝</strong>(.html 改 .pdf 照樣拒)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>E-05</td>
+<td>超過單檔 100 MB → 前端先擋;繞過前端直打 API 也被擋</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>E-06</td>
+<td>中文/空白/<code>#</code> 檔名 → 上傳、顯示、下載皆正常</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>E-07</td>
+<td>上傳中按「取消」→ 立即中止、介面復原、顯示「已取消」(不是卡在 47%)</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>E-08</td>
+<td>上傳中斷網 → 顯示連線中斷,可直接重試</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>E-09</td>
+<td>連線假死(不回應)→ 10 分鐘逾時自動放行,介面不永久鎖死</td>
+<td>🖐(抽測)</td>
+<td></td>
+</tr>
+<tr>
+<td>E-10</td>
+<td>檔案 SHA-256 與本機 <code>sha256sum</code> 一致;掃毒欄誠實顯示 <code>not_scanned</code></td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>F. 下載(6)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F-01</td>
+<td>下載任一檔 → 瀏覽器<strong>下載</strong>而非開啟(attachment + nosniff)</td>
+<td>✅+🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>F-02</td>
+<td>下載後計數 +1;統計<strong>只有總數</strong>,查不到誰下載</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>F-03</td>
+<td>latest 固定網址(可寫進文件)→ 永遠拿到最新發布版的檔案</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>F-04</td>
+<td>private 專案的檔案:非成員直打下載網址 → 404</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>F-05</td>
+<td>回報附件的 inline 圖是<strong>全站唯一</strong> inline;release 檔案永遠 attachment(回歸守著)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>F-06</td>
+<td>下載檔與上傳原檔逐位元一致(SHA-256 對一次)</td>
+<td>🖐(抽驗)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>G. 問題回報(13)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G-01</td>
+<td>送出回報(標題 + 內文)→ 出現在自己的清單,狀態 open</td>
+<td>✅+🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>G-02</td>
+<td>Markdown:粗體/清單/程式碼/<code>https</code> 連結正常;<code>&lt;script&gt;</code>、<code>javascript:</code> 連結 → <strong>無害純文字</strong></td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-03</td>
+<td>內文貼外部圖片連結 → 圖被剝除不顯示(不外連)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-04</td>
+<td>詳情頁 <strong>Ctrl+V 貼上截圖</strong> → 自動上傳並插入;拖放檔案亦可</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>G-05</td>
+<td>附件上限:單檔 &gt;5 MB 拒、第 6 個拒、非 png/jpeg/gif 拒</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-06</td>
+<td>附件圖在頁面上 inline 顯示;<strong>他人直打附件網址 → 404</strong></td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-07</td>
+<td>別人的回報:非管理員清單看不到、直開 404(不洩漏存在)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-08</td>
+<td>管理員看得到全部、可留言、可改狀態;<strong>非管理員改狀態被拒</strong></td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>G-09</td>
+<td>狀態流轉:open→in_progress→resolved;回報人對 resolved <strong>仍可留言</strong>說「還是不行」;closed / wontfix 結案</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>G-10</td>
+<td>待開通者也能送出回報(網站壞掉時最需要回報的正是登不進來的人)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-11</td>
+<td>管理總覽待辦「未處理的回報 n」= open + in_progress 的正確數</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>G-12</td>
+<td><strong>關閉 JS</strong> 再測:基本回報(表單送出)仍可用——貼圖只是增強</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>G-13</td>
+<td><code>purge_issues.py</code>:不加 <code>--yes</code> 只預演不刪;<code>--yes</code> 只刪 closed/wontfix 滿 365 天</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>H. 管理後台(8)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H-01</td>
+<td>非管理員開 <code>/admin*</code> → 403;未登入 → 302 去登入</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>H-02</td>
+<td>總覽 KPI 抽 2–3 個數字(使用者數/發布數/儲存量)與實際相符</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>H-03</td>
+<td>六類待辦各造一筆 → 正確出現;全清空 → 顯示「沒有待辦」</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>H-04</td>
+<td>開通/停用/建專案/發布/轉移各做一次 → 稽核各留一筆,含<strong>操作者名字</strong>與 trace_id</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>H-05</td>
+<td>稽核依動作篩選、分頁正常</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>H-06</td>
+<td>稽核 <strong>JSON API 不含任何名字欄位</strong>(名字只在後台頁面)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>H-07</td>
+<td>管理各頁以 <code>@</code> 掃描 → 全程無 email 出現</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>H-08</td>
+<td>VM 上 <code>purge_audit</code> cron 有實際執行(看 log 檔日期)</td>
+<td>🖐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>I. 安全跨切面(9)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I-01</td>
+<td>DevTools Console:全站瀏覽一輪<strong>無 CSP 違規</strong>來自本服務頁面</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>I-02</td>
+<td>回應標頭:nosniff 全站;X-Frame-Options <strong>只有一個</strong>(gateway 送的)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>I-03</td>
+<td>API 錯誤是 RFC 7807;瀏覽器錯誤頁含 <strong>trace_id</strong>;500 不洩 stack</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>I-04</td>
+<td>拿錯誤頁的 trace_id 到伺服器 log 找 → 找得到同一筆</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>I-05</td>
+<td>抽查 log:無密碼、無完整 JWT、無個資;OIDC 失敗只記 <code>error</code> 碼</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>I-06</td>
+<td>session cookie:HttpOnly + SameSite=Lax + Secure(DevTools 檢查)</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>I-07</td>
+<td>跨站表單 POST(另開網頁對本站發)→ 不生效(SameSite 防線)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>I-08</td>
+<td>權限矩陣抽測:viewer 不能上傳/發布;maintainer 不能動專案設定(owner 限定項)</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>I-09</td>
+<td>repo 與 CI:無 secret/.env 入 git;紅線掃描(零 Authentik、零 HS256)綠</td>
+<td>✅</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>J. 部署與維運(7)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>J-01</td>
+<td>換版四組冒煙:對外路徑 / <strong>版本哨兵</strong>(<code>/help</code> 頁尾)/ <code>/ready</code> / 既有系統零影響</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>J-02</td>
+<td>版本號三處一致:頁尾 = git tag = compose image</td>
+<td>🖐</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>J-03</td>
+<td>有 migration 的版本:<code>upgrade head</code> 後新舊功能正常;該版曾本機 up→down→up</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>J-04</td>
+<td>備份 cron 與兩支 purge cron 有實際跑(log 檔日期;每週抽查)</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>J-05</td>
+<td>容器重啟後 <code>/health</code> 60 秒內 200</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>J-06</td>
+<td>大檔上傳進行中執行換版 → 該請求在 30 秒優雅期內完成,不被斬斷</td>
+<td>🖐(抽測)</td>
+<td></td>
+</tr>
+<tr>
+<td>J-07</td>
+<td>回滾演練:image 退一版 → 服務正常 → 升回(staging;含 gateway reload)</td>
+<td>🖐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>K. 介面(6)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>測試項目</th>
+<th>方式</th>
+<th>冒煙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>K-01</td>
+<td>全站 light 主題;作業系統切深色模式 → 頁面<strong>不變深</strong></td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>K-02</td>
+<td>全站連結帶 <code>/upload/</code> 前綴;「回到平台入口」與「帳號設定」兩個平台層連結<strong>可用</strong></td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>K-03</td>
+<td>筆電窄幅(1366px)不爆版;上傳三格自動疊為單欄</td>
+<td>🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>K-04</td>
+<td>麵包屑與側欄 active 狀態跟著當前頁</td>
+<td>✅+🖐</td>
+<td></td>
+</tr>
+<tr>
+<td>K-05</td>
+<td>導航列 logo 是入口官方檔(與 portal 同一支);favicon 存在</td>
+<td>✅</td>
+<td></td>
+</tr>
+<tr>
+<td>K-06</td>
+<td><strong>每一頁</strong>頁尾都看得到版本號(含匿名可讀的 <code>/help</code>)</td>
+<td>✅</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>冒煙子集(換版後 15–20 分鐘)</h2>
+<p>依序:<strong>A-01 → A-02 → A-03</strong>(登入三態)→ <strong>C-01 + E-02 + D-04</strong>(建案→三類上傳→發布一輪)
+→ <strong>F-01</strong>(下載)→ <strong>G-01</strong>(回報)→ <strong>A-10</strong>(登出)→ <strong>J-01 + J-02 + K-06</strong>(部署驗證)。</p>
+<p>其中可腳本化的部分(J-01 大半、J-02、K-06、A-01 的 302、A-12、I-01/I-02 標頭)
+由 <strong><code>tools/smoke.sh --vm --expect vX.Y.Z</code></strong> 一鍵執行(T112);其餘冒煙項仍是人工。</p>
+<p>🔴 登入不可用期間,A/B/E/G 的冒煙項記「<strong>未驗</strong>」並註明原因——恢復後補跑,不得略過。</p>
+<hr />
+<h2>本文的維護</h2>
+<ul>
+<li>新功能上線 → 該區加項(從驗收標準抄,不另發明);行為改變 → 改對應項並在摘要記出處任務。</li>
+<li>自動化補上某人工項 → 方式欄 🖐 改 ✅+🖐(人工仍抽查),不是刪掉該項。</li>
+<li>每次修改依第七條更新「最後更新」與版本歷史。</li>
+</ul>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(T112)</td>
+<td>冒煙子集標注可由 <code>tools/smoke.sh</code> 一鍵執行的範圍;A-01 方式改 ✅+🖐(302 腳本驗、IdP 畫面人工)</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>2026-08-12 00:10</td>
+<td>Claude(Benny:量身訂做測試項目)</td>
+<td>初版:11 區 97 項,逐項「條件→動作→預期」+ 方式(✅自動/🖐人工)+ 冒煙標記;附測試地圖 SVG 與 15–20 分鐘冒煙子集;涵蓋登入 SSO 十三態、三類上傳與 magic bytes、回報權限與 Markdown 白名單、稽核與個資邊界、換版四組冒煙</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -204,6 +204,15 @@
   <section class="project-info">
     <h2>專案資訊</h2>
     <dl class="info-grid">
+      {# T118:擁有者排在最前面——要下載一支執行檔的人,先想知道的是「這誰放的」。
+         🔴 顯示的是**識別碼不是名字**:契約 §4.2a L1 的名稱快取限「管理後台顯示」,
+         本頁是一般使用者可見頁面。已送申請請 portal 擴大用途;在那之前照實說明
+         為什麼這裡是一串碼,不假裝沒這回事(與 not_scanned 同一個態度)。 #}
+      <dt>擁有者</dt>
+      <dd>
+        <code>{{ owner_sub8 }}…</code>
+        <span class="muted">識別碼(顯示名稱待平台核准)</span>
+      </dd>
       <dt>容量</dt>
       <dd>
         {{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)
@@ -216,6 +225,49 @@
   </section>
   </div>
   </div>
+
+  {# T124 專案留言板:使用者對這支程式的回饋。
+     🔴 與問題回報是相反方向的東西——回報只有本人與管理員看得到,
+     留言就是要給同專案的人看的。可見性跟著專案走,由路由的
+     require_project_read() 決定,這裡不再自己判一次。
+     🔴 內容一律走 render()(markdown_lite,輸入在轉譯器裡已全數逸出),
+     `|safe` 的禁令維持不變。 #}
+  <section class="comments">
+    <h2>使用回饋</h2>
+
+    {% if comments %}
+      <ul class="comment-list">
+        {% for comment in comments %}
+          <li class="comment">
+            <p class="comment-head">
+              {# 顯示識別碼不是名字——契約 §4.2a L1(與專案資訊的擁有者同一個處境)。 #}
+              <code class="project-slug">{{ comment_sub8(comment) }}…</code>
+              <span class="muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              {# 🔴 只有留言者本人與平台管理員看得到刪除鈕。**專案擁有者沒有**——
+                 擁有者若能刪掉別人的評語,這裡就只會剩下好話,而一個只留得住
+                 讚美的回饋區比沒有回饋區更糟。伺服器端同樣擋(表單可以偽造)。 #}
+              {% if may_delete_comment(comment) %}
+                <form method="post"
+                      action="{{ url('/projects/' ~ project.slug ~ '/comments/' ~ comment.id ~ '/delete') }}">
+                  <button class="btn-plain" type="submit">刪除</button>
+                </form>
+              {% endif %}
+            </p>
+            <div class="comment-body">{{ render(comment.body_markdown) }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">還沒有人留言。用過這支程式的話,說一句吧。</p>
+    {% endif %}
+
+    <form class="stack-form" method="post" action="{{ url('/projects/' ~ project.slug ~ '/comments') }}">
+      <label for="comment-body">留一則回饋</label>
+      <textarea id="comment-body" name="body_markdown" rows="3" required maxlength="5000"
+                placeholder="好用嗎?哪裡卡住?在什麼環境下測的?"></textarea>
+      <button class="btn" type="submit">送出</button>
+    </form>
+  </section>
 {% endif %}
 
 {% endblock %}

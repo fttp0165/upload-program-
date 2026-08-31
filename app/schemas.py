@@ -212,6 +212,48 @@ class ArtifactOut(ORMModel):
     completed_at: datetime | None
 
 
+class ProjectCommentCreate(BaseModel):
+    """留一則專案回饋(T124)。長度上限比照問題回報的討論串。"""
+
+    body_markdown: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("body_markdown")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("留言不可空白")
+        return value
+
+
+class ProjectCommentOut(ORMModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    body_markdown: str
+    created_at: datetime
+    # 🔴 只帶 `author_id`(資料庫 id),**不帶名字也不帶 sub**:
+    # 名字受契約 §4.2a L1 限制;sub 是 IdP 的識別碼,沒有理由讓 API 整批吐出來。
+    # 畫面上的「誰留的」由網頁層另外批次組(見 web.py 的 `_subs_by_id`)。
+    author_id: uuid.UUID
+
+
+class ReleaseReject(BaseModel):
+    """退回一個待審版本時要附的理由(T123)。
+
+    🔴 **必填,且不接受純空白**。沒有理由的退回,作者只能猜,然後重傳一次一模一樣
+    的東西——理由欄位不是裝飾,是這個流程能不能運轉的關鍵。
+    `min_length=1` 擋不掉 `"   "`,所以另外 strip 後再驗一次。
+    """
+
+    note: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("退回理由不可空白")
+        return value
+
+
 class ReleaseOut(ORMModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -221,6 +263,11 @@ class ReleaseOut(ORMModel):
     created_by_id: uuid.UUID
     created_at: datetime
     published_at: datetime | None
+    # T123 審核結果。🔴 只帶「退回理由」與時間,**不帶審核者的任何身分資訊**——
+    # `reviewed_by_id` 刻意不出現在 API:誰審的屬於稽核紀錄的範疇,
+    # 而稽核不是繞過個資紅線的後門(AuditEventOut 的 docstring 早已寫明同一件事)。
+    review_note: str = ""
+    reviewed_at: datetime | None = None
     artifacts: list[ArtifactOut] = []
     # 版本的下載次數是底下所有檔案的加總,**不另存欄位**(F43):
     # 兩個計數器分開存,刪檔或補傳漏掉一次就永遠對不起來。

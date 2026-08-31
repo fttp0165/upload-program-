@@ -65,7 +65,9 @@ async def test_三類齊備即可發布(client, active_user):
 
     resp = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
     assert resp.status_code == 200
-    assert resp.json()["status"] == "published"
+    # T123:三類齊備仍是**通過發布這一關**的條件,只是通過之後進的是待審而不是
+    # 直接上架。本測試釘的是「齊備就不會被 422 擋下」,那個意圖沒有變。
+    assert resp.json()["status"] == "pending_review"
 
 
 async def test_網頁表單發布缺類_退回上傳頁且仍是draft(client, active_user):

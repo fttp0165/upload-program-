@@ -10,7 +10,7 @@
 import re
 from datetime import UTC, datetime, timedelta
 
-from tests.conftest import auth, make_user
+from tests.conftest import auth, make_user, publish_and_approve
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -96,7 +96,8 @@ async def test_KPI數字等於實際資料(client, app, oidc, active_user):
             headers=auth(token),
         )
         assert up.status_code == 201, up.text
-    assert (await client.post(f"/v1/releases/{rid}/publish", headers=auth(token))).status_code == 200
+    # T123:KPI 的 releases-published 指「真的可下載」的版本,所以要核准到底。
+    await publish_and_approve(client, token, rid)
 
     # dash-b:1 個 draft
     await client.post(

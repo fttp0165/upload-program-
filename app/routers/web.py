@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from .. import problems
 from ..audit import AuditAction, record
@@ -33,7 +34,9 @@ from ..dashboard import (
 from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
     AuditEvent,
+    PlatformRole,
     Project,
+    ProjectComment,
     ProjectRole,
     Release,
     ReleaseStatus,
@@ -42,13 +45,20 @@ from ..models import (
     UserStatus,
     Visibility,
 )
-from ..queries import query_projects, query_releases
+from ..queries import query_projects, query_releases, ready_artifacts
 from ..quota import project_limit
-from ..schemas import ProjectCreate, ProjectUpdate, ReleaseCreate
+from ..schemas import (
+    ProjectCommentCreate,
+    ProjectCreate,
+    ProjectUpdate,
+    ReleaseCreate,
+    ReleaseReject,
+)
 from ..security import (
     DbSession,
     OptionalUser,
     get_project,
+    may_manage_releases,
     parse_uuid,
     project_role,
     require_admin,
@@ -58,11 +68,14 @@ from ..security import (
 from ..slugs import unique_slug
 from ..templating import render
 from ..web_urls import web_url
+from .projects import create_comment, delete_comment
 from .releases import (
     REQUIRED_KINDS,
+    approve_release,
     latest_published_release,
     load_release,
     missing_required_kinds,
+    reject_release,
 )
 
 router = APIRouter(include_in_schema=False, tags=["web"])
@@ -381,6 +394,32 @@ async def project_page(
     except problems.ProblemError:
         release = None
 
+    # T118:擁有者識別碼。程式分享平台上「這是誰放的」是使用者決定要不要信任
+    # 一支執行檔的第一個依據——尤其掃毒還沒接上。
+    # 🔴 這裡刻意**只取 sub、不取 display_name_cache**:契約 §4.2a L1 的用途
+    # 限「管理後台顯示」,本頁是一般使用者可見頁面,放名字等於自行放寬契約。
+    # 已另送申請請 portal 擴大用途;獲准前以識別碼過渡(sub 是不透明識別碼,
+    # 不是個資,業務庫本來就只存它)。截斷 8 碼比照 T59 慣例:僅供人眼對照。
+    owner_sub = (
+        await session.execute(select(User.sub).where(User.id == project.owner_id))
+    ).scalar_one_or_none()
+
+    # T124 專案留言板。可見性已由上面的 `require_project_read` 決定——
+    # 走到這裡就代表這個人讀得到本專案,留言跟著專案走,不另立規則。
+    comments = (
+        (
+            await session.execute(
+                select(ProjectComment)
+                .where(ProjectComment.project_id == project.id)
+                .order_by(ProjectComment.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    # 🔴 一次批次取留言者識別碼(同 T125 的理由:逐列查就是 N+1)。
+    comment_subs = await _subs_by_id(session, {c.author_id for c in comments})
+
     return HTMLResponse(
         render(
             request,
@@ -393,8 +432,19 @@ async def project_page(
             identity=identity,
             project=project,
             release=release,
-            artifacts=sorted(release.artifacts, key=lambda a: a.filename) if release else [],
+            # T106:檢視面只列上傳成功的檔案(按了會 404 的按鈕不該存在)。
+            artifacts=ready_artifacts(release),
             quota_bytes=project_limit(settings, project),
+            owner_sub8=(owner_sub or "")[:8],
+            comments=comments,
+            # 🔴 顯示識別碼不是名字——契約 §4.2a L1(與 T118 / T125 同一個處境)。
+            comment_sub8=lambda c: (comment_subs.get(c.author_id) or "")[:8],
+            # 🔴 只有留言者本人與平台管理員能刪。**專案擁有者刻意不在內**:
+            # 擁有者若能刪掉別人的評語,留言板就只會剩下好話,而一個只留得住
+            # 讚美的回饋區比沒有回饋區更糟。伺服器端同樣擋(routers/projects.py)。
+            may_delete_comment=lambda c: (
+                c.author_id == identity.user.id or identity.user.is_admin
+            ),
             # F26 的固定連結:能貼進文件而不會隨版本失效。T35 做出來的東西
             # 不放在使用者看得到的地方就沒人會用。
             latest_url=lambda filename: web_url(
@@ -562,6 +612,37 @@ async def remove_member_form(
     return _redirect(request, f"/projects/{slug}")
 
 
+@router.post("/projects/{slug}/comments", summary="留一則回饋(送出)")
+async def project_comment_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    body_markdown: Annotated[str, Form()],
+) -> Response:
+    """網頁表單版的留言。與 `POST /v1/projects/{slug}/comments` 同一段語意。"""
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    if not identity.user.is_active:
+        return _portal_redirect(request)
+    await create_comment(slug, ProjectCommentCreate(body_markdown=body_markdown), session, identity)
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/comments/{comment_id}/delete", summary="刪除留言(送出)")
+async def project_comment_delete_form(
+    slug: str, comment_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """網頁表單版的刪除。權限由 `delete_comment` 把關——🔴 表單可以偽造,
+    畫面上不顯示按鈕只是不給機會按,真正的界線在那裡。"""
+    if identity is None:
+        return _login_redirect(request, f"/projects/{slug}")
+    if not identity.user.is_active:
+        return _portal_redirect(request)
+    await delete_comment(slug, comment_id, session, identity)
+    return _redirect(request, f"/projects/{slug}")
+
+
 @router.get("/projects/{slug}/releases", summary="專案歷史(版本列表)")
 async def project_releases_page(
     slug: str,
@@ -606,6 +687,8 @@ async def project_releases_page(
         offset=offset,
     )
 
+    creator_subs = await _subs_by_id(session, {r.created_by_id for r in releases})
+
     base = f"/projects/{project.slug}/releases"
     next_url = (
         _page_url(settings, base, q=None, tag=None, offset=offset + PAGE_SIZE)
@@ -632,6 +715,17 @@ async def project_releases_page(
             download_url=lambda artifact: web_url(
                 settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
             ),
+            # T106:模板逐版取用;計數也走同一份,否則會出現「4 個檔案」只列 3 個。
+            ready_artifacts=ready_artifacts,
+            # T121:草稿的「繼續編輯」入口。上傳頁原本**只在建立版本送出後被導向一次**,
+            # 使用者一離開就再也回不去——草稿於是變成看得見卻點不進去的孤兒。
+            # 🔴 判準與發布同一條(maintainer 以上):viewer 看得見草稿但改不動,
+            # 給他一個按下去必然 403 的連結,比不給更糟。
+            can_edit_releases=may_manage_releases(role, identity.user),
+            edit_url=lambda release: web_url(settings, f"/releases/{release.id}/upload"),
+            # T125:每一版的建立者。🔴 一次批次查完(見 `_subs_by_id`),
+            # 且刻意取 sub 不取名字——契約 §4.2a L1 的名稱快取僅限管理後台。
+            creator_sub8=lambda release: (creator_subs.get(release.created_by_id) or "")[:8],
         )
     )
 
@@ -1049,6 +1143,72 @@ async def admin_activate(
     return _redirect(request, "/admin/users")
 
 
+@router.post("/admin/users/{user_id}/role", summary="指派/取消管理員")
+async def admin_set_role(
+    user_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    role: Annotated[str, Form()],
+) -> Response:
+    """把一位使用者設為管理員或取回一般成員。
+
+    參數:user_id 目標使用者、role `admin` 或 `member`。
+    回傳:302 回使用者清單。副作用:改寫 `users.platform_role` 並留稽核。
+
+    T122:後端(`PATCH /v1/admin/users/{id}`)早就做得到這件事,本路由只是把
+    入口搬到網頁上——**會打 API 的人不需要這個系統的後台**,所以「只能打 API」
+    等於沒有。語意與該 API 完全相同,稽核也刻意產生**同一個 action**
+    (`user_set_role`):紀錄不該因為管理員用的是網頁還是 API 而長得不一樣。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    if role not in (PlatformRole.admin.value, PlatformRole.member.value):
+        raise problems.unprocessable("bad-role", "角色不正確", "只能是 admin 或 member。")
+    wanted = PlatformRole(role)
+
+    user = (
+        await session.execute(select(User).where(User.id == parse_uuid(user_id, "使用者")))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    # 🔴 防呆 1:不能取消自己。平台沒有 root 後門——最後一個管理員把自己降級,
+    # 就沒有人能再指派任何人,只剩改 `.env` 重啟容器才救得回來。一個手滑不該有這種代價。
+    # (刻意**不做**「最後一個管理員不能被降級」:那要數管理員人數,而計數在並行下
+    #  不可靠——兩人同時降對方,兩邊都讀到「還有 2 個」。本條只看「你是不是你」,永遠正確。)
+    if user.id == identity.user.id and wanted is PlatformRole.member:
+        raise problems.conflict(
+            "不能取消自己的管理員身分——請由另一位管理員操作,"
+            "否則可能沒有任何人能再指派管理員。"
+        )
+
+    # 🔴 防呆 2:待開通是 deny-by-default(契約 §3)。跳過開通直接給管理權,
+    # 等於用後門繞過自己的門禁。要給就先開通,兩個動作各留一筆稽核。
+    if wanted is PlatformRole.admin and user.status is not UserStatus.active:
+        raise problems.conflict("要先開通這個帳號,才能設為管理員。")
+
+    if user.platform_role is not wanted:
+        user.platform_role = wanted
+        record(
+            session,
+            action=AuditAction.user_set_role,
+            actor_id=identity.user.id,
+            target_type="user",
+            target_id=user.id,
+            target_label=wanted.value,
+        )
+        await session.commit()
+        log.info(
+            "調整平台角色",
+            extra={"user_id": str(user.id), "new_role": wanted.value, "by": str(identity.user.id)},
+        )
+
+    return _redirect(request, "/admin/users")
+
+
 @router.post("/admin/users/{user_id}/disable", summary="停用使用者")
 async def admin_disable(
     user_id: str, request: Request, session: DbSession, identity: OptionalUser
@@ -1085,6 +1245,23 @@ async def admin_disable(
     return _redirect(request, "/admin/users")
 
 
+
+async def _subs_by_id(session: AsyncSession, ids: set) -> dict:
+    """批次取使用者的 `sub`(T125)。回傳 {user_id: sub}。副作用:無(唯讀,固定一次查詢)。
+
+    🔴 **一次 `IN` 查完,不逐列查**:版本歷史頁一次列 20 版,逐列查就是 20 次查詢。
+    比照 T84 的 `_display_names()`,而且同樣有一條測試以 `before_cursor_execute`
+    **實際計數**——查詢數必須與版本數無關,不能靠「應該不會慢」的直覺。
+
+    🔴 這裡取的是 `sub` 而**不是** `display_name_cache`:契約 §4.2a L1 的名稱快取
+    僅限管理後台顯示,版本歷史頁是一般使用者可見頁面(與 T118 專案頁同一個處境)。
+    已另送申請請 portal 擴大用途;獲准前以識別碼過渡。
+    """
+    if not ids:
+        return {}
+    rows = (await session.execute(select(User.id, User.sub).where(User.id.in_(ids)))).all()
+    return dict(rows)
+
 async def _display_names(session: AsyncSession, ids: set) -> dict:
     """批次取顯示名稱(T84)。回傳 {user_id: 名稱};查不到或沒有快取的**不放進字典**。
 
@@ -1104,6 +1281,80 @@ async def _display_names(session: AsyncSession, ids: set) -> dict:
         )
     ).all()
     return {uid: name for uid, name in rows if name}
+
+
+@router.get("/admin/reviews", summary="管理後台:待審核的版本")
+async def admin_reviews_page(
+    request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """T123 審核佇列:作者送審的版本停在這裡,核准後才會讓其他人下載。
+
+    參數:無。回傳:HTML。副作用:無(唯讀)。
+
+    🔴 這一頁本身就是「沒有通知管道」的緩解措施——平台沒有 email 也沒有推播,
+    管理員只有主動走進來才會知道有東西要審。總覽的待辦區必須指得到這裡,
+    兩者是一組的;拆開任何一半,版本就會安靜地卡住。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+
+    settings = request.app.state.settings
+    releases = (
+        (
+            await session.execute(
+                select(Release)
+                .where(Release.status == ReleaseStatus.pending_review)
+                .options(selectinload(Release.project))
+                .order_by(Release.created_at)  # 先送先審,不讓新的插隊
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return HTMLResponse(
+        render(
+            request,
+            "admin_reviews.html",
+            identity=identity,
+            releases=releases,
+            download_url=lambda artifact: web_url(
+                settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
+            ),
+        )
+    )
+
+
+@router.post("/admin/reviews/{release_id}/approve", summary="核准版本(送出)")
+async def admin_approve_release(
+    release_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """核准一個待審版本。與 `POST /v1/releases/{id}/approve` 同一段語意,不另立規則。"""
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    await approve_release(release_id, session, identity)
+    return _redirect(request, "/admin/reviews")
+
+
+@router.post("/admin/reviews/{release_id}/reject", summary="退回版本(送出)")
+async def admin_reject_release(
+    release_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    note: Annotated[str, Form()],
+) -> Response:
+    """退回一個待審版本,附上理由。
+
+    🔴 理由必填。表單的 `required` 只是不給機會送出——**真正的把關在這裡**
+    (`ReleaseReject` 的 schema 驗證),因為表單可以偽造。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/reviews")
+    if handled is not None:
+        return handled
+    await reject_release(release_id, ReleaseReject(note=note), session, identity)
+    return _redirect(request, "/admin/reviews")
 
 
 @router.get("/admin/audit", summary="管理後台:稽核紀錄")

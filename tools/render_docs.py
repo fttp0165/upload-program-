@@ -36,6 +36,9 @@ TARGETS = [
     "任務表.md",
     "設計_MVP.md",
     "runbook_換版與備份還原.md",
+    "runbook_本地開發與CI.md",
+    "測試SOP.md",
+    "測試項目清單.md",
     "介面導覽_給UI設計.md",
     "plans/SSO接入計畫.md",
     "plans/SSO接入申請_給portal.md",
@@ -48,7 +51,14 @@ TARGETS = [
     "plans/聲明_SLO_session形態_給portal.md",
     "plans/設計_問題回報系統.md",
     "plans/施工計畫書_問題回報系統.md",
+    "plans/施工計畫書_審核與回饋_T122-T125.md",
     "plans/故障通報_redirect_uri_給portal.md",
+    "plans/跨專案文件索引.md",
+    # 第九條格式:<發文專案>_致_<受文專案>_<類別>_<主題>_<YYYYMMDD-HHmm>
+    "plans/upload-program_致_cats-portal_回覆_session時序_20260812-1140.md",
+    "plans/upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md",
+    "plans/upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md",
+    "狀態總覽.md",
 ]
 
 SVG_MARKER = re.compile(r"<!--SVG:([A-Za-z0-9_-]+)-->")

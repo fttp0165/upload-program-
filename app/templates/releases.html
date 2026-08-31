@@ -50,17 +50,42 @@
               <span class="release-version">{{ release.version }}</span>
               {% if release.status.value == 'draft' %}
                 <span class="badge badge-warn">草稿</span>
+                {# T121:草稿唯一的回頭路。上傳頁原本只在「建立版本」送出後被導向一次,
+                   離開就再也找不到——草稿因此變成看得見卻點不進去的孤兒。
+                   🔴 判準與發布同一條(maintainer 以上):viewer 看得見草稿但改不動,
+                   給他一個按下去必然 403 的連結,比不給更糟。 #}
+                {% if can_edit_releases %}
+                  <a class="release-edit" href="{{ edit_url(release) }}">繼續編輯</a>
+                {% endif %}
+              {% elif release.status.value == 'pending_review' %}
+                {# T123:待審中。刻意**不給編輯入口**——待審中不能改檔案
+                   (伺服器端同樣擋),不然管理員核准的就不是他看過的那一份。 #}
+                <span class="badge badge-warn">待審核</span>
+                <span class="muted">已送出,等管理員核准後其他人才下載得到</span>
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}
-              <span class="muted">{{ release.artifacts | length }} 個檔案</span>
+              {# T106:只算上傳成功的 —— 寫「4 個檔案」卻只列 3 個,讀的人會以為頁面壞了。 #}
+              <span class="muted">{{ ready_artifacts(release) | length }} 個檔案</span>
+              {# T125:這一版是誰做的。🔴 顯示的是**識別碼不是名字**——契約 §4.2a L1
+                 的名稱快取僅限管理後台,本頁是一般使用者可見頁面(與 T118 專案頁
+                 同一個處境,格式刻意一致:兩處講同一件事,長得不一樣只會讓人
+                 以為是兩種東西)。已送申請請 portal 擴大用途。 #}
+              <span class="muted release-author">由 <code>{{ creator_sub8(release) }}…</code> 建立</span>
             </summary>
+
+            {# T123:退回理由。🔴 只有能編輯的人看得到——理由是寫給作者的工作訊息,
+               不是給所有讀者的公告。 #}
+            {% if release.review_note and can_edit_releases %}
+              <p class="notice review-note"><strong>被退回:</strong>{{ release.review_note }}</p>
+            {% endif %}
 
             {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
-            {% if release.artifacts %}
+            {% set shown = ready_artifacts(release) %}
+            {% if shown %}
               <ul class="artifact-list">
-                {% for artifact in release.artifacts | sort(attribute='filename') %}
+                {% for artifact in shown %}
                   <li class="artifact">
                     <div class="artifact-head">
                       <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>

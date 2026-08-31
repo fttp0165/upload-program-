@@ -29,6 +29,23 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
+# 2026-08-26(T106):這裡**曾經**加過一段 `apt-get --only-upgrade` 想把 openssl
+# 升到 Debian 已發布的安全版本(CVE-2026-14456),當場實測失敗,已移除。留下這段
+# 註釋是為了讓下一個想到同一招的人不必再撞一次:
+#
+# 1. deb.debian.org 從 CI runner 的容器網路**仍然不可達**(connection timed out)
+#    ——與上面 2026-07-30 run #85 同一堵牆,不是只擋 builder stage。
+# 2. 🔴 **`apt-get update` 抓不到索引時只印 `W:`,exit code 仍是 0。**
+#    於是後面的 `--only-upgrade` 拿舊索引去比,回報「已經是最新版」,整條 `&&`
+#    鏈**成功**,建置產出一個看起來已修好、實際沒動過的 image。
+#    當時刻意不寫 `|| true` 就是為了防這件事,而 apt 自己把它繞過去了——
+#    抓到的是 Trivy,不是這條護欄。
+#    ⚠️ 日後網路若開通、要把 apt 加回來,**必須自己驗 `apt-get update` 的結果**
+#    (例如接 `apt-get -o Acquire::Retries=3 update` 後再 `grep` 目標版本存在),
+#    不能只靠 `&&`。
+#
+# 在網路開通或上游 image 重建之前,本檔不再嘗試 apt。詳見 T106 日誌。
+
 # 🔴 non-root:UID 1000
 RUN useradd -m -u 1000 app
 
@@ -70,6 +87,13 @@ WORKDIR /app
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app app ./app
+# T109:維運腳本必須跟著 image 走 —— runbook §C.2 的 cron 就是在容器內跑它們,
+# 而在此之前 tools/ 一個檔都沒進來,那兩行指令從寫下的那天起就不可能成功
+# (實測 `can't open file '/app/tools/purge_failed_artifacts.py'`)。
+# 🔴 只收 purge_*.py,不是整個 tools/:devserver.py 會偽造 session,
+#    它與它依賴的 tests/ 都必須留在 image 外(T92 第三層防線的**意圖**)。
+#    守門在 tests/test_ops_scripts.py —— 連「runbook 寫了但沒 COPY」也會紅。
+COPY --chown=app:app tools/purge_*.py ./tools/
 
 USER app
 EXPOSE 8080

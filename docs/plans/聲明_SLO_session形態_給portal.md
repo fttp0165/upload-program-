@@ -1,10 +1,12 @@
 # 聲明:session 形態與 front-channel logout 端點(upload-program)
 
+**專案:** upload-program
+**發文專案:** upload-program
+**受文專案:** cats-portal
+**發文時間:** 2026-07-31 22:50
 **建立日期:** 2026-07-31 22:50
-**最後更新:** 2026-07-31 22:50
-**版本:** v1.0
-**發文方:** upload-program
-**收文方:** cats-portal / Platform
+**最後更新:** 2026-08-12 17:20
+**版本:** v1.1
 **依據:** 帳號系統接入契約 **v2.0** §10.2(session 形態聲明為申請 client 的必填項;
 既有接入者補聲明)、§10.3(front-channel logout 端點規格)、§10.6(本服務原列「⏸ 待其聲明」)
 
@@ -58,4 +60,5 @@
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.1 | 2026-08-12 17:20 | Claude(T93 第九條) | 依憲法第九條補上抬頭四欄(專案 / 發文專案 / 受文專案 / 發文時間);內容未變動 |
 | v1.0 | 2026-07-31 22:50 | Claude(Benny 授權) | 初版:聲明 session 形態為 cookie(不主張豁免)、front-channel logout 端點規格對照表、請 portal 註冊與重跑重現步驟、明列 best-effort 與同站前提兩項限制 |

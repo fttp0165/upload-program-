@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import problems
+from ..audit import AuditAction, record
 from ..config import Settings
 from ..db import get_session
 from ..models import UserStatus
@@ -146,11 +147,29 @@ async def callback(
     # 這件事跟首頁怎麼導流無關,即使日後改回落地頁也應該成立。
     if user.status is UserStatus.disabled:
         log.info("停用帳號登入被拒", extra={"user_id": str(user.id)})
+        # T108:留痕。log 會滾掉,而「誰被第二道防線擋下」是要能事後查的。
+        # target_label 留空——稽核只記 id,不落地個資(models.py:290)。
+        record(
+            session,
+            action=AuditAction.user_login_denied,
+            actor_id=user.id,
+            target_type="user",
+            target_id=user.id,
+        )
+        await session.commit()
         response = RedirectResponse(settings.portal_home_url, status_code=302)
         codec.clear_login_state(response)
         return response
 
     user.last_login_at = datetime.now(UTC)
+    # T108:成功登入進稽核。last_login_at 只留最後一次,事件才答得出頻率與歷程。
+    record(
+        session,
+        action=AuditAction.user_login,
+        actor_id=user.id,
+        target_type="user",
+        target_id=user.id,
+    )
     await session.commit()
 
     target = f"{settings.external_base}{login_state.next_path}"

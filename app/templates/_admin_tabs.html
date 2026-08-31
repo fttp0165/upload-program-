@@ -13,6 +13,11 @@
   {% if current == 'users' %}<span class="current">使用者</span>
   {% else %}<a href="{{ url('/admin/users') }}">使用者</a>{% endif %}
 
+  {# T123:審核佇列。放在使用者與稽核之間——它是「每天要做的事」,
+     比稽核紀錄(事後回查)更常用。 #}
+  {% if current == 'reviews' %}<span class="current">待審核</span>
+  {% else %}<a href="{{ url('/admin/reviews') }}">待審核</a>{% endif %}
+
   {% if current == 'audit' %}<span class="current">稽核紀錄</span>
   {% else %}<a href="{{ url('/admin/audit') }}">稽核紀錄</a>{% endif %}
 </nav>

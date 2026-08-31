@@ -1,8 +1,9 @@
 # upload-program — AI 小程式分享平台
 
+**專案:** upload-program
 **建立日期:** 2026-07-25 12:00
 **最後更新:** 2026-08-24 14:05
-**版本:** v2.1
+**版本:** v2.2
 
 公司內部的**開發者程式分享平台**(簡易型 GitHub):登入後建立專案,
 在專案內上傳**原始碼、執行檔、程式文件**,以**版本**為單位發布,同事可以瀏覽、搜尋、下載。
@@ -80,7 +81,19 @@ cp .env.example .env          # 填入必要變數;缺值會 fail-fast,不會安
 .venv/bin/python tools/render_docs.py   # 由 md 產生文件的 HTML 版
 ```
 
-啟動服務需要 PostgreSQL 與 MinIO,最省事的方式是 `docker compose up -d`。
+要用瀏覽器實際操作才需要 PostgreSQL 與 MinIO,起法是:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d   # 🔴 一定要帶 -f
+.venv/bin/alembic upgrade head
+.venv/bin/uvicorn app.asgi:app --reload --port 8000
+```
+
+🔴 **不要用根目錄的 `docker-compose.yml`**——那是正式機形狀(要 `cats-edge`
+外部網路、拉 GHCR image、掛 VM 上的 CA 憑證),在本機必然失敗。
+WSL 從零開始、以及在本機跑完整 CI 的逐條指令見
+[runbook_本地開發與CI.md](docs/runbook_本地開發與CI.md);
+🔴 本機**登入不能用**(redirect URI 未登記),原因與界線見該文件 §5。
 
 ### 本機看畫面(不需要 PG / MinIO / Keycloak)
 
@@ -185,6 +198,7 @@ docs/           開發計畫書 · 任務表 · 功能需求大綱 · 設計 · 
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
-| v2.1 | 2026-08-24 14:05 | Claude(Benny:本機 WSL 驗證) | 本地開發段新增〈本機看畫面〉:`tools/devserver.py`(T92)——側欄與建立版本頁只在已開通登入者的版型出現,而本專案不自建帳號系統,本機沒有 IdP 就登不進去;devserver 用測試已在用的替身 + SQLite 把真的 app 跑起來並模擬 gateway 剝前綴。🔴 同時載明三層結構防線(旗標、只綁 127.0.0.1、image 內沒有 tools/ 與 tests/)|
+| v2.2 | 2026-08-24 14:05 | Claude(Benny:本機 WSL 驗證) | 本地開發段新增〈本機看畫面〉:`tools/devserver.py`(T92)——側欄與建立版本頁只在已開通登入者的版型出現,而本專案不自建帳號系統,本機沒有 IdP 就登不進去;devserver 用測試已在用的替身 + SQLite 把真的 app 跑起來並模擬 gateway 剝前綴。🔴 同時載明三層結構防線(旗標、只綁 127.0.0.1、image 內沒有 devserver 與 tests/)。⚠ **本列原編為 v2.1,合併 PR #33 時改編為 v2.2**(兩條線各自升到 v2.1);內容除此之外一字未改 —— 括號裡的「image 內沒有 tools/」已依 T109 更正為「沒有 devserver 與 tests/」|
+| v2.1 | 2026-08-12 20:15 | Claude(Benny:部屬本地 WSL 跑 CI) | 🐛 §本地開發回寫一句**錯誤指示**:原本寫「最省事的方式是 `docker compose up -d`」,但根目錄的 compose 是正式機形狀(要 `cats-edge` 外部網路、拉 GHCR image、掛 VM 的 CA 憑證),在本機必然失敗;改指向新增的 `docker-compose.dev.yml` 與 [runbook_本地開發與CI.md](docs/runbook_本地開發與CI.md),並標明本機登入不能用。依第九條補抬頭「專案」 |
 | v2.0 | 2026-07-31 23:30 | Claude(Benny 指示) | **改寫**(原本僅標題 + 一句描述):補上定位與線上狀態、功能一覽、技術棧與路徑拓撲圖、本地開發與測試指令、部署三條必記紅線(細節指向 runbook)、平台整合與契約對齊版本、開發規則摘要與紅線、文件索引;依第七條補日期/版本/本表 |
 | v1.0 | 2026-07-25 12:00 | Benny | 初版:一句話描述 |

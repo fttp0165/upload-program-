@@ -14,8 +14,9 @@ from .. import problems
 from ..audit import AuditAction, record
 from ..models import ArtifactKind, ProjectRole, Release, ReleaseStatus, UploadStatus
 from ..queries import query_releases
-from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseUpdate
+from ..schemas import ReleaseCreate, ReleaseOut, ReleasePage, ReleaseReject, ReleaseUpdate
 from ..security import (
+    AdminUser,
     CurrentUser,
     DbSession,
     get_project,
@@ -231,8 +232,11 @@ async def publish_release(
             f"各至少一個;目前缺:{'、'.join(missing)}。",
         )
 
-    release.status = ReleaseStatus.published
-    release.published_at = datetime.now(UTC)
+    # T123:作者按「發布」= **送審**,不是直接上架。
+    # 🔴 `published_at` 刻意留到核准當下才寫——它是「何時變成可下載」,
+    # `latest_published_release()` 依它排序,語意不能因為多了一道審核而漂移。
+    release.status = ReleaseStatus.pending_review
+    release.review_note = ""  # 重送時清掉上一次的退回理由,否則畫面會顯示已經處理過的舊話
     record(
         session,
         action=AuditAction.release_publish,
@@ -243,7 +247,83 @@ async def publish_release(
     )
     await session.commit()
     await session.refresh(release)
-    log.info("發布版本", extra={"release_id": str(release.id), "artifacts": len(ready)})
+    log.info("送出審核", extra={"release_id": str(release.id), "artifacts": len(ready)})
+    return ReleaseOut.model_validate(release)
+
+
+@router.post("/releases/{release_id}/approve", response_model=ReleaseOut, summary="核准版本")
+async def approve_release(
+    release_id: str, session: DbSession, identity: AdminUser
+) -> ReleaseOut:
+    """核准一個待審版本,使其正式可下載。
+
+    參數:release_id。回傳:更新後的版本。副作用:改寫狀態與 `published_at`、留稽核。
+
+    🔴 **只有平台管理員能審**(`AdminUser`)。專案 maintainer 能送審,但不能核准
+    自己的東西——否則審核只是多按一個鈕。
+
+    ⚠️ 已知取捨:管理員可以核准**自己**發布的版本。本系統的管理員是平台維運者
+    而非外部稽核;禁止自審會讓「只有一位管理員」的情境完全動不了,而那正是現況。
+    """
+    release = await load_release(session, release_id)
+    if release.status is ReleaseStatus.published:
+        return ReleaseOut.model_validate(release)  # 冪等:重複核准不算錯
+    if release.status is not ReleaseStatus.pending_review:
+        raise problems.conflict("只有待審中的版本可以核准。")
+
+    release.status = ReleaseStatus.published
+    release.published_at = datetime.now(UTC)
+    release.reviewed_by_id = identity.user.id
+    release.reviewed_at = datetime.now(UTC)
+    release.review_note = ""
+    record(
+        session,
+        action=AuditAction.release_approve,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
+    await session.commit()
+    await session.refresh(release)
+    log.info("核准版本", extra={"release_id": str(release.id)})
+    return ReleaseOut.model_validate(release)
+
+
+@router.post("/releases/{release_id}/reject", response_model=ReleaseOut, summary="退回版本")
+async def reject_release(
+    release_id: str, payload: ReleaseReject, session: DbSession, identity: AdminUser
+) -> ReleaseOut:
+    """退回一個待審版本,並附上理由。
+
+    參數:release_id、payload.note 退回理由(必填)。
+    回傳:更新後的版本。副作用:改寫狀態與 `review_note`、留稽核。
+
+    🔴 **理由必填**(schema 層已擋空字串與純空白)。沒有理由的退回,作者只能猜,
+    然後重傳一次一模一樣的東西——理由欄位不是裝飾,是這個流程能不能運轉的關鍵。
+
+    退回後回到 `draft` 而不是留在待審:作者要能改,而 `draft` 正是「可以改」的狀態。
+    """
+    release = await load_release(session, release_id)
+    if release.status is not ReleaseStatus.pending_review:
+        raise problems.conflict("只有待審中的版本可以退回。")
+
+    release.status = ReleaseStatus.draft
+    release.review_note = payload.note.strip()
+    release.reviewed_by_id = identity.user.id
+    release.reviewed_at = datetime.now(UTC)
+    record(
+        session,
+        action=AuditAction.release_reject,
+        actor_id=identity.user.id,
+        target_type="release",
+        target_id=release.id,
+        target_label=f"{release.project.slug}:{release.version}",
+    )
+    await session.commit()
+    await session.refresh(release)
+    # 🔴 log 不記理由:那是使用者寫的自由文字,可能夾帶任何東西。
+    log.info("退回版本", extra={"release_id": str(release.id)})
     return ReleaseOut.model_validate(release)
 
 

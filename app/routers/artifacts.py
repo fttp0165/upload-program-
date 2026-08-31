@@ -79,8 +79,12 @@ async def upload_artifact(
 
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
-    if release.status is ReleaseStatus.published:
-        raise problems.conflict("已發布的版本不可再變更檔案;請建立新版本。")
+    # T123:🔴 **只有草稿能改檔案**。原本只擋 published,但待審中若還能換檔,
+    # 管理員核准的就不是他看過的那一份——審核會變成一個能被繞過的形式。
+    if release.status is not ReleaseStatus.draft:
+        raise problems.conflict(
+            "只有草稿可以變更檔案。待審中的版本請先請管理員退回;已發布的請建立新版本。"
+        )
 
     name = _check_filename(filename)
 
@@ -138,7 +142,7 @@ async def upload_artifact(
             key, request.stream(), settings.max_artifact_bytes, on_head=_on_head
         )
     except _Rejected as exc:
-        await _mark_failed(session, artifact)
+        await _discard(session, storage, artifact, key, identity.user.id)
         log.warning(
             "上傳遭拒:型別不符",
             extra={"artifact_id": str(artifact.id), "detected": exc.mime, "kind": kind.value},
@@ -147,15 +151,14 @@ async def upload_artifact(
             "rejected-file-type", "檔案型別不被接受", exc.reason, detected_type=exc.mime
         ) from None
     except TooLarge as exc:
-        await _mark_failed(session, artifact)
+        await _discard(session, storage, artifact, key, identity.user.id)
         raise problems.payload_too_large(f"單檔上限 {exc.limit} bytes") from None
     except Exception:
-        await _mark_failed(session, artifact)
+        await _discard(session, storage, artifact, key, identity.user.id)
         raise
 
     if x_content_sha256 and x_content_sha256.strip().lower() != result.sha256:
-        await storage.delete(key)
-        await _mark_failed(session, artifact)
+        await _discard(session, storage, artifact, key, identity.user.id)
         raise problems.unprocessable(
             "checksum-mismatch",
             "SHA-256 不符",
@@ -166,8 +169,7 @@ async def upload_artifact(
 
     # 沒有 Content-Length(chunked)時,只有收完才知道實際大小——這是第二道同樣的檢查。
     if quota.over_quota(settings, release.project, result.size_bytes):
-        await storage.delete(key)
-        await _mark_failed(session, artifact)
+        await _discard(session, storage, artifact, key, identity.user.id)
         raise quota.too_large(settings, release.project, result.size_bytes)
 
     artifact.storage_key = key
@@ -206,8 +208,36 @@ def _now():
     return datetime.now(UTC)
 
 
-async def _mark_failed(session, artifact: Artifact) -> None:
-    artifact.upload_status = UploadStatus.failed
+async def _discard(session, storage, artifact: Artifact, key: str, actor_id) -> None:
+    """上傳失敗時**刪掉整列**,並留下一筆稽核。
+
+    參數:session、storage(用來清掉可能已寫入的部分物件)、artifact、
+    storage key、actor_id(誰做的)。回傳:None。
+    副作用:刪 DB 列、best-effort 刪物件、寫一筆稽核、commit。
+
+    🔴 為什麼是刪列而不是標記 failed(T107,改掉 T35 以來的行為):
+    先建列是必要的(storage key 需要 `artifact.id`),但失敗後留著那一列,
+    使用者看到的是一個 **0 bytes、SHA-256 空白、按下去 404** 的檔案 ——
+    而它不會告訴任何人失敗的原因。原因當下就以 RFC 7807 回給呼叫端了
+    (`rejected-file-type` 帶 `detected_type`),log 也有一行。
+    **一個不帶資訊的殘骸不是紀錄,是垃圾**,而且每一次被擋下的上傳都會再留一列。
+
+    ⚠ 物件的刪除是 best-effort:串流可能寫到一半就被中止。刪不掉也不能讓
+    這裡拋例外 —— 否則使用者收到的會是 500,而不是真正的失敗原因。
+    """
+    try:
+        await storage.delete(key)
+    except Exception:  # noqa: BLE001 —— 清理失敗不得蓋掉真正的錯誤
+        log.warning("殘留物件清除失敗", extra={"storage_key": key})
+    record(
+        session,
+        action=AuditAction.artifact_upload_rejected,
+        actor_id=actor_id,
+        target_type="artifact",
+        target_id=artifact.id,
+        target_label=artifact.filename,
+    )
+    await session.delete(artifact)
     await session.commit()
 
 
@@ -221,7 +251,11 @@ async def download_artifact(
 ) -> StreamingResponse:
     release = await load_release(session, release_id)
     role = await require_project_read(session, release.project, identity)
-    if release.status is ReleaseStatus.draft and role is None and not identity.user.is_admin:
+    # T123:改成「不是 published 就擋」,`pending_review` 因此自動獲得與草稿
+    # **相同的可見性**——非成員 404、專案成員看得到。刻意沿用既有規則而不是
+    # 為審核另立一套:兩套可見性規則遲早會分岔,而分岔的那一邊就是漏洞。
+    # 🔴 404 不是 403——403 等於承認這個版本存在。
+    if release.status is not ReleaseStatus.published and role is None and not identity.user.is_admin:
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
@@ -299,8 +333,10 @@ async def delete_artifact(
 ) -> Response:
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
-    if release.status is ReleaseStatus.published:
-        raise problems.conflict("已發布的版本不可刪除檔案;請建立新版本。")
+    if release.status is not ReleaseStatus.draft:
+        raise problems.conflict(
+            "只有草稿可以刪除檔案。待審中的版本請先請管理員退回;已發布的請建立新版本。"
+        )
 
     artifact = _find_artifact(release, artifact_id)
     # 刪除前先取:delete 之後屬性會過期,而「刪掉的是哪個檔」正是稽核的重點。

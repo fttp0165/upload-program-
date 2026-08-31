@@ -10,13 +10,15 @@ from sqlalchemy.exc import IntegrityError
 from .. import problems
 from ..audit import AuditAction, record
 from ..members import remove_member, set_member
-from ..models import Project, ProjectMember, ProjectRole, ProjectTag, User
+from ..models import Project, ProjectComment, ProjectMember, ProjectRole, ProjectTag, User
 from ..queries import query_projects
 from ..quota import limit_for
 from ..schemas import (
     MemberIn,
     MemberOut,
     OwnerTransfer,
+    ProjectCommentCreate,
+    ProjectCommentOut,
     ProjectCreate,
     ProjectOut,
     ProjectPage,
@@ -29,6 +31,7 @@ from ..security import (
     CurrentUser,
     DbSession,
     get_project,
+    parse_uuid,
     project_out,
     require_project_read,
     require_project_role,
@@ -393,4 +396,114 @@ async def delete_member(
 
     # T100:同上,共用 `app/members.py`(含「不是成員就 404」與稽核、commit)。
     await remove_member(session, project, identity.user, parse_uuid(user_id, "成員"))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- T124 專案留言板 --------------------------------------------------------
+#
+# 🔴 與問題回報是**相反方向**的東西:回報只有本人與平台管理員看得到、
+# 404 不洩漏存在;留言就是要給同專案的人看的。可見性一律沿用
+# `require_project_read`——不另寫一套,兩套規則遲早分岔。
+
+
+@router.get("/{slug}/comments", response_model=list[ProjectCommentOut], summary="專案留言")
+async def list_comments(
+    slug: str, session: DbSession, identity: CurrentUser
+) -> list[ProjectCommentOut]:
+    """列出這個專案的留言,依時間由舊到新。
+
+    參數:slug。回傳:留言清單。副作用:無(唯讀)。
+
+    可見性跟著專案走:private 專案的非成員在 `require_project_read` 就拿到 **404**
+    (不是 403——403 等於承認這個專案存在)。
+    """
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+    rows = (
+        (
+            await session.execute(
+                select(ProjectComment)
+                .where(ProjectComment.project_id == project.id)
+                .order_by(ProjectComment.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [ProjectCommentOut.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/{slug}/comments",
+    response_model=ProjectCommentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="留一則回饋",
+)
+async def create_comment(
+    slug: str, payload: ProjectCommentCreate, session: DbSession, identity: CurrentUser
+) -> ProjectCommentOut:
+    """對這個專案留一則回饋。
+
+    參數:slug、payload.body_markdown。回傳:新留言。副作用:寫入一列。
+
+    🔴 **能讀就能寫**,viewer 也可以留言——只有 maintainer 講得了話的留言板
+    不叫 user feedback。
+    """
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+
+    comment = ProjectComment(
+        project_id=project.id,
+        author_id=identity.user.id,
+        body_markdown=payload.body_markdown.strip(),
+    )
+    session.add(comment)
+    await session.commit()
+    await session.refresh(comment)
+    # 🔴 log 不記內容:那是使用者寫的自由文字。
+    log.info("專案留言", extra={"project_id": str(project.id), "comment_id": str(comment.id)})
+    return ProjectCommentOut.model_validate(comment)
+
+
+@router.delete(
+    "/{slug}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="刪除留言",
+)
+async def delete_comment(
+    slug: str, comment_id: str, session: DbSession, identity: CurrentUser
+) -> Response:
+    """刪除一則留言。
+
+    參數:slug、comment_id。回傳:204。副作用:刪一列。
+
+    🔴 **只有「留言者本人」與「平台管理員」能刪——專案擁有者不行。**
+
+    這是本功能最重要的一條界線。擁有者若能刪掉別人對自己專案的評語,
+    留言板就只會剩下好話,而**一個只留得住讚美的回饋區比沒有回饋區更糟**:
+    它讓讀的人誤以為「沒有負評」等於「沒有問題」。
+    擁有者想回應批評,方式是**再留一則言**,不是讓批評消失。
+
+    不當內容的管理責任在平台方(admin),不在被批評的人身上。
+    """
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+
+    comment = (
+        await session.execute(
+            select(ProjectComment).where(
+                ProjectComment.id == parse_uuid(comment_id, "留言"),
+                ProjectComment.project_id == project.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if comment is None:
+        raise problems.not_found("找不到該留言")
+
+    if comment.author_id != identity.user.id and not identity.user.is_admin:
+        raise problems.forbidden("只有留言者本人或平台管理員可以刪除留言。")
+
+    await session.delete(comment)
+    await session.commit()
+    log.info("刪除留言", extra={"comment_id": comment_id, "by": str(identity.user.id)})
     return Response(status_code=status.HTTP_204_NO_CONTENT)

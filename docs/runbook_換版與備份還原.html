@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-08-11 11:40
-<strong>版本:</strong> v1.7
+<strong>最後更新:</strong> 2026-08-31 10:30
+<strong>版本:</strong> v1.8
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -266,6 +266,24 @@ docker compose exec svc alembic downgrade -1
 #    而且不會有任何錯誤訊息(預設 dry-run 會正常結束、正常寫 log)。
 30 4 * * *  cd /opt/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_issues.py --yes &gt;&gt; /var/log/upload-issue-purge.log 2&gt;&amp;1
 </code></pre>
+<h3>C.3 一次性:清掉上傳沒成功的殘骸(T107)</h3>
+<p>🔴 <strong>這一支不掛 cron。</strong> 它刪的是 artifact 列,而 T107 之後<strong>不會再產生新的殘骸</strong>
+——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
+那是最難察覺的風險形狀。既有殘骸清一次就結束。</p>
+<pre><code class="language-bash"># 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
+# 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
+./backup.sh
+
+# 1) 先看會刪什麼(預設 dry-run,什麼都不動)
+docker compose exec -T svc python tools/purge_failed_artifacts.py
+
+# 2) 確認清單無誤,才真的刪
+docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
+</code></pre>
+<p>⚠ <strong>旗標是 <code>--apply</code></strong>(同 <code>purge_audit.py</code>,<strong>不是</strong> <code>purge_issues.py</code> 的 <code>--yes</code>)。
+不加旗標會正常結束、正常寫 log,但什麼都沒刪 —— 這是刻意的阻力,不是 bug。</p>
+<p>它只碰 <code>upload_status != ready</code> 的列,<code>ready</code> 的一列都不動(條件寫死在查詢裡,
+不接受參數放寬)。</p>
 <hr />
 <h2>D. 還原演練(T27 的驗收本體;在 staging 執行)</h2>
 <blockquote>
@@ -365,6 +383,12 @@ docker compose exec svc alembic downgrade -1
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.8</td>
+<td>2026-08-31 10:30</td>
+<td>Claude(Benny:「沒有上傳成功的 就不用顯示了」)</td>
+<td><strong>新增 §C.3:一次性清掉上傳沒成功的殘骸</strong>(T107 的 <code>tools/purge_failed_artifacts.py</code>)。🔴 明寫<strong>不掛 cron</strong> —— T107 之後不再產生新殘骸,把它排程化只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,那是最難察覺的風險形狀。⚠ 旗標是 <code>--apply</code>(同 <code>purge_audit.py</code>,不是 <code>purge_issues.py</code> 的 <code>--yes</code>),不加只會 dry-run 且不會有任何錯誤訊息;執行前必須先備份</td>
+</tr>
 <tr>
 <td>v1.2</td>
 <td>2026-07-29 07:50</td>

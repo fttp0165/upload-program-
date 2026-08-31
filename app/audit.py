@@ -65,6 +65,9 @@ class AuditAction(enum.StrEnum):
     release_publish = "release.publish"
     release_delete = "release.delete"
     artifact_upload = "artifact.upload"
+    # T107:被擋下的上傳。🔴 刪了殘骸列之後,這是唯一還留著「有人試著傳一個
+    # 不被接受的檔」的地方 —— 對散布可執行檔的平台,反覆被拒收本身就是訊號。
+    artifact_upload_rejected = "artifact.upload_rejected"
     artifact_delete = "artifact.delete"
     artifact_download = "artifact.download"
 

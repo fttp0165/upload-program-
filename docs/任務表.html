@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 09:50
-<strong>版本:</strong> v1.85</p>
+<strong>最後更新:</strong> 2026-08-31 10:35
+<strong>版本:</strong> v1.86</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 09:50)</h2>
-<p>任務 105 項:<strong>✅ 98 / 🔵 1 / ⬜ 6</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>578 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 10:35)</h2>
+<p>任務 105 項:<strong>✅ 99 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>583 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -81,7 +81,7 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>T106</strong>(未上傳完成的檔案不顯示)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
+<p><strong>T106 + T107</strong>(未上傳完成的檔案不顯示 / 被拒收的上傳不留殘骸)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
 🟢 無 migration。</p>
 <p>⚠ <strong>另一條分支 <code>claude/read-article-join-project-1op5nk</code>(PR #33,v0.3.0)尚未合併</strong>:
 29 commits / 106 檔,<code>mergeable_state: dirty</code>(8 檔衝突)。
@@ -98,11 +98,6 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>T107 ⬜</td>
-<td>被拒收 / 中斷的上傳不留殘骸</td>
-<td>🔴 T106 只讓它不顯示,<strong>列還在</strong>。<code>dashboard.html</code>(0 bytes、SHA-256 空白)顯示 <strong>magic bytes 拒收有生效,但 artifact 列先建了</strong> —— 若屬實,每一次被擋下的上傳都留下一列殘骸。兩個選項各有代價:<strong>清</strong>(PUT 失敗即刪列)乾淨但失敗原因一起消失、使用者看不到為什麼傳不上去;<strong>不清</strong>則靠擁有者自己到上傳頁刪。⚠ 會動到上傳的錯誤路徑,而那正是拒收的所在,故獨立任務不順手改</td>
-</tr>
 <tr>
 <td>T105 ⬜</td>
 <td><strong>CI 守門:<code>APP_VERSION</code> 不得 ≤ GitHub 最新 tag</strong></td>
@@ -719,6 +714,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 截圖:專案頁出現 <code>下載 dashboard.html  binary · 0 bytes · 0 次下載</code>,按下去會 404 →「沒有上傳成功的 就不用顯示了」;🔴 <strong>根因不是新判斷</strong>:下載端點、三類齊備、配額計算<strong>早就</strong>只認 <code>upload_status is ready</code>,<strong>只有網頁清單那一層沒有</strong> —— 於是<strong>畫面在承諾一件伺服器已經拒絕的事</strong>,而使用者會以為是自己的網路壞掉;新增 <code>queries.ready_artifacts()</code> 一份共用(三個模板各寫一次的話,分岔方向是「某一頁又開始顯示壞掉的檔案」),專案頁與版本歷史頁改走它,<strong>「N 個檔案」計數同步過濾</strong>(寫 4 個卻只列 3 個,讀的人會以為頁面壞了);⚠ <strong>上傳頁刻意不過濾</strong>:那是擁有者的作業面,看不到失敗的檔就不知道要重傳,藏起來會讓殘留列變成沒有入口的幽靈 —— 有反向測試釘住;<strong>4 條新增(2 紅起步 + 2 條守門防我過濾過頭),全套 578</strong>;🔴 遺留 T107:殘留列本身沒清掉,且 <code>dashboard.html</code> 這個檔名代表 <strong>HTML 拒收有生效但列先建了</strong>,每次被拒收的上傳可能都留下一列 0 bytes 殘骸</td>
 </tr>
 <tr>
+<td>T107</td>
+<td>被拒收的上傳不留殘骸</td>
+<td>✅</td>
+<td>🟢</td>
+<td>T106 的遺留,<strong>根因在原始碼證實不是推測</strong>:<code>artifacts.py</code> 的 PUT 是「建列 → commit → 收串流 → 判型」,而先建列是<strong>必要的</strong>(storage key 需要 <code>artifact.id</code>)—— 錯的是失敗後把列留下來;於是 <code>dashboard.html</code> 被 HTML 紅線擋下卻留下一列 <code>failed</code> / 0 bytes / SHA-256 空白,而且<strong>每一次被擋下的上傳都會再留一列</strong>;🔴 改成失敗即刪列(<code>_discard()</code>,五條失敗路徑共用),並 best-effort 刪掉可能寫到一半的物件 —— 代價誠實記下:<strong>使用者無法事後在畫面上看到上次為什麼失敗</strong>,判斷可接受的理由是失敗原因當下就以 RFC 7807 回去了(<code>rejected-file-type</code> 帶 <code>detected_type</code>)、log 也有一行,而<strong>留著的那一列不會告訴任何人原因,它只顯示 0 bytes</strong> —— 不帶資訊的殘骸不是紀錄是垃圾;補稽核 <code>artifact.upload_rejected</code>(<code>action</code> 欄位是 <code>String(64)</code> 故<strong>零 migration</strong>,<code>models.py:308</code> 的註解就寫著「刻意讓新增動作不需要 migration,因為阻力會讓人選擇不記」),於是「有人反覆試著傳被擋下的檔」變成查得到的訊號;既有殘骸靠新增的 <code>tools/purge_failed_artifacts.py</code> 清一次(<strong>預設 dry-run</strong>,<code>--apply</code> 才刪,只碰非 ready、條件寫死不接受參數放寬),runbook §C.3 明寫<strong>不掛 cron</strong>(不會再產生新殘骸,排程化只會讓一支平常不做事的腳本哪天大量刪東西);⚠ <strong>一條測試我猜錯了</strong>:以為「超過上限」會留列,實際上它在 <code>Content-Length</code> 階段就被擋、列根本還沒建 —— 先寫測試把「我以為的失敗路徑」與「實際的」分開了,該條留著當守門;<strong>5 條新增(2 紅起步 + 3 守門),全套 583</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1046,6 +1048,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.86</td>
+<td>2026-08-31 10:35</td>
+<td>Claude</td>
+<td><strong>T107 完成</strong>:被拒收 / 中斷的上傳不再留下 0 bytes 殘骸(五條失敗路徑改走 <code>_discard()</code>,刪列 + best-effort 刪物件 + 新增稽核 <code>artifact.upload_rejected</code>,零 migration)。既有殘骸以 <code>tools/purge_failed_artifacts.py</code> 手動清一次(預設 dry-run),runbook 升 v1.8 加 §C.3 並明寫不掛 cron。<strong>583 passed</strong>(578 → 583)</td>
+</tr>
 <tr>
 <td>v1.85</td>
 <td>2026-08-31 09:50</td>

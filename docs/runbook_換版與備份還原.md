@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-11 11:40
-**版本:** v1.7
+**最後更新:** 2026-08-31 10:30
+**版本:** v1.8
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -205,6 +205,30 @@ docker compose exec svc alembic downgrade -1
 30 4 * * *  cd /opt/upload-program && docker compose exec -T svc python tools/purge_issues.py --yes >> /var/log/upload-issue-purge.log 2>&1
 ```
 
+### C.3 一次性:清掉上傳沒成功的殘骸(T107)
+
+🔴 **這一支不掛 cron。** 它刪的是 artifact 列,而 T107 之後**不會再產生新的殘骸**
+——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
+那是最難察覺的風險形狀。既有殘骸清一次就結束。
+
+```bash
+# 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
+# 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
+./backup.sh
+
+# 1) 先看會刪什麼(預設 dry-run,什麼都不動)
+docker compose exec -T svc python tools/purge_failed_artifacts.py
+
+# 2) 確認清單無誤,才真的刪
+docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
+```
+
+⚠ **旗標是 `--apply`**(同 `purge_audit.py`,**不是** `purge_issues.py` 的 `--yes`)。
+不加旗標會正常結束、正常寫 log,但什麼都沒刪 —— 這是刻意的阻力,不是 bug。
+
+它只碰 `upload_status != ready` 的列,`ready` 的一列都不動(條件寫死在查詢裡,
+不接受參數放寬)。
+
 ---
 
 ## D. 還原演練(T27 的驗收本體;在 staging 執行)
@@ -236,6 +260,7 @@ docker compose exec svc alembic downgrade -1
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.8 | 2026-08-31 10:30 | Claude(Benny:「沒有上傳成功的 就不用顯示了」) | **新增 §C.3:一次性清掉上傳沒成功的殘骸**(T107 的 `tools/purge_failed_artifacts.py`)。🔴 明寫**不掛 cron** —— T107 之後不再產生新殘骸,把它排程化只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,那是最難察覺的風險形狀。⚠ 旗標是 `--apply`(同 `purge_audit.py`,不是 `purge_issues.py` 的 `--yes`),不加只會 dry-run 且不會有任何錯誤訊息;執行前必須先備份 |
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
 | v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |
 | v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |

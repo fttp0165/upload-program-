@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-27 08:50
-<strong>版本:</strong> v1.84</p>
+<strong>最後更新:</strong> 2026-08-31 09:50
+<strong>版本:</strong> v1.85</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-27 08:50)</h2>
-<p>任務 103 項:<strong>✅ 97 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>574 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 09:50)</h2>
+<p>任務 105 項:<strong>✅ 98 / 🔵 1 / ⬜ 6</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>578 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -66,24 +66,28 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td><code>app/version.py</code></td>
 <td><strong>0.2.5</strong></td>
-<td>T104 補救用的版號。內容與 v0.2.4 預定要發的完全相同(T98–T103),差別只有版號</td>
+<td>與最新 tag 一致</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
-<td><strong>v0.2.4 ⚠ 作廢</strong></td>
-<td>🔴 <strong>打在 <code>6dabe7d</code>(PR #34 的合併,PR #35 之前),該 commit 的 <code>APP_VERSION</code> 是 <code>0.2.3</code></strong> —— 於是 <code>ghcr.io/fttp0165/upload-program:v0.2.4</code> 的首頁會顯示 v0.2.3(run #256 已 success 推上 GHCR)。依第八條 5 <strong>不刪不重推</strong>(image 已流出,重推會讓同一個 tag 在不同人手上是不同的東西),改發 v0.2.5;其 Release 說明須標明作廢並指向 v0.2.5</td>
+<td><strong>v0.2.5</strong></td>
+<td>指向 <code>31b4c20</code>;CI run #261 三個 job 全綠,<code>ghcr.io/fttp0165/upload-program:v0.2.5</code> 已推出。⚠ <code>v0.2.4</code> <strong>作廢</strong>(打在 <code>6dabe7d</code>,其常數是 <code>0.2.3</code>),依第八條 5 不刪不重推</td>
 </tr>
 <tr>
 <td>VM 執行中</td>
-<td><strong>v0.2.3</strong></td>
-<td>🔴 <strong>不要換到 v0.2.4</strong>(版號錯的 image)。等 v0.2.5,且換版前必須 <code>alembic upgrade head</code>(T99 的 <code>0009</code>)</td>
+<td><strong>v0.2.5</strong></td>
+<td>2026-08-31 換版,側欄實測顯示 <code>upload-program v0.2.5</code>;migration <code>0009</code> 已套用</td>
 </tr>
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>T104</strong>(<code>APP_VERSION</code> → 0.2.5,發版補救)。PR #34 與 #35 皆已合併,
-<code>main</code> = <code>5a5e866</code>(T98–T103,含 migration <code>0009</code>)。
-🔴 合併 T104 後才可打 <code>v0.2.5</code>;打之前先在 <code>main</code> 上 <code>grep APP_VERSION</code> 確認是 <code>0.2.5</code>。</p>
+<p><strong>T106</strong>(未上傳完成的檔案不顯示)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
+🟢 無 migration。</p>
+<p>⚠ <strong>另一條分支 <code>claude/read-article-join-project-1op5nk</code>(PR #33,v0.3.0)尚未合併</strong>:
+29 commits / 106 檔,<code>mergeable_state: dirty</code>(8 檔衝突)。
+🔴 <strong>它的 T94、T96–T105 與本分支同編號但不同內容</strong>,且它的 <code>0009_release_review</code>
+與 <code>main</code> 上已有的 <code>0009_notify_email</code> <strong>撞 alembic 鏈</strong>。合併前須先重編號 + 改鏈,
+另立計畫,不在 T106 內處理。</p>
 <h3>未完成的任務(6 項)</h3>
 <table>
 <thead>
@@ -94,6 +98,11 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>T107 ⬜</td>
+<td>被拒收 / 中斷的上傳不留殘骸</td>
+<td>🔴 T106 只讓它不顯示,<strong>列還在</strong>。<code>dashboard.html</code>(0 bytes、SHA-256 空白)顯示 <strong>magic bytes 拒收有生效,但 artifact 列先建了</strong> —— 若屬實,每一次被擋下的上傳都留下一列殘骸。兩個選項各有代價:<strong>清</strong>(PUT 失敗即刪列)乾淨但失敗原因一起消失、使用者看不到為什麼傳不上去;<strong>不清</strong>則靠擁有者自己到上傳頁刪。⚠ 會動到上傳的錯誤路徑,而那正是拒收的所在,故獨立任務不順手改</td>
+</tr>
 <tr>
 <td>T105 ⬜</td>
 <td><strong>CI 守門:<code>APP_VERSION</code> 不得 ≤ GitHub 最新 tag</strong></td>
@@ -703,6 +712,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>🔴 <strong><code>v0.2.4</code> 的 tag 打在 <code>6dabe7d</code></strong>(PR #34 的合併,<strong>PR #35 之前</strong>),而該 commit 的 <code>APP_VERSION</code> 是 <strong><code>0.2.3</code></strong> —— tag 那輪 CI(run #256)success,所以 <strong><code>ghcr.io/…:v0.2.4</code> 已經推上 GHCR 而它的首頁會顯示 v0.2.3</strong>,正是第八條 4 要防的「對使用者說謊」,而且換版驗證(看側欄版號)會判成換版失敗、實際上是版號本身錯的;🔴 <strong>不刪 tag 重推</strong>:①第八條 5 同版不重發(原文結論來自 v0.1.3 事故)②image 已流出,重推會讓<strong>同一個 tag 在不同人手上是不同的東西</strong>,比錯一次更難查 ③刪已發布的 tag/Release 是破壞性動作,換到的只是「版號數字漂亮」;故走既定解<strong>發下一個 patch 版 v0.2.5</strong>,內容與 v0.2.4 預定要發的完全相同(T98–T103),差別只有版號;⚠ <code>v0.2.4</code> 的 tag 與 Release <strong>保留不刪但須標明作廢並指向 v0.2.5</strong>(不標的話後來的人會照它部署);🔴 <strong>根因不是誰不小心 —— 這是第三次卡在版本號上,而形狀一次比一次糟</strong>(T94 文件寫錯最新 tag → 部署到非預期版本;T97 tag 沒推而 main 前進 → 版號與內容分家;<strong>本次 PR 合併與 tag 的時序交錯 → 錯的 image 真的上了 GHCR</strong>),而<strong>前兩次的結論都只寫成「建議」,建議不會執行自己</strong>,三次都靠人臨場發現(這次是靠截圖裡那行 <code>6dabe7d</code>);故守門升為<strong>下一個要做的任務 T105</strong>,不再是一句建議;<strong>不寫新測試</strong>(第三條 4)⚠ 但誠實講一句:那個慣例對「常數與 tag 對不上」<strong>本來就無效</strong>,它不是測試抓得到的東西,得由 CI 拿 GitHub 的 tag 來比 —— 那正是 T105</td>
 </tr>
 <tr>
+<td>T106</td>
+<td>未上傳完成的檔案不顯示</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 截圖:專案頁出現 <code>下載 dashboard.html  binary · 0 bytes · 0 次下載</code>,按下去會 404 →「沒有上傳成功的 就不用顯示了」;🔴 <strong>根因不是新判斷</strong>:下載端點、三類齊備、配額計算<strong>早就</strong>只認 <code>upload_status is ready</code>,<strong>只有網頁清單那一層沒有</strong> —— 於是<strong>畫面在承諾一件伺服器已經拒絕的事</strong>,而使用者會以為是自己的網路壞掉;新增 <code>queries.ready_artifacts()</code> 一份共用(三個模板各寫一次的話,分岔方向是「某一頁又開始顯示壞掉的檔案」),專案頁與版本歷史頁改走它,<strong>「N 個檔案」計數同步過濾</strong>(寫 4 個卻只列 3 個,讀的人會以為頁面壞了);⚠ <strong>上傳頁刻意不過濾</strong>:那是擁有者的作業面,看不到失敗的檔就不知道要重傳,藏起來會讓殘留列變成沒有入口的幽靈 —— 有反向測試釘住;<strong>4 條新增(2 紅起步 + 2 條守門防我過濾過頭),全套 578</strong>;🔴 遺留 T107:殘留列本身沒清掉,且 <code>dashboard.html</code> 這個檔名代表 <strong>HTML 拒收有生效但列先建了</strong>,每次被拒收的上傳可能都留下一列 0 bytes 殘骸</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1030,6 +1046,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.85</td>
+<td>2026-08-31 09:50</td>
+<td>Claude(Benny:「沒有上傳成功的 就不用顯示了」)</td>
+<td><strong>T106 完成</strong>:檢視面(專案頁、版本歷史頁)只列 <code>upload_status is ready</code> 的檔案,計數同步;上傳頁刻意維持全列(擁有者的作業面)。新增 <code>queries.ready_artifacts()</code> 一份共用。<strong>578 passed</strong>(574 → 578)。⚠ 新增待辦 <strong>T107</strong>(被拒收/中斷的上傳不留殘骸)。同時「三個版本號」表回寫實況:<strong>v0.2.5 已發布並已部署到 VM</strong>(側欄實測),<code>v0.2.4</code> 標記作廢</td>
+</tr>
 <tr>
 <td>v1.84</td>
 <td>2026-08-27 08:50</td>

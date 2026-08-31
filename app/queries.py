@@ -13,11 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from .models import (
+    Artifact,
     Project,
     ProjectMember,
     ProjectTag,
     Release,
     ReleaseStatus,
+    UploadStatus,
     User,
     Visibility,
 )
@@ -132,3 +134,32 @@ async def query_releases(
         )
     ).scalars().all()
     return total, list(rows)
+
+
+# --- T106:檢視面只顯示上傳成功的檔案 ---------------------------------------
+
+
+def ready_artifacts(release: Release | None) -> list[Artifact]:
+    """回傳這一版**上傳成功**的檔案,依檔名排序。
+
+    參數:release(可為 None,例如專案還沒有任何已發布版本)。
+    回傳:`upload_status is ready` 的 Artifact 清單。副作用:無(純函式,不查 DB)。
+
+    🔴 為什麼要有這個函式,而不是在三個模板各寫一次過濾:
+    下載端點、三類齊備、配額計算**早就**只認 `ready`,只有網頁清單沒有 ——
+    於是畫面出現一個按下去會 404 的下載按鈕(Benny 2026-08-31 截圖回報:
+    `dashboard.html  binary · 0 bytes`)。**畫面在承諾一件伺服器已經拒絕的事**,
+    而使用者會以為是自己的網路壞掉。
+
+    過濾條件寫成一份的理由與本模組開頭同一個:同一件事只能有一條路。
+    三份各寫一次的話,分岔的方向是「某一頁又開始顯示壞掉的檔案」。
+
+    ⚠ **上傳頁刻意不使用本函式**:那是擁有者的作業面,他必須看得到
+    「這個檔沒傳成功」才知道要重傳;藏起來會讓殘留列變成沒有入口的幽靈。
+    """
+    if release is None:
+        return []
+    return sorted(
+        (a for a in release.artifacts if a.upload_status is UploadStatus.ready),
+        key=lambda a: a.filename,
+    )

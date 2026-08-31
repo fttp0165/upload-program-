@@ -42,7 +42,7 @@ from ..models import (
     UserStatus,
     Visibility,
 )
-from ..queries import query_projects, query_releases
+from ..queries import query_projects, query_releases, ready_artifacts
 from ..quota import project_limit
 from ..schemas import ProjectCreate, ProjectUpdate, ReleaseCreate
 from ..security import (
@@ -393,7 +393,8 @@ async def project_page(
             identity=identity,
             project=project,
             release=release,
-            artifacts=sorted(release.artifacts, key=lambda a: a.filename) if release else [],
+            # T106:檢視面只列上傳成功的檔案(按了會 404 的按鈕不該存在)。
+            artifacts=ready_artifacts(release),
             quota_bytes=project_limit(settings, project),
             # F26 的固定連結:能貼進文件而不會隨版本失效。T35 做出來的東西
             # 不放在使用者看得到的地方就沒人會用。
@@ -632,6 +633,8 @@ async def project_releases_page(
             download_url=lambda artifact: web_url(
                 settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
             ),
+            # T106:模板逐版取用;計數也走同一份,否則會出現「4 個檔案」只列 3 個。
+            ready_artifacts=ready_artifacts,
         )
     )
 

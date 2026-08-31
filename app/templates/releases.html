@@ -53,14 +53,16 @@
               {% else %}
                 <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {% endif %}
-              <span class="muted">{{ release.artifacts | length }} 個檔案</span>
+              {# T106:只算上傳成功的 —— 寫「4 個檔案」卻只列 3 個,讀的人會以為頁面壞了。 #}
+              <span class="muted">{{ ready_artifacts(release) | length }} 個檔案</span>
             </summary>
 
             {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
-            {% if release.artifacts %}
+            {% set shown = ready_artifacts(release) %}
+            {% if shown %}
               <ul class="artifact-list">
-                {% for artifact in release.artifacts | sort(attribute='filename') %}
+                {% for artifact in shown %}
                   <li class="artifact">
                     <div class="artifact-head">
                       <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>

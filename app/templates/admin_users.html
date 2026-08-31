@@ -78,6 +78,14 @@
           {% endif %}
           <span class="badge">{{ user.status.value }}</span>
           {% if user.platform_role.value == 'admin' %}<span class="badge">管理員</span>{% endif %}
+          {# T108:最後登入。欄位早就在存,但兩個月來一個畫面都沒顯示過。
+             🔴 沒有值時明寫「從未登入」而不是留白——空白與「沒顯示」在畫面上
+             長得一樣,而「這個帳號從來沒人用過」是開通後最該被看見的事實。 #}
+          {% if user.last_login_at %}
+            <span class="muted">最後登入 {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          {% else %}
+            <span class="muted">從未登入</span>
+          {% endif %}
           {% if user.id == me.id %}
             <span class="muted">(你自己)</span>
           {% elif user.status.value == 'disabled' %}

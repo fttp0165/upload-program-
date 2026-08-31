@@ -41,6 +41,13 @@ class AuditAction(enum.StrEnum):
     """
 
     # 帳號(F54:「開通了誰」)
+    # T108:登入本身。`users.last_login_at` 只答得出「最後一次」,而「這個帳號
+    # 這個月登入過幾次、上次是什麼時候」要有事件才查得到。
+    user_login = "user.login"
+    # 🔴 比成功登入更值得記:契約 §1.1 明載「離職不會自動停用 IdP 帳號」,
+    # 我方的 deny-by-default 是第二道防線 —— 那道防線擋下了誰,
+    # 原本只留在**會滾掉的 stdout log** 裡。
+    user_login_denied = "user.login_denied"
     user_activate = "user.activate"
     user_disable = "user.disable"
     user_set_role = "user.set_role"

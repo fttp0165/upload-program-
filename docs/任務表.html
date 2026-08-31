@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 10:35
-<strong>版本:</strong> v1.86</p>
+<strong>最後更新:</strong> 2026-08-31 11:25
+<strong>版本:</strong> v1.87</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 10:35)</h2>
-<p>任務 105 項:<strong>✅ 99 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>583 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 11:25)</h2>
+<p>任務 106 項:<strong>✅ 100 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>590 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -81,7 +81,7 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>T106 + T107</strong>(未上傳完成的檔案不顯示 / 被拒收的上傳不留殘骸)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
+<p><strong>T106 + T107 + T108</strong>(殘骸不顯示 / 不再產生殘骸 / 登入紀錄)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
 🟢 無 migration。</p>
 <p>⚠ <strong>另一條分支 <code>claude/read-article-join-project-1op5nk</code>(PR #33,v0.3.0)尚未合併</strong>:
 29 commits / 106 檔,<code>mergeable_state: dirty</code>(8 檔衝突)。
@@ -721,6 +721,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>T106 的遺留,<strong>根因在原始碼證實不是推測</strong>:<code>artifacts.py</code> 的 PUT 是「建列 → commit → 收串流 → 判型」,而先建列是<strong>必要的</strong>(storage key 需要 <code>artifact.id</code>)—— 錯的是失敗後把列留下來;於是 <code>dashboard.html</code> 被 HTML 紅線擋下卻留下一列 <code>failed</code> / 0 bytes / SHA-256 空白,而且<strong>每一次被擋下的上傳都會再留一列</strong>;🔴 改成失敗即刪列(<code>_discard()</code>,五條失敗路徑共用),並 best-effort 刪掉可能寫到一半的物件 —— 代價誠實記下:<strong>使用者無法事後在畫面上看到上次為什麼失敗</strong>,判斷可接受的理由是失敗原因當下就以 RFC 7807 回去了(<code>rejected-file-type</code> 帶 <code>detected_type</code>)、log 也有一行,而<strong>留著的那一列不會告訴任何人原因,它只顯示 0 bytes</strong> —— 不帶資訊的殘骸不是紀錄是垃圾;補稽核 <code>artifact.upload_rejected</code>(<code>action</code> 欄位是 <code>String(64)</code> 故<strong>零 migration</strong>,<code>models.py:308</code> 的註解就寫著「刻意讓新增動作不需要 migration,因為阻力會讓人選擇不記」),於是「有人反覆試著傳被擋下的檔」變成查得到的訊號;既有殘骸靠新增的 <code>tools/purge_failed_artifacts.py</code> 清一次(<strong>預設 dry-run</strong>,<code>--apply</code> 才刪,只碰非 ready、條件寫死不接受參數放寬),runbook §C.3 明寫<strong>不掛 cron</strong>(不會再產生新殘骸,排程化只會讓一支平常不做事的腳本哪天大量刪東西);⚠ <strong>一條測試我猜錯了</strong>:以為「超過上限」會留列,實際上它在 <code>Content-Length</code> 階段就被擋、列根本還沒建 —— 先寫測試把「我以為的失敗路徑」與「實際的」分開了,該條留著當守門;<strong>5 條新增(2 紅起步 + 3 守門),全套 583</strong></td>
 </tr>
 <tr>
+<td>T108</td>
+<td>後台使用者登入紀錄</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「後台 新增使用者登入 紀錄」;🔴 <strong>先盤點才做</strong>:<code>users.last_login_at</code> 欄位、稽核表、後台稽核頁<strong>都早就存在</strong> —— 缺的是兩件事:①<strong>登入沒有進稽核</strong>(<code>last_login_at</code> 只答得出「最後一次」,查不到「這個月登入過幾次」)②<strong>那個欄位存了兩個月,一個畫面都沒顯示過</strong>;新增 <code>user.login</code>,以及 🔴 <strong><code>user.login_denied</code>(停用帳號嘗試登入)—— 這一條比成功登入更值得記</strong>:契約 §1.1 明載「離職不會自動停用 IdP 帳號」、我方 deny-by-default 是第二道防線,而那道防線擋下了誰原本只留在<strong>會滾掉的 stdout log</strong> 裡;後台使用者頁顯示最後登入,沒有值時<strong>明寫「從未登入」而不是留白</strong>(空白與「沒顯示」在畫面上長得一樣,而「這個帳號從來沒人用過」是開通後最該被看見的事實);⚠ 待開通清單<strong>刻意不改</strong>(那裡已有「申請於」,而待開通者的建立時間就是首次登入時間,再加一欄只會出現兩個幾乎一樣的時間);🔴 <strong>不記 IP 是刻意的</strong>:稽核表目前一個網路識別欄位都沒有,為登入單獨加要 migration,而 IP 在內網幾乎等於指名道姓 —— 要記應該是全表一致的決定,不該夾在這裡開特例;⚠ <strong>一條測試是假綠</strong>(「稽核不含 email」在沒有登入事件時迴圈跑零次、斷言等於沒執行),加上功能後才真的在驗 —— 這種綠燈比紅燈危險,已寫進 dev-log;<strong>7 條新增(6 條紅起步),全套 590</strong>;🟢 零 migration(<code>action</code> 是 <code>String(64)</code>,<code>models.py:308</code> 早為此鋪路)</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1048,6 +1055,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.87</td>
+<td>2026-08-31 11:25</td>
+<td>Claude(Benny:「後台 新增使用者登入 紀錄」)</td>
+<td><strong>T108 完成</strong>:新增稽核動作 <code>user.login</code> 與 <code>user.login_denied</code>(停用帳號被擋 —— 契約 §1.1 的第二道防線擋下了誰,原本只在會滾掉的 log 裡),後台使用者頁顯示最後登入 / 「從未登入」。🟢 零 migration。<strong>590 passed</strong>(583 → 590)。⚠ 不記 IP 是刻意的(要記應是全表一致的決定);遺留建議:<code>artifact.upload_rejected</code> 與 <code>user.login_denied</code> 是同一類「被擋下的嘗試」,應一起做一個異常訊號區塊,分開做會變成兩個半套</td>
+</tr>
 <tr>
 <td>v1.86</td>
 <td>2026-08-31 10:35</td>

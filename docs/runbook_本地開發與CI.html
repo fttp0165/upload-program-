@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>Runbook:本地開發環境(WSL)與本機跑 CI</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 20:10
-<strong>最後更新:</strong> 2026-08-12 21:40
-<strong>版本:</strong> v2.1</p>
+<strong>最後更新:</strong> 2026-08-31 14:40
+<strong>版本:</strong> v2.2</p>
 <blockquote>
 <p>照著做就好,不需要先懂為什麼。
 <strong>每個指令區塊上面都標了「在哪台機器、在哪個目錄」</strong>(憲法第十條);
@@ -264,9 +264,42 @@ docker compose -f docker-compose.dev.yml down -v       # 連資料一起砍掉,�
 <pre><code class="language-bash"># 不該進 git 的檔案
 git ls-files | grep -E '\.(sql|xlsx)$|^\.env$|node_modules/|\.venv/' &amp;&amp; echo &quot;❌ 有不該進 git 的檔案&quot; || echo &quot;✅&quot;
 
-# SSO 紅線(零 Authentik、零 HS256)
-grep -ri &quot;authentik\|HS256&quot; app/ tests/ &amp;&amp; echo &quot;❌ 踩到 SSO 紅線&quot; || echo &quot;✅&quot;
+# SSO 紅線 ①:零 Authentik
+grep -rniE 'authentik' --include='*.py' --include='*.yml' --include='*.yaml' \
+     --exclude='test_sso_contract.py' app/ tests/ &amp;&amp; echo &quot;❌ 出現 Authentik&quot; || echo &quot;✅&quot;
+
+# SSO 紅線 ②:app/ 不得有 HS256
+grep -rn 'HS256' app/ 2&gt;/dev/null | grep -v '不接受\|一律拒\|禁' &amp;&amp; echo &quot;❌ app/ 出現 HS256&quot; || echo &quot;✅&quot;
 </code></pre>
+<p>🔴 <strong>這三個排除條件不是排版,拿掉任何一個都會得到假警報</strong>(T129,實際踩過):</p>
+<table>
+<thead>
+<tr>
+<th>排除</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--exclude='test_sso_contract.py'</code></td>
+<td><strong>那支測試自己就是掃描器</strong>,它必須寫得出被禁的字</td>
+</tr>
+<tr>
+<td>HS256 只掃 <code>app/</code></td>
+<td>測試會刻意產生 HS256 token 來驗「必須被拒絕」,那是正確用法</td>
+</tr>
+<tr>
+<td><code>grep -v '不接受\|一律拒\|禁'</code></td>
+<td>註解裡寫「禁 HS256」是在說明紅線,不是在使用它</td>
+</tr>
+<tr>
+<td><code>--include='*.py' --include='*.yml'</code></td>
+<td>否則會掃到 <code>__pycache__/*.pyc</code>,回報「binary file matches」</td>
+</tr>
+</tbody>
+</table>
+<p>⚠ <strong>上面這幾條與 <code>.github/workflows/ci.yml</code> 逐字相同。</strong> 兩邊若不一致,
+你會得到一個 CI 不同意的結論 —— 而假警報的代價是<strong>有人學會忽略紅字</strong>。</p>
 <h3>4.2 job 2:建 image + 弱點掃描(需要 Docker)</h3>
 <blockquote>
 <p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/up</code></p>
@@ -408,6 +441,12 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.70.
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.2</td>
+<td>2026-08-31 14:40</td>
+<td>Claude(T129,Benny 實跑撞到)</td>
+<td>🐛 <strong>§4.1 的 SSO 紅線檢查會誤報</strong>:原本寫的是簡化版 <code>grep -ri "authentik\|HS256" app/ tests/</code>,而 CI 實際跑的有<strong>三層排除</strong>(<code>--exclude='test_sso_contract.py'</code> —— 那支測試自己就是掃描器;HS256 只掃 <code>app/</code>;排除註解裡說明禁止的行;<code>--include</code> 避開 <code>__pycache__</code>)。照 runbook 做必得 ❌ 而 CI 是綠的。🔴 <strong>與 T109 同一類但更陰險</strong> —— T109 是 <code>No such file</code>(當場知道有問題),這一支給的是<strong>看起來很嚴重的假警報</strong>,後果是有人去找不存在的問題、或<strong>學會忽略紅字</strong>。已改為與 <code>ci.yml</code> 逐字相同,並列出每個排除條件的理由(不寫理由,下一個人會覺得可疑而順手拿掉)</td>
+</tr>
 <tr>
 <td>v2.1</td>
 <td>2026-08-12 21:40</td>

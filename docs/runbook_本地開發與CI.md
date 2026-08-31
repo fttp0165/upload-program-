@@ -2,8 +2,8 @@
 
 **專案:** upload-program
 **建立日期:** 2026-08-12 20:10
-**最後更新:** 2026-08-12 21:40
-**版本:** v2.1
+**最後更新:** 2026-08-31 14:40
+**版本:** v2.2
 
 > 照著做就好,不需要先懂為什麼。
 > **每個指令區塊上面都標了「在哪台機器、在哪個目錄」**(憲法第十條);
@@ -229,9 +229,25 @@ CI 有三個 job,本機能跑前兩個:
 # 不該進 git 的檔案
 git ls-files | grep -E '\.(sql|xlsx)$|^\.env$|node_modules/|\.venv/' && echo "❌ 有不該進 git 的檔案" || echo "✅"
 
-# SSO 紅線(零 Authentik、零 HS256)
-grep -ri "authentik\|HS256" app/ tests/ && echo "❌ 踩到 SSO 紅線" || echo "✅"
+# SSO 紅線 ①:零 Authentik
+grep -rniE 'authentik' --include='*.py' --include='*.yml' --include='*.yaml' \
+     --exclude='test_sso_contract.py' app/ tests/ && echo "❌ 出現 Authentik" || echo "✅"
+
+# SSO 紅線 ②:app/ 不得有 HS256
+grep -rn 'HS256' app/ 2>/dev/null | grep -v '不接受\|一律拒\|禁' && echo "❌ app/ 出現 HS256" || echo "✅"
 ```
+
+🔴 **這三個排除條件不是排版,拿掉任何一個都會得到假警報**(T129,實際踩過):
+
+| 排除 | 為什麼 |
+|---|---|
+| `--exclude='test_sso_contract.py'` | **那支測試自己就是掃描器**,它必須寫得出被禁的字 |
+| HS256 只掃 `app/` | 測試會刻意產生 HS256 token 來驗「必須被拒絕」,那是正確用法 |
+| `grep -v '不接受\|一律拒\|禁'` | 註解裡寫「禁 HS256」是在說明紅線,不是在使用它 |
+| `--include='*.py' --include='*.yml'` | 否則會掃到 `__pycache__/*.pyc`,回報「binary file matches」 |
+
+⚠ **上面這幾條與 `.github/workflows/ci.yml` 逐字相同。** 兩邊若不一致,
+你會得到一個 CI 不同意的結論 —— 而假警報的代價是**有人學會忽略紅字**。
 
 ### 4.2 job 2:建 image + 弱點掃描(需要 Docker)
 
@@ -328,6 +344,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.70.
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v2.2 | 2026-08-31 14:40 | Claude(T129,Benny 實跑撞到) | 🐛 **§4.1 的 SSO 紅線檢查會誤報**:原本寫的是簡化版 `grep -ri "authentik\|HS256" app/ tests/`,而 CI 實際跑的有**三層排除**(`--exclude='test_sso_contract.py'` —— 那支測試自己就是掃描器;HS256 只掃 `app/`;排除註解裡說明禁止的行;`--include` 避開 `__pycache__`)。照 runbook 做必得 ❌ 而 CI 是綠的。🔴 **與 T109 同一類但更陰險** —— T109 是 `No such file`(當場知道有問題),這一支給的是**看起來很嚴重的假警報**,後果是有人去找不存在的問題、或**學會忽略紅字**。已改為與 `ci.yml` 逐字相同,並列出每個排除條件的理由(不寫理由,下一個人會覺得可疑而順手拿掉)|
 | v2.1 | 2026-08-12 21:40 | Claude(WSL 實機建置回寫) | 🐛 **依實機回寫**(第二條 5):專案目錄改為實際的 `~/up`(原本寫 `~/upload-program-` 是我方假設,實機不符——第十條要求路徑寫死,寫錯的路徑比不寫更糟);§1.2 的 `git clone` 補上目標目錄名;測試數 528 → **531**;導言加註路徑約定與「clone 在別處要自行代換」 |
 | v2.0 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為全部 16 個指令區塊標明機器與工作目錄;區分 🖥️ 執行 / 📄 編輯(`.env` 那兩段是編輯不是貼指令);導言改述新的閱讀方式 |
 | v1.1 | 2026-08-12 20:25 | Claude(Benny:部屬本地 WSL 跑 CI) | §3.3 補上「啟動 log 會有 OIDC discovery 失敗」是**預期行為**(不擋啟動)與三個端點的本機預期(`/ready` 本機必然紅);§6 對應加兩列 |

@@ -43,16 +43,16 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 14:10
-<strong>版本:</strong> v1.89</p>
+<strong>最後更新:</strong> 2026-08-31 14:45
+<strong>版本:</strong> v1.90</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 14:10)</h2>
-<p>任務 125 項:<strong>✅ 119 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+<h2>目前進度(2026-08-31 14:45)</h2>
+<p>任務 126 項:<strong>✅ 120 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
 測試 <strong>647 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
@@ -100,6 +100,11 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>T130 ⬜</td>
+<td>本機 CI 指令與 <code>ci.yml</code> 不得分岔</td>
+<td>T129 的遺留。同一句檢查指令同時存在於 <code>ci.yml</code> 與 runbook,這次分岔的方向是「文件比 CI 嚴格」→ 假警報;下次可能是「文件比 CI 寬鬆」→ 本機綠而 CI 紅。兩條路:<strong>從 <code>ci.yml</code> 產生</strong> runbook 那一節(比照 <code>render_docs.py</code>,較貴但根治)或<strong>加測試比對兩邊關鍵字</strong>(便宜,只擋得住「改了一邊」)</td>
+</tr>
 <tr>
 <td>T105 ⬜</td>
 <td><strong>CI 守門:<code>APP_VERSION</code> 不得 ≤ GitHub 最新 tag</strong></td>
@@ -871,6 +876,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「目前狀態 寫成一份文件」。狀態原本散在<strong>四個地方</strong>——任務表(160+ 列,太細)、開發日誌(26 篇,一篇一件事拼不出全局)、跨專案索引(只涵蓋對外那一面)、GitHub PR(不含 staging 欠項與營運限制);四個都是對的,但<strong>沒有一頁看得完</strong>,於是「現在到底能不能發版」每次都要重查一遍。新增 <code>docs/狀態總覽.md</code> 七節,重點在按<strong>阻塞源</strong>重編的〈誰的球〉(平台網路 / cats-portal / staging),讓「<strong>唯一擋住發版的是 #11</strong>」變成一眼可見的事實而不是要推理出來的結論。🔴 開頭明示本頁是<strong>摘要不是真相來源</strong>——若讀者把摘要當權威,它就會變成第五份會漂移的真相,比沒有它更糟。🐛 <strong>彙整時順手抓到 <code>--check</code> 的盲點</strong>:它只掃 <code>render_docs.py</code> 自己的 TARGETS 清單,<strong>漏掉的東西不在清單裡,清單當然檢查不出來</strong>——前一天新建的第 11 份申請書因此沒有 HTML 版,而 CI 照樣綠。與 T117 / T127 同一形狀:<strong>檢查器只證明它檢查過的東西是對的,不證明該檢查的都檢查了</strong>;差別是這次的漏網之魚是文件,症狀更難察覺(沒有 HTML 版不會有任何錯誤訊息,只有對方收到 md 卻打不開時才發現,而那時已經寄出去了)。依第九條 7「規約若沒有測試,三個月後就是一句沒人記得的話」補守門第 9 條,🔴 <strong>判準綁索引不綁 glob</strong>(索引是「哪些算跨專案文件」的唯一登記處,綁 glob 等於讓規則散成兩份)。⚠️ 日誌計畫段為<strong>事後補記</strong>,已依第二條 2 明示。⚠️ 遺留:<strong>過期的狀態頁比沒有狀態頁更危險</strong>(看起來很權威),而測試查得出檔案在不在、抬頭齊不齊,<strong>查不出內容是否過期</strong>——建議每次發版與卡關項變動時更新。<strong>1 條紅→綠,全套 560</strong></td>
 </tr>
 <tr>
+<td>T129</td>
+<td>修掉會誤報的本機 CI 指令</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 照 <code>runbook_本地開發與CI.md</code> §4.1 實跑,得到「❌ 踩到 SSO 紅線」,而同一個 commit 的 CI 那一步<strong>是綠的</strong>;根因:runbook 上的是<strong>簡化版</strong>,<code>ci.yml</code> 實際有三層排除而它一層都沒有 —— ①<code>--exclude='test_sso_contract.py'</code>(<strong>那支測試自己就是掃描器,必須寫得出被禁的字</strong>)②HS256 <strong>只掃 <code>app/</code></strong>(測試會刻意產生 HS256 token 來驗「必須被拒絕」,那是正確用法)③排除 <code>不接受/一律拒/禁</code> 這類<strong>說明</strong>用法的行,並以 <code>--include</code> 避開 <code>__pycache__</code> 的 binary 命中;🔴 <strong>與 T109 同一類(文件寫得出來、照做卻得到錯的結果)但更陰險</strong>:T109 是 <code>No such file</code>,當場知道有問題;這一支給的是<strong>看起來很嚴重的假警報</strong>,後果是有人去找一個不存在的問題,或更糟 —— <strong>學會忽略紅字,而下次是真的</strong>;已改為與 <code>ci.yml</code> 逐字相同並列出每個排除的理由(不寫理由,下一個人會覺得排除很可疑而順手拿掉);<strong>不寫新測試</strong>(第三條 4):<code>test_sso_contract.py</code> 已在驗這件事本身,⚠ 但遺留 T130 —— <strong>同一句指令出現在兩個地方遲早分岔</strong>,這次是文件比 CI 嚴格(假警報),下次可能是文件比 CI 寬鬆(本機綠、CI 紅)</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1198,6 +1210,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.90</td>
+<td>2026-08-31 14:45</td>
+<td>Claude(Benny 實跑撞到)</td>
+<td><strong>T129</strong>:<code>runbook_本地開發與CI.md</code> §4.1 的 SSO 紅線檢查是簡化版,少了 CI 的三層排除 → 照做必得假警報「❌ 踩到 SSO 紅線」而 CI 是綠的。已改為與 <code>ci.yml</code> 逐字相同並附每個排除的理由。⚠ 新增待辦 <strong>T130</strong>(兩邊指令不得分岔)</td>
+</tr>
 <tr>
 <td>v1.89</td>
 <td>2026-08-31 14:10</td>

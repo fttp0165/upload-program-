@@ -70,6 +70,13 @@ WORKDIR /app
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app app ./app
+# T109:維運腳本必須跟著 image 走 —— runbook §C.2 的 cron 就是在容器內跑它們,
+# 而在此之前 tools/ 一個檔都沒進來,那兩行指令從寫下的那天起就不可能成功
+# (實測 `can't open file '/app/tools/purge_failed_artifacts.py'`)。
+# 🔴 只收 purge_*.py,不是整個 tools/:devserver.py 會偽造 session,
+#    它與它依賴的 tests/ 都必須留在 image 外(T92 第三層防線的**意圖**)。
+#    守門在 tests/test_ops_scripts.py —— 連「runbook 寫了但沒 COPY」也會紅。
+COPY --chown=app:app tools/purge_*.py ./tools/
 
 USER app
 EXPOSE 8080

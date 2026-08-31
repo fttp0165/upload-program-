@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-08-31 10:30
-<strong>版本:</strong> v1.8
+<strong>最後更新:</strong> 2026-08-31 12:15
+<strong>版本:</strong> v1.9
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -257,6 +257,14 @@ docker compose exec svc alembic downgrade -1
 <li>⏳ 異地(NAS / 另一台 VM)同步待定,與 Q12(磁碟空間)一併跟平台確認</li>
 </ul>
 <h3>C.2 cron(部署當天照抄——設定值不會自己生效)</h3>
+<blockquote>
+<p>🔴 <strong>2026-08-31 實測:<code>crontab -l | grep purge</code> 一行都沒有 —— 這些 cron 從來沒掛上去。</strong>
+也就是說<strong>稽核保留期清理從上線起一次都沒執行過</strong>,而那是一張只增不減的個資表
+(後台稽核頁上的「保留期 N 天」目前是一個沒有被執行的承諾)。</p>
+<p>🔴 <strong>而且在 T109 之前,就算掛了也會失敗</strong>:<code>tools/</code> 根本不在 image 內
+(<code>can't open file '/app/tools/purge_audit.py'</code>)。<strong>下面這些指令需要 v0.2.6 以上的 image。</strong>
+換版到 v0.2.6 之後<strong>再掛 cron</strong>,掛完當場手動跑一次確認不是 <code>No such file</code>。</p>
+</blockquote>
 <pre><code class="language-cron"># 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
 30 2 * * *  cd /opt/upload-program &amp;&amp; BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh &gt;&gt; /var/log/upload-backup.log 2&gt;&amp;1
 # 稽核紀錄保留期清理(04:00;AUDIT_RETENTION_DAYS 只是給這支腳本讀的,不掛 cron 就是無限成長的個資表)
@@ -270,6 +278,7 @@ docker compose exec svc alembic downgrade -1
 <p>🔴 <strong>這一支不掛 cron。</strong> 它刪的是 artifact 列,而 T107 之後<strong>不會再產生新的殘骸</strong>
 ——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
 那是最難察覺的風險形狀。既有殘骸清一次就結束。</p>
+<p>⚠ <strong>需要 v0.2.6 以上的 image</strong>(T109 之前 <code>tools/</code> 不在容器內)。</p>
 <pre><code class="language-bash"># 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
 # 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
 ./backup.sh
@@ -383,6 +392,12 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.9</td>
+<td>2026-08-31 12:15</td>
+<td>Claude(Benny 裁示 A 案)</td>
+<td>🔴 <strong>§C.2 據實標註兩件事</strong>:①實測 cron <strong>從來沒掛上去</strong>,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②<strong>T109 之前就算掛了也會失敗</strong> —— <code>tools/</code> 不在 image 內,<code>docker compose exec … python tools/purge_audit.py</code> 必得 <code>No such file</code>。<strong>這些指令需要 v0.2.6 以上的 image</strong>,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:<code>tests/test_ops_scripts.py</code> 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次</td>
+</tr>
 <tr>
 <td>v1.8</td>
 <td>2026-08-31 10:30</td>

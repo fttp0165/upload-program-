@@ -1,8 +1,8 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-31 10:30
-**版本:** v1.8
+**最後更新:** 2026-08-31 12:15
+**版本:** v1.9
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -194,6 +194,14 @@ docker compose exec svc alembic downgrade -1
 
 ### C.2 cron(部署當天照抄——設定值不會自己生效)
 
+> 🔴 **2026-08-31 實測:`crontab -l | grep purge` 一行都沒有 —— 這些 cron 從來沒掛上去。**
+> 也就是說**稽核保留期清理從上線起一次都沒執行過**,而那是一張只增不減的個資表
+> (後台稽核頁上的「保留期 N 天」目前是一個沒有被執行的承諾)。
+>
+> 🔴 **而且在 T109 之前,就算掛了也會失敗**:`tools/` 根本不在 image 內
+> (`can't open file '/app/tools/purge_audit.py'`)。**下面這些指令需要 v0.2.6 以上的 image。**
+> 換版到 v0.2.6 之後**再掛 cron**,掛完當場手動跑一次確認不是 `No such file`。
+
 ```cron
 # 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
 30 2 * * *  cd /opt/upload-program && BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh >> /var/log/upload-backup.log 2>&1
@@ -210,6 +218,8 @@ docker compose exec svc alembic downgrade -1
 🔴 **這一支不掛 cron。** 它刪的是 artifact 列,而 T107 之後**不會再產生新的殘骸**
 ——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
 那是最難察覺的風險形狀。既有殘骸清一次就結束。
+
+⚠ **需要 v0.2.6 以上的 image**(T109 之前 `tools/` 不在容器內)。
 
 ```bash
 # 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
@@ -260,6 +270,7 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.9 | 2026-08-31 12:15 | Claude(Benny 裁示 A 案) | 🔴 **§C.2 據實標註兩件事**:①實測 cron **從來沒掛上去**,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②**T109 之前就算掛了也會失敗** —— `tools/` 不在 image 內,`docker compose exec … python tools/purge_audit.py` 必得 `No such file`。**這些指令需要 v0.2.6 以上的 image**,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:`tests/test_ops_scripts.py` 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次 |
 | v1.8 | 2026-08-31 10:30 | Claude(Benny:「沒有上傳成功的 就不用顯示了」) | **新增 §C.3:一次性清掉上傳沒成功的殘骸**(T107 的 `tools/purge_failed_artifacts.py`)。🔴 明寫**不掛 cron** —— T107 之後不再產生新殘骸,把它排程化只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,那是最難察覺的風險形狀。⚠ 旗標是 `--apply`(同 `purge_audit.py`,不是 `purge_issues.py` 的 `--yes`),不加只會 dry-run 且不會有任何錯誤訊息;執行前必須先備份 |
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
 | v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |

@@ -56,15 +56,30 @@ def test_正式程式碼不得引用這支腳本():
 
 
 def test_image內不得含有這支腳本或其相依():
-    """🔴 結構保證:Dockerfile 只 COPY app/ 與 alembic/,tools/ 與 tests/ 都不在 image 內。
+    """🔴 結構保證:`devserver.py` 與它依賴的 `tests/` 都不在 image 內。
 
     這一條是三層防線裡唯一**不靠設定**的那層——正式環境連 import 都會失敗。
+
+    ⚠ **T109(2026-08-31,Benny 裁示 A 案)把這條從「不得 COPY tools/」收窄。**
+    原本的寫法把整個 `tools/` 擋在外面,連 `purge_*.py` 一起 —— 而 runbook §C.2 的
+    cron 正是要在容器內跑那些腳本,於是**那兩行指令從寫下的那天起就不可能成功**
+    (`can't open file '/app/tools/purge_audit.py'`),稽核保留期清理一次都沒跑過。
+
+    🔴 **文字變了,意圖一字未減**:T92 要防的是「偽造 session 的腳本出現在正式環境」,
+    而那件事成立的關鍵是 `devserver.py` 不在、它 import 的 `tests/` 也不在 ——
+    不是「tools/ 整個不在」。維運腳本不偽造任何身分,把它們一起擋掉換到的不是安全,
+    是一份跑不起來的維運文件,而跑不起來的維運文件 = 那件事沒有人做。
+
+    正面守門(runbook 引用的腳本必須在 image 內)在 `tests/test_ops_scripts.py`。
     """
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     copied = [line for line in dockerfile.splitlines() if line.strip().startswith("COPY")]
     for line in copied:
-        assert " tools" not in line and "/tools" not in line, f"Dockerfile 不得 COPY tools/:{line}"
+        assert "devserver" not in line, f"Dockerfile 不得 COPY devserver.py:{line}"
         assert " tests" not in line and "/tests" not in line, f"Dockerfile 不得 COPY tests/:{line}"
+        # 整個 tools/ 一起收會把 devserver.py 帶進去 —— 只准逐類挑選(purge_*.py)。
+        stripped = [p for p in line.split()[1:] if not p.startswith("--")]
+        assert "tools" not in stripped, f"不得整個 COPY tools/(會帶進 devserver):{line}"
 
 
 def test_假登入路由只掛在devserver的app上(settings):

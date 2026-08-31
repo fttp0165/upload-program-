@@ -42,17 +42,17 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
 <p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 11:25
-<strong>版本:</strong> v1.87</p>
+<strong>最後更新:</strong> 2026-08-31 12:20
+<strong>版本:</strong> v1.88</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 11:25)</h2>
-<p>任務 106 項:<strong>✅ 100 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>590 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 12:20)</h2>
+<p>任務 107 項:<strong>✅ 101 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>593 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -81,7 +81,7 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>T106 + T107 + T108</strong>(殘骸不顯示 / 不再產生殘骸 / 登入紀錄)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
+<p><strong>T106–T109</strong>(殘骸不顯示 / 不再產生殘骸 / 登入紀錄 / 維運腳本進 image)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
 🟢 無 migration。</p>
 <p>⚠ <strong>另一條分支 <code>claude/read-article-join-project-1op5nk</code>(PR #33,v0.3.0)尚未合併</strong>:
 29 commits / 106 檔,<code>mergeable_state: dirty</code>(8 檔衝突)。
@@ -132,7 +132,8 @@ summary { cursor:pointer; color:#12228f; }
 </ol>
 <h3>未結的收尾項目(v0.2.0 換版時未做完)</h3>
 <ul>
-<li>[ ] <code>tools/purge_issues.py</code> 排進 VM cron(runbook §C.2)</li>
+<li>[ ] <code>tools/purge_issues.py</code> 與 <code>purge_audit.py</code> 排進 VM cron(runbook §C.2)
+      🔴 <strong>2026-08-31 實測:cron 一行都沒掛,稽核清理從未執行過</strong>;且 T109 之前掛了也會 <code>No such file</code>。<strong>換到 v0.2.6 之後再掛,掛完當場手跑一次確認</strong></li>
 <li>[ ] runbook 的「不可逆操作」清單補上 <code>0007</code> / <code>0008</code> 的 <code>DROP TABLE</code></li>
 <li>[ ] 🐛 <strong>登入曾出現 401「授權碼交換失敗」</strong>(trace <code>5983122e</code>):<code>app/oidc.py</code> 只記 status
       不記 IdP 的 <code>error</code>,無法一眼定位。<strong>建議另立任務</strong>補上(錯誤回應的 body 只有
@@ -728,6 +729,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「後台 新增使用者登入 紀錄」;🔴 <strong>先盤點才做</strong>:<code>users.last_login_at</code> 欄位、稽核表、後台稽核頁<strong>都早就存在</strong> —— 缺的是兩件事:①<strong>登入沒有進稽核</strong>(<code>last_login_at</code> 只答得出「最後一次」,查不到「這個月登入過幾次」)②<strong>那個欄位存了兩個月,一個畫面都沒顯示過</strong>;新增 <code>user.login</code>,以及 🔴 <strong><code>user.login_denied</code>(停用帳號嘗試登入)—— 這一條比成功登入更值得記</strong>:契約 §1.1 明載「離職不會自動停用 IdP 帳號」、我方 deny-by-default 是第二道防線,而那道防線擋下了誰原本只留在<strong>會滾掉的 stdout log</strong> 裡;後台使用者頁顯示最後登入,沒有值時<strong>明寫「從未登入」而不是留白</strong>(空白與「沒顯示」在畫面上長得一樣,而「這個帳號從來沒人用過」是開通後最該被看見的事實);⚠ 待開通清單<strong>刻意不改</strong>(那裡已有「申請於」,而待開通者的建立時間就是首次登入時間,再加一欄只會出現兩個幾乎一樣的時間);🔴 <strong>不記 IP 是刻意的</strong>:稽核表目前一個網路識別欄位都沒有,為登入單獨加要 migration,而 IP 在內網幾乎等於指名道姓 —— 要記應該是全表一致的決定,不該夾在這裡開特例;⚠ <strong>一條測試是假綠</strong>(「稽核不含 email」在沒有登入事件時迴圈跑零次、斷言等於沒執行),加上功能後才真的在驗 —— 這種綠燈比紅燈危險,已寫進 dev-log;<strong>7 條新增(6 條紅起步),全套 590</strong>;🟢 零 migration(<code>action</code> 是 <code>String(64)</code>,<code>models.py:308</code> 早為此鋪路)</td>
 </tr>
 <tr>
+<td>T109</td>
+<td>維運腳本進 image(runbook 指令真的跑得起來)</td>
+<td>✅</td>
+<td>🟢</td>
+<td><strong>撞到才發現的,不是 review 出來的</strong>:Benny 照 runbook §C.3 清殘骸拿到 <code>can't open file '/app/tools/purge_failed_artifacts.py'</code>;第一層解釋是「那支工具太新」,但<strong>根因是 <code>Dockerfile</code> 從來沒有 COPY <code>tools/</code></strong> —— 而 <code>test_devserver.py</code> 還有一條測試<strong>明文禁止</strong>它(T92 為了讓 <code>devserver.py</code> 進不了正式環境蓋的第三層防線);🔴 <strong>於是 runbook §C.2 的兩行 cron 從寫下的那天起就不可能執行成功</strong>,⚠ 實測 <code>crontab -l | grep purge</code> 一行都沒有 → 沒有每晚靜默失敗,但<strong>稽核保留期清理從上線起一次都沒跑過</strong>,而那是只增不減的個資表(後台寫的「保留期 N 天」是沒被執行的承諾);<strong>Benny 裁示 A 案</strong>:<code>COPY tools/purge_*.py</code>(不是整個 <code>tools/</code>),T92 那條收窄為「不得 COPY <code>devserver.py</code> / <code>tests/</code> / 整個 <code>tools/</code>」——🔴 <strong>文字變了意圖一字未減</strong>:T92 防的是「偽造 session 的腳本進正式環境」,關鍵是 devserver 與它 import 的 <code>tests/</code> 不在,不是「tools/ 整個不在」;維運腳本不偽造身分,把它們一起擋掉換到的不是安全,是<strong>一份跑不起來的維運文件,而那等於那件事沒有人做</strong>;🔴 <strong>本任務真正的產出是 <code>tests/test_ops_scripts.py</code></strong>:掃 runbook 裡每一個 <code>python tools/xxx.py</code> 引用,逐一檢查 Dockerfile 的 COPY 是否涵蓋 —— 擋的不是這次(已知道了)是<strong>下一次</strong>;⚠ <strong>我自己踩了一次同型的錯</strong>:守門第一版寫成「整份 Dockerfile 不得出現 devserver」,結果我在註解裡寫理由時被自己的測試擋下 —— 已改為只檢查 COPY 指令,因為<strong>逼人刪掉理由,下一個人就會順手把整個 tools/ 收進來</strong>;<strong>3 條新增(1 紅起步),全套 593</strong>;runbook v1.9 標註「cron 從未掛」與「需 v0.2.6 以上」</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1055,6 +1063,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.88</td>
+<td>2026-08-31 12:20</td>
+<td>Claude(Benny 裁示 A 案)</td>
+<td><strong>T109 完成</strong>:<code>Dockerfile</code> 加 <code>COPY tools/purge_*.py</code>,T92 那條測試收窄為「不得 COPY <code>devserver.py</code> / <code>tests/</code> / 整個 <code>tools/</code>」(文字變、意圖未減)。🔴 揭露兩件事實並回寫:<strong>runbook §C.2 的 cron 指令從寫下起就不可能成功</strong>(<code>tools/</code> 不在 image),而且<strong>那些 cron 根本沒掛</strong> → 稽核保留期清理從上線起一次都沒跑過。新增 <code>tests/test_ops_scripts.py</code> 守住「文件引用的腳本必須在 image 內」。<strong>593 passed</strong>(590 → 593)</td>
+</tr>
 <tr>
 <td>v1.87</td>
 <td>2026-08-31 11:25</td>

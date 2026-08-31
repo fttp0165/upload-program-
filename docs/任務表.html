@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 15:25
-<strong>版本:</strong> v1.91</p>
+<strong>最後更新:</strong> 2026-08-31 16:45
+<strong>版本:</strong> v1.92</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 15:25)</h2>
-<p>任務 127 項:<strong>✅ 121 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>648 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 16:45)</h2>
+<p>任務 128 項:<strong>✅ 122 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>653 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -890,6 +890,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 指示把三層指令標示規則入憲;盤點後<strong>第一、二層已經在第十條裡</strong>,真正缺的是第三層與佔位符規則 → 新增<strong>第十一條</strong>(七項:圖例先給、對映整條線不變且已完成標 ✅ 並<strong>明說不會再叫你進去</strong>、🟩 固定保留給 GitHub 網頁、步驟標題=<strong>三連</strong>色塊+目標名+路徑+執行處、佔位符紅線、顏色本身不帶語意、治理範圍限對話與 runbook);🔴 <strong>放在第十條之後不插進去</strong>:第十條已被測試與多篇 dev-log 逐條引用(「第十條 2」),插隊會讓引用悄悄指到別的東西;🔴 <strong>第十一條 5 有守門測試不是一句期許</strong> —— <code>test_可貼的指令裡不得有尖括號佔位符</code> 掃 runbook 的 shell/cron 區塊,<strong>會被執行的行</strong>出現 <code>&lt;…&gt;</code> 就紅,起因是 2026-08-31 實踩 <code>&lt;拿新token&gt;</code> 整段被貼上、<strong><code>&lt;</code> 被 bash 當重導向</strong>而炸掉(尖括號是文件慣例,而<strong>那個慣例在 shell 裡會產生語法</strong>);⚠ 兩個刻意邊界:註解豁免(<code># /opt/&lt;服務名&gt;</code> 貼上去 bash 根本不看,要擋的是會被執行的那行)、行尾註解只切「空白+#」不切任何 <code>#</code>(<strong>寧可偏嚴不偏鬆</strong>);<strong>反向驗證做過</strong>(塞佔位符→紅、還原→綠,沒這步新測試可能只是裝飾);同步 cats-portal 憲法 v1.22(依它自己「往後加」的規矩寫成附則最後一節);⚠ <strong><code>workOrder</code> repo 不在本 session,那本沒改也沒假裝改</strong>;<strong>1 條新增,全套 648</strong></td>
 </tr>
 <tr>
+<td>T132</td>
+<td>專案/版本/留言顯示真名(契約 v3.4)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 連續三次回報「使用者還是看不到作者」;盤點是<strong>兩件不同的事</strong>:①線上是 v0.2.5,T118/T125 的程式碼還沒部署 ②🔴 <strong>就算部署了也不是名字是 <code>sub</code> 前 8 碼</strong> —— 契約 §4.2a L1 第 3 條「僅供管理後台顯示」擋著,而我方 2026-08-12 的《申請:擴大名稱快取用途》<strong>躺了 19 天沒被裁決</strong>;2026-08-31 Benny 裁決「<strong>准</strong>」,cats-portal 契約升 <strong>v3.4</strong>(裁決書已依第九條 4 原樣存進 <code>docs/plans/inbox/</code>,索引第 10 份 ⏳→✅);實作:<code>_subs_by_id()</code> → <strong><code>_labels_by_id()</code></strong>(一次 <code>IN</code> 查 <code>sub</code> + <code>display_name_cache</code>,查詢數與版本數無關的效能守門維持綠),標籤 = 有名字用名字、沒有就退回 8 碼 + <code>…</code>(🔴 <strong>fallback 不是貼心設計,是契約第 6 項的要求</strong>);🔴 <strong>放寬的只有「顯示在哪」</strong> —— 名字仍不進 API(新增守門測試掃四個端點)、仍不得作授權依據、仍不得進 log、🔴 契約新增「不得再散布至本服務以外」;⚠ <strong>改了兩條既有測試並在 dev-log 逐條說明</strong>(原斷言「名字不得出現在一般使用者頁面」釘的是 v3.3,照舊斷言改程式等於讓一條已被放寬的限制繼續生效)—— <strong>反向斷言沒刪掉,改釘 L1b 仍不得顯示在任何頁面</strong>,並補上帶 <code>email_verified=true</code> 的登入確保信箱真的進了快取才斷言它不出現(否則又是假綠);憲法紅線同步升 v2.8(<strong>紅線與實作打架比沒有紅線更危險</strong>);<strong>5 條新增(3 紅起步)+ 2 條改寫,全套 653</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1217,6 +1224,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.92</td>
+<td>2026-08-31 16:45</td>
+<td>Claude(Benny 裁決 A 案)</td>
+<td><strong>T132 顯示真名</strong>:契約 §4.2a L1 第 3 條經 Benny 裁決放寬(cats-portal 契約 v3.4),專案頁擁有者 / 版本建立者 / 留言作者由 <code>sub</code> 前 8 碼改為顯示名稱,無名字者退回 8 碼。🔴 放寬的只有「顯示在哪」——名字仍不進 API(有守門)。憲法紅線同步 v2.8;裁決書依第九條 4 原樣落地 inbox。<strong>653 passed</strong>(648 → 653)</td>
+</tr>
 <tr>
 <td>v1.91</td>
 <td>2026-08-31 15:25</td>

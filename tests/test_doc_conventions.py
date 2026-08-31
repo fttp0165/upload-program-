@@ -65,10 +65,27 @@ def test_索引至少涵蓋所有致portal的文件():
     assert not missing, f"對外文件未登記進索引:{missing}"
 
 
+# 🔴 `inbox/` 的文件不受下面兩條守門管(2026-08-31,T132 第一次真的踩到)。
+#
+# 憲法**第九條 4**:收到的他方文件「**原樣保存,不改內容**」。
+# 而「抬頭四欄齊備」與「必須有 HTML 版」兩條要求的是**我方的**格式 ——
+# 對一份別人寫的文件執行它們,只有兩條路:改對方的檔(違反第九條 4),
+# 或讓 CI 永遠紅。**一條逼人違反憲法才能變綠的守門,比沒有守門更糟。**
+#
+# ⚠ 這兩條測試寫於 `inbox/` 還是空的時候(索引當時寫著「尚未在本 repo 落地保存」),
+# 所以這個死角一直沒有被執行到。第一份落地的他方文件就是它的反例。
+INBOX_PREFIX = "inbox/"
+
+
+def _our_outbound() -> set[str]:
+    """登記在索引裡、且**由我方發出**的文件(排除 inbox/ 的來文)。"""
+    return {name for name in _registered() if not name.startswith(INBOX_PREFIX)}
+
+
 def test_跨專案文件抬頭四欄齊備():
     """離開 repo 之後,只剩抬頭能自證「哪個專案、發給誰、何時」。"""
     broken: dict[str, list[str]] = {}
-    for name in _registered():
+    for name in _our_outbound():
         # 只看抬頭區(第一個 --- 之前),避免內文提到欄位名就誤判通過
         head = (PLANS / name).read_text(encoding="utf-8").split("\n---", 1)[0]
         lacking = [f for f in REQUIRED_FIELDS if f"**{f}:**" not in head]
@@ -193,7 +210,7 @@ def test_登記在案的對外文件都有HTML版():
     targets = _render_targets()
     missing = [
         name
-        for name in _registered()
+        for name in _our_outbound()
         if f"plans/{name}" not in targets and name != INDEX.name
     ]
     assert not missing, (

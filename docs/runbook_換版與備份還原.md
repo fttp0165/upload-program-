@@ -1,8 +1,9 @@
 # upload-program 維運 runbook:換版、回滾、備份、還原演練
 
+**專案:** upload-program
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-08-31 12:15
-**版本:** v1.9
+**最後更新:** 2026-08-31 13:30
+**版本:** v1.12
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -43,6 +44,8 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 `/upload/` 路由**刻
 
 ### A.0 前置確認(第一次部署後,每次都一樣)
 
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
+
 ```bash
 cd /opt/upload-program          # 部署目錄(VM 慣例:/opt/<服務名>,2026-07-29 實測定案)
 docker compose config -q        # compose 語法與 .env 齊全性
@@ -51,6 +54,8 @@ docker compose config -q        # compose 語法與 .env 齊全性
 ### A.1 發版:打 tag,讓 CI 產 image
 
 在開發機(不是 VM):
+
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`(本機 repo,不是 VM)
 
 ```bash
 git tag v1.2.0 && git push origin v1.2.0
@@ -76,6 +81,8 @@ Release 頁本來就只有 source zip,不會有 image。
 > 一定看得到是哪個步驟死的;什麼都沒有的紅燈去查帳,不要改程式。
 
 ### A.2 VM 上換版
+
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
 
 ```bash
 cd /opt/upload-program
@@ -114,6 +121,14 @@ gateway 仍指向舊 IP——症狀最惡劣:`docker ps` healthy、健康檢查�
 
 ### A.4 換版冒煙(reload 之後才算數)
 
+> 🆕 T91:以下檢查中可腳本化的部分已做成 **`tools/smoke.sh`**(隨 compose 一起
+> scp,同 backup.sh):`./smoke.sh --vm --expect vX.Y.Z`。
+> 它逐項印 ✅/❌/⏭ 並以 exit code 回報;**需登入的驗證點會明示 SKIP**,
+> 仍要照《測試項目清單》人工補驗。底下的逐條指令保留作後備與出處。
+
+
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 任何目錄(對外打 curl,不碰部署目錄)
+
 ```bash
 # 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
@@ -141,6 +156,8 @@ done
 
 ### B.1 只退程式(本版沒有 migration)
 
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
+
 ```bash
 # compose 的 image 改回上一版 tag
 docker compose pull svc && docker compose up -d svc
@@ -148,6 +165,8 @@ docker compose pull svc && docker compose up -d svc
 ```
 
 ### B.2 退程式 + 退 schema(本版有 migration)
+
+> 🖥️ **在哪執行:** Cats VM(ssh 進去)· 工作目錄 `/opt/upload-program`
 
 ```bash
 # 1) 🔴 先備份(回滾也會動資料——downgrade 是 UPDATE/DROP,不是「回到安全」)
@@ -159,11 +178,16 @@ docker compose exec svc alembic downgrade -1
 
 ⚠️ **已知的不可逆回滾**(檔頭都有註記,這裡集中列一次):
 
+> 🔴 **退 `0010_release_review` 之前先清空審核佇列**(`/admin/reviews` 全部核准或退回)。
+> 待審中的版本在 downgrade 之後會變回草稿,作者會以為自己根本沒送出過。
+
 | migration | downgrade 會失去 | 可否重建 |
 |---|---|---|
 | `0004_artifact_download_count` | 全部下載累計數 | ❌(無事件表可重算) |
 | `0005_audit_events` | 整張稽核表 | ❌(stdout log 會輪替) |
 | `0007_issues` | **全部問題回報與討論串** | ❌ |
+| `0011_project_comments` | **全部專案留言**(使用者累積的回饋內容) | ❌ 無法重建 |
+| `0010_release_review` | **「待審核」這個狀態本身**:待審版本一律被當回 `draft`(即未送審),`review_note`(退回理由)整欄消失 | ⚠️ 部分——版本與檔案都還在,但誰送審過、被退回的理由都沒了 |
 | `0008_issue_attachments` | **全部回報附件的 DB 紀錄** | ❌(MinIO 物件會變成孤兒,佔空間且無從對應) |
 
 要保留就照各檔頭的 SQL 先撈一份再 downgrade。
@@ -194,6 +218,8 @@ docker compose exec svc alembic downgrade -1
 
 ### C.2 cron(部署當天照抄——設定值不會自己生效)
 
+> 📄 **編輯哪個檔:** Cats VM 的 crontab(`crontab -e`)——**貼進編輯器,不是貼進終端機**
+
 > 🔴 **2026-08-31 實測:`crontab -l | grep purge` 一行都沒有 —— 這些 cron 從來沒掛上去。**
 > 也就是說**稽核保留期清理從上線起一次都沒執行過**,而那是一張只增不減的個資表
 > (後台稽核頁上的「保留期 N 天」目前是一個沒有被執行的承諾)。
@@ -201,6 +227,8 @@ docker compose exec svc alembic downgrade -1
 > 🔴 **而且在 T109 之前,就算掛了也會失敗**:`tools/` 根本不在 image 內
 > (`can't open file '/app/tools/purge_audit.py'`)。**下面這些指令需要 v0.2.6 以上的 image。**
 > 換版到 v0.2.6 之後**再掛 cron**,掛完當場手動跑一次確認不是 `No such file`。
+
+> 📄 **編輯哪個檔:** Cats VM(Ubuntu)的 crontab —— `crontab -e`,**貼進編輯器,不是貼進終端機**
 
 ```cron
 # 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
@@ -221,8 +249,9 @@ docker compose exec svc alembic downgrade -1
 
 ⚠ **需要 v0.2.6 以上的 image**(T109 之前 `tools/` 不在容器內)。
 
+> 🖥️ **在哪執行:** Cats VM(Ubuntu),工作目錄 `/opt/upload-program`
+
 ```bash
-# 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
 # 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
 ./backup.sh
 
@@ -270,9 +299,13 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
-| v1.9 | 2026-08-31 12:15 | Claude(Benny 裁示 A 案) | 🔴 **§C.2 據實標註兩件事**:①實測 cron **從來沒掛上去**,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②**T109 之前就算掛了也會失敗** —— `tools/` 不在 image 內,`docker compose exec … python tools/purge_audit.py` 必得 `No such file`。**這些指令需要 v0.2.6 以上的 image**,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:`tests/test_ops_scripts.py` 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次 |
+| v1.12 | 2026-08-31 12:15 | Claude(Benny 裁示 A 案) | 🔴 **§C.2 據實標註兩件事**:①實測 cron **從來沒掛上去**,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②**T109 之前就算掛了也會失敗** —— `tools/` 不在 image 內,`docker compose exec … python tools/purge_audit.py` 必得 `No such file`。**這些指令需要 v0.2.6 以上的 image**,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:`tests/test_ops_scripts.py` 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次。⚠ **本列原編為 v1.9,合併 PR #33 時改編為 v1.12**(另一條線也用了 v1.9~v1.11);內容一字未改,只改版號 |
 | v1.8 | 2026-08-31 10:30 | Claude(Benny:「沒有上傳成功的 就不用顯示了」) | **新增 §C.3:一次性清掉上傳沒成功的殘骸**(T107 的 `tools/purge_failed_artifacts.py`)。🔴 明寫**不掛 cron** —— T107 之後不再產生新殘骸,把它排程化只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,那是最難察覺的風險形狀。⚠ 旗標是 `--apply`(同 `purge_audit.py`,不是 `purge_issues.py` 的 `--yes`),不加只會 dry-run 且不會有任何錯誤訊息;執行前必須先備份 |
 | v1.2 | 2026-07-29 07:50 | Claude(Benny 授權) | §C.1 的 backup.sh 落成 repo 檔案 `tools/backup.sh`(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準 |
+| v1.11 | 2026-08-13 01:20 | Claude(T103) | §B 不可逆清單補 `0011_project_comments`:downgrade 是 DROP TABLE,**全部專案留言消失且無法重建**——留言是使用者累積的內容,不是可重算的衍生資料(與 `0007_issues` 同一類) |
+| v1.10 | 2026-08-12 23:40 | Claude(T102) | §B 不可逆清單補 `0010_release_review`:downgrade 會把待審版本一律當回 `draft`、退回理由整欄消失(版本與檔案還在,但「誰送審過、為什麼被退」沒了);加註**退版前先清空審核佇列**,否則作者會以為自己根本沒送出過 |
+| v1.9 | 2026-08-12 21:10 | Claude(Benny 裁示) | 依**憲法第十條**為 7 個可貼區塊標明「在哪台機器、在哪個目錄」:🔴 §A.1 打 tag 是在**本機 repo** 不是 VM(這份文件裡唯一的例外,最容易貼錯)、§A.2/§B 在 VM 的 `/opt/upload-program`、§A.4 冒煙是對外打 curl、§C.2 cron 標為 **📄 編輯 crontab 不是貼進終端機**(2026-08-11 換版失敗正是「編輯」被當成「執行」);依第九條補抬頭「專案」 |
+| v1.8 | 2026-08-12 01:20 | Claude(Benny:可否寫測試腳本) | §A.4 加 **`tools/smoke.sh` 一鍵冒煙**(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備 |
 | v1.7 | 2026-08-11 11:40 | Claude(Benny 指示) | **T88 發版前補完**:§B 不可逆清單補 `0007_issues` / `0008_issue_attachments`(backward 是 `DROP TABLE`,銷毀的是**使用者親手送出的內容**,與前兩列的系統紀錄性質不同,故要求退版前備份並**當場驗讀得回來**);§C.2 cron 補 `purge_issues.py`,並明寫 ⚠️ 旗標是 `--yes` 不是 `--apply`——抄錯會每天空跑且**不會有任何錯誤訊息** |
 | v1.6 | 2026-07-30 23:00 | Claude(Benny 授權) | v0.1.3→v0.1.4 事故回寫:§A.1 加「發版前 alembic history 驗鏈 + migration 演練」與「CI 發版後 VM pull 前重新 docker login(runner 憑證互洗)」 |
 | v1.5 | 2026-07-29 16:30 | Claude(Benny 授權) | §A.2 補「版本新增 .env 變數要照 release note 先補再 pull」(T60 的三個 OIDC 內部端點覆寫即首例) |

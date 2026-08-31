@@ -283,3 +283,135 @@ async def test_sub含特殊字元時逸出(client, app, oidc, admin_user):
     body = (await client.get("/admin/users", headers={**BROWSER, **auth(admin_token)})).text
     assert "<script>alert(1)</script>" not in body
     assert "&lt;script&gt;" in body
+
+
+# --- T122 管理員指派入口 ----------------------------------------------------
+#
+# Benny:「建立管理員權限」。盤點後發現後端九成已存在(`platform_role` 欄位、
+# `PATCH /v1/admin/users/{id}`、後台的管理員徽章、`BOOTSTRAP_ADMIN_SUBS`),
+# 缺的只是網頁按鈕——與 T121 同一個形狀:功能在,入口沒有。
+# 而**會打 API 的人不需要這個系統的後台**,所以「只能打 API」等於沒有。
+#
+# 🔴 三條防呆,因為這是給權限不是給顏色:
+# 1. 不能取消自己——平台沒有 root 後門,最後一個管理員把自己降級,
+#    就沒有人能再指派任何人,只能改 .env 重啟容器才救得回來;
+# 2. 不能把未開通者設為管理員——待開通是 deny-by-default,
+#    跳過開通直接給管理權等於用後門繞過自己的門禁;
+# 3. 稽核與 API 產生**同一個 action**(`user.set_role`),
+#    紀錄不該因為用網頁還是 API 而長得不一樣。
+
+async def test_管理員可從網頁指派與取消管理員(client, app, oidc, admin_user):
+    from sqlalchemy import select
+
+    from app.models import PlatformRole, User
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-promote-t101")
+
+    up = await client.post(
+        f"/admin/users/{target.id}/role",
+        data={"role": "admin"},
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert up.status_code in (302, 303), up.text
+    async with app.state.sessionmaker() as session:
+        user = (
+            await session.execute(select(User).where(User.sub == "sub-promote-t101"))
+        ).scalar_one()
+        assert user.platform_role is PlatformRole.admin
+
+    down = await client.post(
+        f"/admin/users/{target.id}/role",
+        data={"role": "member"},
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert down.status_code in (302, 303), down.text
+    async with app.state.sessionmaker() as session:
+        user = (
+            await session.execute(select(User).where(User.sub == "sub-promote-t101"))
+        ).scalar_one()
+        assert user.platform_role is PlatformRole.member
+
+
+async def test_不能取消自己的管理員身分(client, app, oidc, admin_user):
+    """🔴 最後一個管理員把自己降級 = 沒有人能再指派任何人,只剩改 .env 重啟。"""
+    from sqlalchemy import select
+
+    from app.models import PlatformRole, User
+
+    me, admin_token = admin_user
+
+    resp = await client.post(
+        f"/admin/users/{me.id}/role",
+        data={"role": "member"},
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 409, resp.text
+
+    async with app.state.sessionmaker() as session:
+        user = (await session.execute(select(User).where(User.sub == "sub-admin"))).scalar_one()
+        assert user.platform_role is PlatformRole.admin, "自己降自己必須被擋下"
+
+
+async def test_不能把未開通者設為管理員(client, app, oidc, admin_user):
+    """🔴 待開通是 deny-by-default;跳過開通直接給管理權等於繞過自己的門禁。"""
+    from sqlalchemy import select
+
+    from app.models import PlatformRole, User, UserStatus
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-pending-t101", status=UserStatus.pending)
+
+    resp = await client.post(
+        f"/admin/users/{target.id}/role",
+        data={"role": "admin"},
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 409, resp.text
+
+    async with app.state.sessionmaker() as session:
+        user = (
+            await session.execute(select(User).where(User.sub == "sub-pending-t101"))
+        ).scalar_one()
+        assert user.platform_role is PlatformRole.member
+
+
+async def test_網頁改角色與API產生同一個稽核action(client, app, oidc, admin_user):
+    """稽核紀錄不該因為管理員用的是網頁還是 API 而長得不一樣。"""
+    from sqlalchemy import select
+
+    from app.audit import AuditAction
+    from app.models import AuditEvent
+
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-audit-t101")
+
+    await client.post(
+        f"/admin/users/{target.id}/role",
+        data={"role": "admin"},
+        headers={**BROWSER, **auth(admin_token)},
+        follow_redirects=False,
+    )
+
+    async with app.state.sessionmaker() as session:
+        events = (
+            await session.execute(
+                select(AuditEvent).where(AuditEvent.target_id == target.id)
+            )
+        ).scalars().all()
+    actions = [e.action for e in events]
+    assert AuditAction.user_set_role in actions, f"應留下 user_set_role,實得:{actions}"
+
+
+async def test_使用者頁面有指派按鈕(client, app, oidc, admin_user):
+    """入口要看得到——否則等於只能打 API,而會打 API 的人不需要後台。"""
+    _, admin_token = admin_user
+    target = await make_user(app, "sub-button-t101")
+
+    resp = await client.get(f"{PREFIX}/admin/users", headers={**BROWSER, **auth(admin_token)})
+    assert resp.status_code == 200
+    assert f"/admin/users/{target.id}/role" in resp.text

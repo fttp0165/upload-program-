@@ -9,7 +9,7 @@
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, publish_and_approve
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -56,8 +56,8 @@ async def _publish(client, token, slug, version, *, filename="tool.bin", notes="
     )
     assert up.status_code == 201, up.text
     await complete_kinds(client, token, release_id)
-    done = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert done.status_code == 200, done.text
+    # T123:發布 = 送審;本檔測的是專案頁上的「最新已發布版本」,要核准後才算數。
+    await publish_and_approve(client, token, release_id)
     return release_id, up.json()["id"]
 
 
@@ -283,3 +283,75 @@ async def test_專案頁對使用者可控內容逸出(client, active_user):
     assert "<script>alert(" not in resp.text
     assert "<img src=x onerror" not in resp.text
     assert "&lt;script&gt;" in resp.text
+
+
+# --- T118 專案頁的擁有者欄位 ------------------------------------------------
+#
+# Benny:「沒有顯示作者的名字」。專案頁原本完全沒有擁有者欄位——對程式分享平台
+# 來說是核心缺口:要下載一支執行檔,「這是誰放的」是判斷信不信任它的第一個依據,
+# 尤其掃毒還沒接上。
+#
+# 🔴 但名字現在放不上去:名字的唯一來源 display_name_cache 受契約 §4.2a L1 管,
+# 而那條限制是我方自己寫進申請書的——「僅管理後台顯示,不出現在一般使用者可見
+# 頁面」。專案頁正是一般使用者可見頁面。要顯示名字得先送申請擴大用途,
+# 不能自行放寬(偏離平台契約的權限不在本專案)。
+#
+# 所以過渡做法是顯示 sub 前 8 碼:sub 是不透明識別碼、不是個資,
+# 而且業務庫本來就只存它。下面三條把「欄位要有」與「名字不准漏」一起釘住。
+
+async def test_專案頁顯示擁有者識別碼(client, app, oidc):
+    """🔴 由**另一個人**來看:檢視者自己的識別碼本來就會出現在導覽列,
+    同一人看自己的專案測不出「擁有者欄位有沒有做出來」。
+    """
+    await make_user(app, "sub-owner-t97-abcdef123456")
+    owner_token = oidc.issue("sub-owner-t97-abcdef123456")
+    await _project(client, owner_token, slug="owned-tool", name="有主人的工具")
+
+    await make_user(app, "sub-visitor-t97")
+    visitor = oidc.issue("sub-visitor-t97")
+
+    resp = await client.get(f"{PREFIX}/projects/owned-tool", headers={**BROWSER, **auth(visitor)})
+    assert resp.status_code == 200
+    assert "擁有者" in resp.text
+    assert "sub-owne" in resp.text, "應顯示擁有者 sub 前 8 碼供對照"
+
+
+async def test_專案頁不得出現顯示名稱(client, app, oidc):
+    """🔴 契約 §4.2a L1:名字僅限管理後台,一般使用者頁面不得出現。
+
+    兩個講究:
+    1. 名字必須走**登入路徑**寫入(§4.2a 每次登入覆寫),手動塞會被下次登入
+       清成 NULL——那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓);
+    2. 由**別人**來看,否則導覽列會顯示檢視者自己的名字,這條斷言永遠不可能過。
+    """
+    await make_user(app, "sub-named-t97")
+    owner_token = oidc.issue("sub-named-t97", name="林小明")
+    await _project(client, owner_token, slug="named-owner-tool", name="工具")
+
+    # 前提斷言:名字真的進了快取,否則下面的反向斷言毫無意義
+    await make_user(app, "sub-admin-t97", admin=True)
+    admin_token = oidc.issue("sub-admin-t97")
+    admin = await client.get(f"{PREFIX}/admin/users", headers={**BROWSER, **auth(admin_token)})
+    assert "林小明" in admin.text, "前提不成立:名字沒進快取,反向斷言會假綠"
+
+    await make_user(app, "sub-visitor-t97b")
+    visitor = oidc.issue("sub-visitor-t97b")
+    resp = await client.get(
+        f"{PREFIX}/projects/named-owner-tool", headers={**BROWSER, **auth(visitor)}
+    )
+    assert resp.status_code == 200
+    assert "林小明" not in resp.text, "🔴 §4.2a L1:名字不得出現在一般使用者頁面"
+
+
+async def test_專案頁不得洩漏擁有者完整sub(client, app, oidc):
+    """截斷值供人眼辨識即可;完整 UUID 對人眼沒有更多幫助,少給少一分外洩面。"""
+    sub = "sub-full-value-must-not-leak-t97"
+    await make_user(app, sub)
+    owner_token = oidc.issue(sub)
+    await _project(client, owner_token, slug="trunc-tool", name="截斷測試")
+
+    await make_user(app, "sub-visitor-t97c")
+    visitor = oidc.issue("sub-visitor-t97c")
+    resp = await client.get(f"{PREFIX}/projects/trunc-tool", headers={**BROWSER, **auth(visitor)})
+    assert resp.status_code == 200
+    assert sub not in resp.text, "🔴 不得輸出擁有者的完整 sub"

@@ -1,0 +1,58 @@
+# ⚠️⚠️  本機開發專用 —— 絕對不要拿到 Cats VM 上跑  ⚠️⚠️
+#
+# 這個檔案**故意違反**正式機的一條紅線:它把 PostgreSQL 與 MinIO 的 port
+# 發布到主機上。本機非這樣不可(uvicorn 跑在容器外,要連得到);
+# 正式機非禁不可(平台鐵則:DB / MinIO 不對主機發布 port)。
+#
+# 兩者要求相反,所以:
+# - 🔴 檔名**不叫** docker-compose.override.yml —— 那個名字會被
+#   `docker compose up` **自動載入**,在 VM 上打一次就把 DB 開到主機上,
+#   而且不會有任何警告。要用這個檔必須明寫 `-f`。
+# - 🔴 刻意**不設** restart 政策:正式機的服務要自動重啟,本機不要。
+#   這個差異本身就是一道「我不是正式檔」的標記。
+# - 🔴 不含 svc(服務本體):本機要跑的是你**剛改的程式碼**,用 venv 的
+#   uvicorn 起,改一行立刻看得到,不必重建 image。
+#
+# 由 tests/test_dev_compose.py 守門(兩邊一起釘,免得有人把形狀改到對面去)。
+#
+# 用法見 docs/runbook_本地開發與CI.md。
+
+name: upload-program-dev          # 專案名與正式機分開,volume 不會互相污染
+
+services:
+  db:
+    image: postgres:15.8          # 與正式機同版:本機重現得出來的問題才有意義
+    environment:
+      POSTGRES_DB: upload_program_db
+      POSTGRES_USER: upload_program_user
+      POSTGRES_PASSWORD: devpassword      # 本機用假密碼;🔴 正式密碼永遠只在 VM 的 .env
+    ports:
+      - "127.0.0.1:15432:5432"    # 🔴 綁 127.0.0.1,不是 0.0.0.0——不對區網開放
+    volumes:
+      - devpgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U upload_program_user -d upload_program_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: devaccesskey
+      MINIO_ROOT_PASSWORD: devsecretkey
+    ports:
+      - "127.0.0.1:19000:9000"    # S3 API —— .env 的 S3_ENDPOINT_URL 指這裡
+      - "127.0.0.1:19001:9001"    # 管理主控台(瀏覽器看物件用,非必要)
+    volumes:
+      - devminio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  devpgdata: {}
+  devminio: {}

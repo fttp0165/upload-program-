@@ -41,9 +41,10 @@ summary { cursor:pointer; color:#12228f; }
 <div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/runbook_換版與備份還原.md</code> 產生。
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
-<p><strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-08-31 12:15
-<strong>版本:</strong> v1.9
+<p><strong>專案:</strong> upload-program
+<strong>建立日期:</strong> 2026-07-29 04:10
+<strong>最後更新:</strong> 2026-08-31 13:30
+<strong>版本:</strong> v1.12
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -116,11 +117,17 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 
 <p>之後的每次換版走下面的 §A;首次上線的特殊之處只有第 5、6 步。</p>
 <h2>A. 換版(部署新版本)</h2>
 <h3>A.0 前置確認(第一次部署後,每次都一樣)</h3>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh 進去)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
 <pre><code class="language-bash">cd /opt/upload-program          # 部署目錄(VM 慣例:/opt/&lt;服務名&gt;,2026-07-29 實測定案)
 docker compose config -q        # compose 語法與 .env 齊全性
 </code></pre>
 <h3>A.1 發版:打 tag,讓 CI 產 image</h3>
 <p>在開發機(不是 VM):</p>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code>(本機 repo,不是 VM)</p>
+</blockquote>
 <pre><code class="language-bash">git tag v1.2.0 &amp;&amp; git push origin v1.2.0
 </code></pre>
 <p>CI 只在 <code>v*</code> tag 推 GHCR(<code>ghcr.io/fttp0165/upload-program:v1.2.0</code>),
@@ -141,6 +148,9 @@ docker build + Trivy 很吃),再查 githubstatus.com。程式問題的紅燈
 一定看得到是哪個步驟死的;什麼都沒有的紅燈去查帳,不要改程式。</p>
 </blockquote>
 <h3>A.2 VM 上換版</h3>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh 進去)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
 <pre><code class="language-bash">cd /opt/upload-program
 # 1) 🔴 換版前備份(見 §C;有 migration 的版本**必做**,沒 migration 的版本也建議做)
 ./backup.sh   # 即 §C.1 的指令組
@@ -171,6 +181,13 @@ gateway 仍指向舊 IP——症狀最惡劣:<code>docker ps</code> healthy、�
 <p>這是與 portal 的<strong>明文約定</strong>,不是禮貌。portal 把「執行期動態解析上游」
 列入改進項,屆時本步驟可移除(移除時本文件要同步升版)。</p>
 <h3>A.4 換版冒煙(reload 之後才算數)</h3>
+<blockquote>
+<p>🆕 T91:以下檢查中可腳本化的部分已做成 <strong><code>tools/smoke.sh</code></strong>(隨 compose 一起
+scp,同 backup.sh):<code>./smoke.sh --vm --expect vX.Y.Z</code>。
+它逐項印 ✅/❌/⏭ 並以 exit code 回報;<strong>需登入的驗證點會明示 SKIP</strong>,
+仍要照《測試項目清單》人工補驗。底下的逐條指令保留作後備與出處。</p>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh 進去)· 任何目錄(對外打 curl,不碰部署目錄)</p>
+</blockquote>
 <pre><code class="language-bash"># 對外路徑(經 gateway)——這才是使用者的視角
 curl -sk -o /dev/null -w '/upload/        = %{http_code}\n' https://catsapp.sporton.com.tw/upload/
 curl -sk -o /dev/null -w '/upload/static/ = %{http_code}\n' https://catsapp.sporton.com.tw/upload/static/app.css
@@ -193,11 +210,17 @@ done
 <hr />
 <h2>B. 回滾</h2>
 <h3>B.1 只退程式(本版沒有 migration)</h3>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh 進去)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
 <pre><code class="language-bash"># compose 的 image 改回上一版 tag
 docker compose pull svc &amp;&amp; docker compose up -d svc
 # 🔴 仍要通知 portal reload(§A.3)+ 冒煙(§A.4)——回滾也是換版
 </code></pre>
 <h3>B.2 退程式 + 退 schema(本版有 migration)</h3>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh 進去)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
 <pre><code class="language-bash"># 1) 🔴 先備份(回滾也會動資料——downgrade 是 UPDATE/DROP,不是「回到安全」)
 ./backup.sh
 # 2) 先退 schema、再退程式(順序:舊程式看不懂新 schema 的機率,遠低於新程式看不懂舊 schema)
@@ -205,6 +228,10 @@ docker compose exec svc alembic downgrade -1
 # 3) compose 改回上一版 tag → pull → up -d svc → reload → 冒煙
 </code></pre>
 <p>⚠️ <strong>已知的不可逆回滾</strong>(檔頭都有註記,這裡集中列一次):</p>
+<blockquote>
+<p>🔴 <strong>退 <code>0010_release_review</code> 之前先清空審核佇列</strong>(<code>/admin/reviews</code> 全部核准或退回)。
+待審中的版本在 downgrade 之後會變回草稿,作者會以為自己根本沒送出過。</p>
+</blockquote>
 <table>
 <thead>
 <tr>
@@ -228,6 +255,16 @@ docker compose exec svc alembic downgrade -1
 <td><code>0007_issues</code></td>
 <td><strong>全部問題回報與討論串</strong></td>
 <td>❌</td>
+</tr>
+<tr>
+<td><code>0011_project_comments</code></td>
+<td><strong>全部專案留言</strong>(使用者累積的回饋內容)</td>
+<td>❌ 無法重建</td>
+</tr>
+<tr>
+<td><code>0010_release_review</code></td>
+<td><strong>「待審核」這個狀態本身</strong>:待審版本一律被當回 <code>draft</code>(即未送審),<code>review_note</code>(退回理由)整欄消失</td>
+<td>⚠️ 部分——版本與檔案都還在,但誰送審過、被退回的理由都沒了</td>
 </tr>
 <tr>
 <td><code>0008_issue_attachments</code></td>
@@ -258,12 +295,14 @@ docker compose exec svc alembic downgrade -1
 </ul>
 <h3>C.2 cron(部署當天照抄——設定值不會自己生效)</h3>
 <blockquote>
+<p>📄 <strong>編輯哪個檔:</strong> Cats VM 的 crontab(<code>crontab -e</code>)——<strong>貼進編輯器,不是貼進終端機</strong></p>
 <p>🔴 <strong>2026-08-31 實測:<code>crontab -l | grep purge</code> 一行都沒有 —— 這些 cron 從來沒掛上去。</strong>
 也就是說<strong>稽核保留期清理從上線起一次都沒執行過</strong>,而那是一張只增不減的個資表
 (後台稽核頁上的「保留期 N 天」目前是一個沒有被執行的承諾)。</p>
 <p>🔴 <strong>而且在 T109 之前,就算掛了也會失敗</strong>:<code>tools/</code> 根本不在 image 內
 (<code>can't open file '/app/tools/purge_audit.py'</code>)。<strong>下面這些指令需要 v0.2.6 以上的 image。</strong>
 換版到 v0.2.6 之後<strong>再掛 cron</strong>,掛完當場手動跑一次確認不是 <code>No such file</code>。</p>
+<p>📄 <strong>編輯哪個檔:</strong> Cats VM(Ubuntu)的 crontab —— <code>crontab -e</code>,<strong>貼進編輯器,不是貼進終端機</strong></p>
 </blockquote>
 <pre><code class="language-cron"># 每日備份(02:30;BACKUP_ROOT 依 2026-07-29 實測定案)
 30 2 * * *  cd /opt/upload-program &amp;&amp; BACKUP_ROOT=/home/deploy/upload-backups ./backup.sh &gt;&gt; /var/log/upload-backup.log 2&gt;&amp;1
@@ -279,8 +318,10 @@ docker compose exec svc alembic downgrade -1
 ——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
 那是最難察覺的風險形狀。既有殘骸清一次就結束。</p>
 <p>⚠ <strong>需要 v0.2.6 以上的 image</strong>(T109 之前 <code>tools/</code> 不在容器內)。</p>
-<pre><code class="language-bash"># 【CATS VM(Ubuntu)】【/opt/upload-program】【upload-program】
-# 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(Ubuntu),工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
+<pre><code class="language-bash"># 0) 🔴 先備份(§C.1)——這支會刪列,沒有單獨的復原路徑
 ./backup.sh
 
 # 1) 先看會刪什麼(預設 dry-run,什麼都不動)
@@ -393,10 +434,10 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 </thead>
 <tbody>
 <tr>
-<td>v1.9</td>
+<td>v1.12</td>
 <td>2026-08-31 12:15</td>
 <td>Claude(Benny 裁示 A 案)</td>
-<td>🔴 <strong>§C.2 據實標註兩件事</strong>:①實測 cron <strong>從來沒掛上去</strong>,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②<strong>T109 之前就算掛了也會失敗</strong> —— <code>tools/</code> 不在 image 內,<code>docker compose exec … python tools/purge_audit.py</code> 必得 <code>No such file</code>。<strong>這些指令需要 v0.2.6 以上的 image</strong>,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:<code>tests/test_ops_scripts.py</code> 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次</td>
+<td>🔴 <strong>§C.2 據實標註兩件事</strong>:①實測 cron <strong>從來沒掛上去</strong>,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②<strong>T109 之前就算掛了也會失敗</strong> —— <code>tools/</code> 不在 image 內,<code>docker compose exec … python tools/purge_audit.py</code> 必得 <code>No such file</code>。<strong>這些指令需要 v0.2.6 以上的 image</strong>,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:<code>tests/test_ops_scripts.py</code> 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次。⚠ <strong>本列原編為 v1.9,合併 PR #33 時改編為 v1.12</strong>(另一條線也用了 v1.9~v1.11);內容一字未改,只改版號</td>
 </tr>
 <tr>
 <td>v1.8</td>
@@ -409,6 +450,30 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 <td>2026-07-29 07:50</td>
 <td>Claude(Benny 授權)</td>
 <td>§C.1 的 backup.sh 落成 repo 檔案 <code>tools/backup.sh</code>(含每日備份 14 天保留期的自動清理;正式機不 git pull,需隨 compose 一起 scp);runbook 標明權威版本在 repo,歧異以 repo 為準</td>
+</tr>
+<tr>
+<td>v1.11</td>
+<td>2026-08-13 01:20</td>
+<td>Claude(T103)</td>
+<td>§B 不可逆清單補 <code>0011_project_comments</code>:downgrade 是 DROP TABLE,<strong>全部專案留言消失且無法重建</strong>——留言是使用者累積的內容,不是可重算的衍生資料(與 <code>0007_issues</code> 同一類)</td>
+</tr>
+<tr>
+<td>v1.10</td>
+<td>2026-08-12 23:40</td>
+<td>Claude(T102)</td>
+<td>§B 不可逆清單補 <code>0010_release_review</code>:downgrade 會把待審版本一律當回 <code>draft</code>、退回理由整欄消失(版本與檔案還在,但「誰送審過、為什麼被退」沒了);加註<strong>退版前先清空審核佇列</strong>,否則作者會以為自己根本沒送出過</td>
+</tr>
+<tr>
+<td>v1.9</td>
+<td>2026-08-12 21:10</td>
+<td>Claude(Benny 裁示)</td>
+<td>依<strong>憲法第十條</strong>為 7 個可貼區塊標明「在哪台機器、在哪個目錄」:🔴 §A.1 打 tag 是在<strong>本機 repo</strong> 不是 VM(這份文件裡唯一的例外,最容易貼錯)、§A.2/§B 在 VM 的 <code>/opt/upload-program</code>、§A.4 冒煙是對外打 curl、§C.2 cron 標為 <strong>📄 編輯 crontab 不是貼進終端機</strong>(2026-08-11 換版失敗正是「編輯」被當成「執行」);依第九條補抬頭「專案」</td>
+</tr>
+<tr>
+<td>v1.8</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(Benny:可否寫測試腳本)</td>
+<td>§A.4 加 <strong><code>tools/smoke.sh</code> 一鍵冒煙</strong>(T91):可腳本化的檢查自動跑、需登入的明示 SKIP;逐條指令保留作後備</td>
 </tr>
 <tr>
 <td>v1.7</td>

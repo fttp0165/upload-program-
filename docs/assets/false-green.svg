@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 390" width="900" height="390"
+     font-family="'PingFang TC','Microsoft JhengHei','WenQuanYi Zen Hei',sans-serif">
+  <rect width="900" height="390" fill="#ffffff"/>
+
+  <!-- 左:假綠 -->
+  <rect x="30" y="26" width="405" height="308" rx="12" fill="#fdf0ef" stroke="#b3372f" stroke-width="2.5"/>
+  <text x="232" y="58" font-size="16" font-weight="bold" fill="#b3372f" text-anchor="middle">✗ 這樣寫會假綠(T84 真實案例)</text>
+
+  <rect x="60" y="76" width="345" height="46" rx="8" fill="#ffffff" stroke="#d9a09a" stroke-width="1.5"/>
+  <text x="232" y="104" font-size="13.5" fill="#334" text-anchor="middle">用 session.merge() 手動把名字塞進 DB</text>
+  <line x1="232" y1="122" x2="232" y2="140" stroke="#b3372f" stroke-width="2"/><polygon points="232,146 227,136 237,136" fill="#b3372f"/>
+
+  <rect x="60" y="148" width="345" height="46" rx="8" fill="#ffffff" stroke="#d9a09a" stroke-width="1.5"/>
+  <text x="232" y="176" font-size="13.5" fill="#334" text-anchor="middle">業務規則「每次登入覆寫」把它清成 NULL</text>
+  <line x1="232" y1="194" x2="232" y2="212" stroke="#b3372f" stroke-width="2"/><polygon points="232,218 227,208 237,208" fill="#b3372f"/>
+
+  <rect x="60" y="220" width="345" height="46" rx="8" fill="#ffffff" stroke="#d9a09a" stroke-width="1.5"/>
+  <text x="232" y="248" font-size="13.5" fill="#334" text-anchor="middle">斷言「API 不含名字」→ 綠 ✓</text>
+
+  <text x="232" y="300" font-size="14" font-weight="bold" fill="#b3372f" text-anchor="middle">名字根本不存在——這顆綠燈什麼都沒證明</text>
+
+  <!-- 右:正確 -->
+  <rect x="465" y="26" width="405" height="308" rx="12" fill="#eaf6ef" stroke="#2f9e5b" stroke-width="2.5"/>
+  <text x="667" y="58" font-size="16" font-weight="bold" fill="#1f6b3f" text-anchor="middle">✓ 正確寫法</text>
+
+  <rect x="495" y="76" width="345" height="46" rx="8" fill="#ffffff" stroke="#9fcdb2" stroke-width="1.5"/>
+  <text x="667" y="97" font-size="13.5" fill="#334" text-anchor="middle">走真實路徑造狀態:</text>
+  <text x="667" y="115" font-size="13" fill="#334" text-anchor="middle">oidc.issue(sub, name=…) 經登入寫入</text>
+  <line x1="667" y1="122" x2="667" y2="140" stroke="#2f9e5b" stroke-width="2"/><polygon points="667,146 662,136 672,136" fill="#2f9e5b"/>
+
+  <rect x="495" y="148" width="345" height="46" rx="8" fill="#ffffff" stroke="#9fcdb2" stroke-width="1.5"/>
+  <text x="667" y="176" font-size="13.5" fill="#334" text-anchor="middle">前提斷言:後台頁「確實看得到」名字</text>
+  <line x1="667" y1="194" x2="667" y2="212" stroke="#2f9e5b" stroke-width="2"/><polygon points="667,218 662,208 672,208" fill="#2f9e5b"/>
+
+  <rect x="495" y="220" width="345" height="46" rx="8" fill="#ffffff" stroke="#9fcdb2" stroke-width="1.5"/>
+  <text x="667" y="248" font-size="13.5" fill="#334" text-anchor="middle">再斷言「API 不含名字」→ 綠 ✓</text>
+
+  <text x="667" y="300" font-size="14" font-weight="bold" fill="#1f6b3f" text-anchor="middle">前提成立,反向斷言的綠才算數</text>
+
+  <text x="450" y="368" font-size="13.5" fill="#334" text-anchor="middle">規則:反向斷言(不得出現 X)之前,必先斷言 X 存在於它該在的地方(§5.4)</text>
+</svg>

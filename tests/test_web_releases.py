@@ -10,7 +10,7 @@ F73 的驗收標準正是「依發布時間倒序」,所以一併修正 API,不�
 
 import re
 
-from tests.conftest import auth, complete_kinds, make_user
+from tests.conftest import auth, complete_kinds, make_user, publish_and_approve
 
 BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 PREFIX = "/upload"
@@ -72,9 +72,12 @@ async def _upload(client, token, release_id, filename="tool.bin"):
 
 
 async def _publish(client, token, release_id):
+    """T123 之後這個名字仍叫 _publish,但真正做的是「送審 + 核准」。
+
+    本檔多數斷言講的是「已發布(=可下載)的版本」,那個狀態現在要兩步才到得了。
+    """
     await complete_kinds(client, token, release_id)
-    resp = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert resp.status_code == 200, resp.text
+    await publish_and_approve(client, token, release_id)
 
 
 # --- 🐛 排序:既有缺陷的修正 ------------------------------------------------
@@ -313,3 +316,207 @@ async def test_版本說明對使用者可控內容逸出(client, active_user):
     resp = await client.get("/projects/cli-tool/releases", headers={**BROWSER, **auth(token)})
     assert "<script>alert(1)</script>" not in resp.text
     assert "&lt;script&gt;" in resp.text
+
+
+# --- T121 🐛 草稿版本回不去 ------------------------------------------------
+#
+# Benny 實測:「草稿版本就不能再發布與編輯了」。他的專案裡躺著 4 個 0 檔案的草稿,
+# 每一個都只有一枚「草稿」徽章,旁邊什麼都沒有。
+#
+# 根因不是功能沒做——上傳與發布都在,而且有測試。缺的是**入口**:
+# 上傳頁 `/releases/{id}/upload` 只在「建立版本」送出後被自動導向一次
+# (web.py 的 `_redirect(... f"/releases/{release.id}/upload")`),
+# 使用者一旦離開就再也回不去;版本歷史頁只印徽章不給連結,
+# 專案頁又只顯示最新**已發布**版本。草稿於是變成孤兒:看得見、點不進去。
+#
+# 🔴 兩條護欄和功能本身一樣重要:
+# 1. viewer **看得見草稿但改不動**(發布要 maintainer 以上),
+#    給他一個按下去必然 403 的連結,比不給更糟;
+# 2. **已發布的版本不得出現這個入口**——已發布不可再變更檔案(API 回 409),
+#    給連結等於誘導使用者去撞一堵牆。
+
+EDIT_HINT = "繼續編輯"
+
+
+async def test_草稿在版本歷史頁要有繼續編輯的入口(client, app, oidc):
+    await make_user(app, "sub-owner-t100")
+    token = oidc.issue("sub-owner-t100")
+    await _project(client, token, slug="draft-tool")
+    release_id = await _create(client, token, "draft-tool", "v0.9.0")
+
+    resp = await client.get(
+        f"{PREFIX}/projects/draft-tool/releases", headers={**BROWSER, **auth(token)}
+    )
+    assert resp.status_code == 200
+    body = _main(resp.text)
+    assert EDIT_HINT in body, "草稿必須有回得去的入口,否則就是孤兒"
+    assert f"/releases/{release_id}/upload" in body, "入口要指向該草稿的上傳頁"
+
+
+async def test_viewer看得到草稿但不得看到編輯入口(client, app, oidc):
+    """🔴 給一個按下去必然 403 的連結,比不給更糟。"""
+    await make_user(app, "sub-owner-t100b")
+    owner = oidc.issue("sub-owner-t100b")
+    await _project(client, token=owner, slug="viewer-tool")
+    await _create(client, owner, "viewer-tool", "v0.9.0")
+
+    watcher = await make_user(app, "sub-viewer-t100")
+    added = await client.put(
+        "/v1/projects/viewer-tool/members",
+        json={"user_id": str(watcher.id), "role": "viewer"},
+        headers=auth(owner),
+    )
+    assert added.status_code in (200, 201), added.text
+
+    resp = await client.get(
+        f"{PREFIX}/projects/viewer-tool/releases",
+        headers={**BROWSER, **auth(oidc.issue("sub-viewer-t100"))},
+    )
+    assert resp.status_code == 200
+    body = _main(resp.text)
+    # 前提斷言:viewer 確實看得到這個草稿,否則下面的反向斷言只是在測「什麼都沒有」
+    assert "草稿" in body, "前提不成立:viewer 看不到草稿,反向斷言會假綠"
+    assert EDIT_HINT not in body, "🔴 viewer 改不動,不該給編輯入口"
+
+
+async def test_已發布的版本不得出現編輯入口(client, app, oidc):
+    """已發布不可再變更檔案(API 回 409),給連結等於誘導使用者去撞牆。"""
+    await make_user(app, "sub-owner-t100c")
+    token = oidc.issue("sub-owner-t100c")
+    await _project(client, token, slug="published-tool")
+    release_id = await _create(client, token, "published-tool", "v1.0.0")
+    await _upload(client, token, release_id)          # binary(complete_kinds 不含)
+    await complete_kinds(client, token, release_id)   # source + doc
+    published = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    assert published.status_code == 200, published.text
+
+    resp = await client.get(
+        f"{PREFIX}/projects/published-tool/releases", headers={**BROWSER, **auth(token)}
+    )
+    assert resp.status_code == 200
+    assert EDIT_HINT not in _main(resp.text)
+
+
+# --- T125 版本作者屬名 ------------------------------------------------------
+#
+# Benny:「增加專案版本 作者屬名,例如初始版本 jack 發布、v2 由 benny 發布」。
+#
+# 資料早就在(`Release.created_by_id` 必填),缺的只是顯示——與 T118 專案頁擁有者
+# 同一個形狀。裁示採「建立這一版的人」,所以 🟢 不動資料、無 migration。
+#
+# 🔴 名字仍被契約 §4.2a L1 擋著(僅管理後台),獲准前顯示 sub 前 8 碼,
+# 格式與 T118 專案頁一致——兩個地方講同一件事,長得不一樣只會讓人以為是兩種東西。
+#
+# 🔴 反向斷言一律由**別人**來看:檢視者自己的識別碼本來就會出現在導覽列。
+# T118 第一版三條測試全用擁有者自己,測到的是別的東西——同一個坑不踩第二次。
+
+async def test_版本歷史顯示每一版的建立者(client, app, oidc):
+    await make_user(app, "sub-jack-t104-aaaaaaaa")
+    jack = oidc.issue("sub-jack-t104-aaaaaaaa")
+    await _project(client, jack, slug="authored-tool")
+    rid = await _create(client, jack, "authored-tool", "v1.0.0")
+    await _upload(client, jack, rid)  # binary(complete_kinds 不含)
+    await _publish(client, jack, rid)
+
+    await make_user(app, "sub-reader-t104")
+    reader = oidc.issue("sub-reader-t104")
+    resp = await client.get(
+        f"{PREFIX}/projects/authored-tool/releases", headers={**BROWSER, **auth(reader)}
+    )
+    assert resp.status_code == 200
+    body = _main(resp.text)
+    assert "sub-jack" in body, "每一版要看得出是誰做的"
+
+
+async def test_版本歷史不得出現顯示名稱(client, app, oidc):
+    """🔴 契約 §4.2a L1:名字僅限管理後台,一般使用者頁面不得出現。
+
+    名字必須走**登入路徑**寫入(每次登入覆寫),手動塞會被下次登入清掉——
+    那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓)。
+    """
+    await make_user(app, "sub-named-t104")
+    author = oidc.issue("sub-named-t104", name="陳大文")
+    await _project(client, author, slug="named-author-tool")
+    rid = await _create(client, author, "named-author-tool", "v1.0.0")
+    await _upload(client, author, rid)  # binary(complete_kinds 不含)
+    await _publish(client, author, rid)
+
+    # 前提斷言:名字真的進了快取,否則下面的反向斷言毫無意義
+    await make_user(app, "sub-admin-t104", admin=True)
+    admin_page = await client.get(
+        f"{PREFIX}/admin/users",
+        headers={**BROWSER, **auth(oidc.issue("sub-admin-t104"))},
+    )
+    assert "陳大文" in admin_page.text, "前提不成立:名字沒進快取,反向斷言會假綠"
+
+    await make_user(app, "sub-reader-t104b")
+    resp = await client.get(
+        f"{PREFIX}/projects/named-author-tool/releases",
+        headers={**BROWSER, **auth(oidc.issue("sub-reader-t104b"))},
+    )
+    assert resp.status_code == 200
+    assert "陳大文" not in resp.text, "🔴 §4.2a L1:名字不得出現在一般使用者頁面"
+
+
+async def test_版本歷史不得洩漏建立者完整sub(client, app, oidc):
+    sub = "sub-full-author-value-must-not-leak-t104"
+    await make_user(app, sub)
+    author = oidc.issue(sub)
+    await _project(client, author, slug="trunc-author-tool")
+    rid = await _create(client, author, "trunc-author-tool", "v1.0.0")
+    await _upload(client, author, rid)  # binary(complete_kinds 不含)
+    await _publish(client, author, rid)
+
+    await make_user(app, "sub-reader-t104c")
+    resp = await client.get(
+        f"{PREFIX}/projects/trunc-author-tool/releases",
+        headers={**BROWSER, **auth(oidc.issue("sub-reader-t104c"))},
+    )
+    assert resp.status_code == 200
+    assert sub not in resp.text, "🔴 不得輸出完整 sub"
+
+
+async def test_建立者查詢數與版本數無關(client, app, oidc):
+    """🔴 一次 IN 查完,不逐列查。
+
+    比照 T84:用 `before_cursor_execute` **實際計數**,不靠「應該不會慢」的直覺。
+    1 版與 10 版的查詢數必須相同——否則列 20 版就是 20 次查詢。
+    """
+    from sqlalchemy import event
+
+    await make_user(app, "sub-count-t104")
+    author = oidc.issue("sub-count-t104")
+    await _project(client, author, slug="count-tool")
+    await make_user(app, "sub-reader-t104d")
+    reader = oidc.issue("sub-reader-t104d")
+
+    async def _count() -> int:
+        counter = {"n": 0}
+
+        def _before(conn, cursor, statement, *args):
+            counter["n"] += 1
+
+        engine = app.state.engine.sync_engine
+        event.listen(engine, "before_cursor_execute", _before)
+        try:
+            await client.get(
+                f"{PREFIX}/projects/count-tool/releases",
+                headers={**BROWSER, **auth(reader)},
+            )
+        finally:
+            event.remove(engine, "before_cursor_execute", _before)
+        return counter["n"]
+
+    rid = await _create(client, author, "count-tool", "v1.0.0")
+
+    await _upload(client, author, rid)  # binary(complete_kinds 不含)
+    await _publish(client, author, rid)
+    one = await _count()
+
+    for i in range(1, 10):
+        rid = await _create(client, author, "count-tool", f"v1.0.{i}")
+        await _upload(client, author, rid)
+        await _publish(client, author, rid)
+    ten = await _count()
+
+    assert one == ten, f"查詢數隨版本數成長(1 版 {one} 次、10 版 {ten} 次)= N+1"

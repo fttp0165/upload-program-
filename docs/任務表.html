@@ -41,18 +41,19 @@ summary { cursor:pointer; color:#12228f; }
 <div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/任務表.md</code> 產生。
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 任務表</h1>
-<p><strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 12:20
-<strong>版本:</strong> v1.88</p>
+<p><strong>專案:</strong> upload-program
+<strong>建立日期:</strong> 2026-07-25 15:53
+<strong>最後更新:</strong> 2026-08-31 14:10
+<strong>版本:</strong> v1.89</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 12:20)</h2>
-<p>任務 107 項:<strong>✅ 101 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>593 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-08-31 14:10)</h2>
+<p>任務 125 項:<strong>✅ 119 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>647 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -65,29 +66,30 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td><code>app/version.py</code></td>
-<td><strong>0.2.5</strong></td>
-<td>與最新 tag 一致</td>
+<td><strong>0.3.0</strong></td>
+<td>🔵 合併 PR #33 後改的(它把 <code>publish</code> 從「發布」變成「送審」,那是 minor 版);依第八條 4 已在打 tag 前備好</td>
 </tr>
 <tr>
 <td>GitHub 最新 tag</td>
 <td><strong>v0.2.5</strong></td>
-<td>指向 <code>31b4c20</code>;CI run #261 三個 job 全綠,<code>ghcr.io/fttp0165/upload-program:v0.2.5</code> 已推出。⚠ <code>v0.2.4</code> <strong>作廢</strong>(打在 <code>6dabe7d</code>,其常數是 <code>0.2.3</code>),依第八條 5 不刪不重推</td>
+<td>指向 <code>31b4c20</code>,image 已上 GHCR。⚠ <code>v0.2.4</code> <strong>作廢</strong>(打在 <code>6dabe7d</code>,其常數是 <code>0.2.3</code>),依第八條 5 不刪不重推</td>
 </tr>
 <tr>
 <td>VM 執行中</td>
 <td><strong>v0.2.5</strong></td>
-<td>2026-08-31 換版,側欄實測顯示 <code>upload-program v0.2.5</code>;migration <code>0009</code> 已套用</td>
+<td>2026-08-31 換版,側欄實測 <code>upload-program v0.2.5</code>;migration 到 <code>0009_notify_email</code></td>
 </tr>
 </tbody>
 </table>
 <h3>尚未合併的工作</h3>
-<p><strong>T106–T109</strong>(殘骸不顯示 / 不再產生殘骸 / 登入紀錄 / 維運腳本進 image)。<code>main</code> = <code>31b4c20</code>(= v0.2.5)。
-🟢 無 migration。</p>
-<p>⚠ <strong>另一條分支 <code>claude/read-article-join-project-1op5nk</code>(PR #33,v0.3.0)尚未合併</strong>:
-29 commits / 106 檔,<code>mergeable_state: dirty</code>(8 檔衝突)。
-🔴 <strong>它的 T94、T96–T105 與本分支同編號但不同內容</strong>,且它的 <code>0009_release_review</code>
-與 <code>main</code> 上已有的 <code>0009_notify_email</code> <strong>撞 alembic 鏈</strong>。合併前須先重編號 + 改鏈,
-另立計畫,不在 T106 內處理。</p>
+<p><strong>T106–T128 一批</strong>(我方 T106–T109 + 併入的 PR #33 = T110–T128)。
+<code>main</code> = v0.2.5;本批合併後 <code>APP_VERSION</code> = <strong>0.3.0</strong>(#33 改變了既有行為:
+<code>POST /v1/releases/{id}/publish</code> 由「發布」變成「送審」,那是 minor 版的定義)。</p>
+<p>🔴 <strong>有兩個 migration</strong>:<code>0010_release_review</code>、<code>0011_project_comments</code>
+(合併時讓號改鏈,見 <a href="plans/計畫_合併PR33_重編號與migration改鏈.md">計畫_合併PR33</a>)。
+換版必須 <code>alembic upgrade head</code>,且 🔴 <strong>退版會刪掉全部留言</strong>(runbook §B)。</p>
+<p>⚠ <strong>PR #33 已被本分支取代</strong> —— 合併後須在該 PR 留言說明並關閉,
+不然下一個人會以為那還是待辦。</p>
 <h3>未完成的任務(6 項)</h3>
 <table>
 <thead>
@@ -736,6 +738,139 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td><strong>撞到才發現的,不是 review 出來的</strong>:Benny 照 runbook §C.3 清殘骸拿到 <code>can't open file '/app/tools/purge_failed_artifacts.py'</code>;第一層解釋是「那支工具太新」,但<strong>根因是 <code>Dockerfile</code> 從來沒有 COPY <code>tools/</code></strong> —— 而 <code>test_devserver.py</code> 還有一條測試<strong>明文禁止</strong>它(T92 為了讓 <code>devserver.py</code> 進不了正式環境蓋的第三層防線);🔴 <strong>於是 runbook §C.2 的兩行 cron 從寫下的那天起就不可能執行成功</strong>,⚠ 實測 <code>crontab -l | grep purge</code> 一行都沒有 → 沒有每晚靜默失敗,但<strong>稽核保留期清理從上線起一次都沒跑過</strong>,而那是只增不減的個資表(後台寫的「保留期 N 天」是沒被執行的承諾);<strong>Benny 裁示 A 案</strong>:<code>COPY tools/purge_*.py</code>(不是整個 <code>tools/</code>),T92 那條收窄為「不得 COPY <code>devserver.py</code> / <code>tests/</code> / 整個 <code>tools/</code>」——🔴 <strong>文字變了意圖一字未減</strong>:T92 防的是「偽造 session 的腳本進正式環境」,關鍵是 devserver 與它 import 的 <code>tests/</code> 不在,不是「tools/ 整個不在」;維運腳本不偽造身分,把它們一起擋掉換到的不是安全,是<strong>一份跑不起來的維運文件,而那等於那件事沒有人做</strong>;🔴 <strong>本任務真正的產出是 <code>tests/test_ops_scripts.py</code></strong>:掃 runbook 裡每一個 <code>python tools/xxx.py</code> 引用,逐一檢查 Dockerfile 的 COPY 是否涵蓋 —— 擋的不是這次(已知道了)是<strong>下一次</strong>;⚠ <strong>我自己踩了一次同型的錯</strong>:守門第一版寫成「整份 Dockerfile 不得出現 devserver」,結果我在註解裡寫理由時被自己的測試擋下 —— 已改為只檢查 COPY 指令,因為<strong>逼人刪掉理由,下一個人就會順手把整個 tools/ 收進來</strong>;<strong>3 條新增(1 紅起步),全套 593</strong>;runbook v1.9 標註「cron 從未掛」與「需 v0.2.6 以上」</td>
 </tr>
 <tr>
+<td>T110</td>
+<td>測試 SOP 成文</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 指示以測試工程師視角寫測試 SOP;現況是紀律<strong>存在但散落</strong>(憲法第三條、conftest、43 個測試檔檔頭、各篇 dev-log 的教訓),新人要拼湊十幾份文件才知道規矩;新增 <code>docs/測試SOP.md</code>(照著做定位,比照 runbook):策略形狀(整合式為主體的理由)、三件套、TDD 五步、撰寫規範——🔴 <strong>狀態走真實路徑寫入不得手動塞 DB</strong>(T84 假綠)、<strong>反向斷言必有前提斷言</strong>、區塊斷言不整頁比對(T85/T59)、斷言 invariant 不斷言字面、成對逸出斷言、量化紅線用機制驗(查詢計數/SHA-256);紅線↔守護測試對照表 13 列、migration 演練規則、CI 判定(Trivy 紅不反射性怪最後 commit)、換版四組冒煙與「沒驗到不得記成驗過了」、<strong>十條實踩陷阱清單</strong>;每條規則標注出處任務;md + HTML 並存入 render_docs;純文件依第三條 4 不寫新測試,全套 506 維持全綠</td>
+</tr>
+<tr>
+<td>T111</td>
+<td>測試項目清單(量身訂做的「測什麼」)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 對 T110 的回饋:SOP 是流程,他要的是<strong>測試工程師會測的項目</strong>;新增 <code>docs/測試項目清單.md</code>:依使用者旅程(登入SSO 13 / 開通 7 / 專案 10 / 版本 8 / 上傳 10 / 下載 6 / 回報 13)+ 四跨切面(後台 8 / 安全 9 / 維運 7 / 介面 6)共 <strong>97 項</strong>,逐項「條件→動作→預期」一行可執行;每項標 <strong>✅ 自動</strong>(CI 每次跑,人工抽查)/ <strong>🖐 人工</strong>(測試工程師主力:真實 Keycloak、貼上/拖放/取消、跨 App 登出、視覺、VM cron)與<strong>冒煙 ✓</strong>(15–20 分鐘子集,含執行順序);🔴 明訂登入不可用期間冒煙項記「未驗」不得略過;附測試地圖 SVG;每項皆從實作長出(F/T 編號的產物),不抄模板;SOP 升 v2.1 補互指(SOP=怎麼測、清單=測什麼);純文件,全套 506 維持全綠</td>
+</tr>
+<tr>
+<td>T112</td>
+<td>冒煙腳本 <code>tools/smoke.sh</code>(一鍵換版驗證)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「可以寫測試腳本驗證嗎?」——答案分層:清單 ✅ 項早有 506 條 pytest;<strong>冒煙裡對正式站打 curl 的部分本任務腳本化</strong>;真實 IdP 畫面/貼上拖放/跨 App 登出維持 🖐 人工。腳本逐項印 ✅/❌/⏭ 並以 exit code 回報,對應清單編號(J-01/J-02/K-06/A-01/A-12/I-01/I-02);🔴 <strong>登入後項目刻意不自動化</strong>——ROPC 是契約禁手,塞帳密給腳本多一份外洩面,一律明示 SKIP 指回清單,<strong>跳過要看得見不得假裝驗過</strong>;腳本自身依第三條測:pytest 守門(<code>bash -n</code> + 關鍵檢查字串)先紅後綠,再以測試設定起真 uvicorn 實跑——<strong>正向全過、負向(錯誤版本)會咬人</strong>;🐛 實跑抓到腳本 bug:/help 教學內文的範例版本號 v1.0.0 被裸抓撿走,哨兵改錨定 T68 頁尾固定格式 <code>upload-program vX.Y.Z</code>;🐛 另收一次 T12 同款(scratchpad 腳本目錄不在 sys.path);runbook §A.4 升 v1.8 加一鍵入口、清單升 v1.1 標注腳本化範圍;<strong>2 條守門測試,全套 508</strong></td>
+</tr>
+<tr>
+<td>T113</td>
+<td>回覆 portal v2.0:時序更正 + session 觀測補強</td>
+<td>✅</td>
+<td>🟢</td>
+<td>portal 現場重現後把主線指向我方 session/refresh;查核我方程式後回覆:🔴 <strong>「callback 同一秒發 refresh」是時序誤讀</strong>——對照其 gateway log 逐行,那筆 <code>Token is not active</code> 屬於 authorize <strong>之前</strong>帶舊 cookie 的進站請求(<code>_session_token</code> 對過期 session 的預期行為),我方<strong>無</strong> callback 後 refresh 的程式路徑;§6.5-2 續期寫回由 <code>SessionRenewalMiddleware</code> 完成(有測試);§6.5-3 已於 v0.2.1 上線(T87);9 筆/120h 的無害解釋 = 各舊 session 過期後的首訪;<strong>真正未解 = :44 踢回</strong>,誠實列三種可能——其中「cookie 送達但無法解析」在 v0.2.1 仍<strong>靜默</strong>,本任務補上 warning(🔴 只記長度不記內容,cookie 內含 token;無 cookie 不記,匿名是常態);<strong>2 條紅→綠,全套 510</strong>;回覆文件同步撤回我方 v1.0 的主要嫌疑判定</td>
+</tr>
+<tr>
+<td>T114</td>
+<td>憲法第九條:文件識別與跨專案文件規約</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 裁示:文件要標明專案與時間,交付其他專案的檔名要標明<strong>發文與受文專案</strong>。動工前盤點 <code>docs/plans/</code> 13 份揪出病灶:收發欄位<strong>四種寫法</strong>(發文方/收文方、受文方/發文方、申請方、英文 From/To)、<strong>3 份完全沒有</strong>、檔名只看得出對象看不出來源與時間;對方來文更慘(收到過 <code>catsportal____uploadprogram_____.md</code>,中文被傳輸吃光只剩底線,連是誰發的都認不出)。第九條定:所有文件抬頭加 <code>專案</code>;跨專案文件再加 <code>發文專案 / 受文專案 / 發文時間</code>(<strong>發文時間不隨改版變動</strong>,供雙方對帳,與 <code>最後更新</code> 分工);🔴 檔名 <code>&lt;發文專案&gt;_致_&lt;受文專案&gt;_&lt;類別&gt;_&lt;主題&gt;_&lt;YYYYMMDD-HHmm&gt;.md</code>(類別限六種);他方來文原樣存 <code>docs/plans/inbox/</code> 不改內容;一律登記進<strong>跨專案文件索引</strong>(新增,一頁看完發過什麼/給誰/何時/對方回了沒/卡在對方三項)。⚠️ <strong>界線:只對生效後新建文件有強制力,既有 8 份不改名</strong>——舊檔被開發日誌引用 40+ 處,為求整齊回頭改寫日誌等於<strong>拿新規則竄改舊歷史</strong>(第六條精神反對),改以索引為橋、腳本統一補抬頭(手改 8 次必然漏,那正是本條要消滅的東西);規約由 <code>tests/test_doc_conventions.py</code> <strong>5 條</strong>守門(規約沒有測試,三個月後就是一句沒人記得的話)。順帶完成 T113 回覆文件 v1.1:Benny 撈回 48h VM log——正面 08:18:<strong>21.226</strong> <code>invalid_grant</code> 與對方同秒且在前段,佐證時序主張,<code>授權碼交換失敗</code> <strong>0 筆</strong>(中斷已結束);🔴 <strong>負面更有價值:08:18:44 無任何紀錄 → 排除「續期失敗導致踢回」</strong>,剩 cookie 無法解析 / 未帶 cookie 兩種,已請對方比對毫秒序 UA 來源 IP。<strong>5 條紅→綠,全套 515</strong></td>
+</tr>
+<tr>
+<td>T115</td>
+<td>🐛 中文文字檔被判成 binary(判型截斷補救砍過頭)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測:「說明」卡片上傳 <code>客戶規格書.md</code> 回 422「檔案實際型別為 application/octet-stream」——<strong>而卡片自己寫著收 PDF / Markdown / 文字檔</strong>,是我方 bug 不是使用者用錯。根因:判型只看前 4096 bytes,尾端幾乎必然切在字元中間,舊補救寫「decode 失敗就砍尾端 3 bytes 再試」——對 ASCII 沒事,<strong>對中文是錯的</strong>:中文一字 3 bytes,殘尾若是 1 或 2 bytes,砍 3 bytes 會把<strong>前一個完整的字也砍破</strong>,製造出新的不完整字元 → 仍失敗 → 判成 binary → 白名單擋下。實測同一份內容只差一個 ASCII 前綴就翻盤(<strong>三種對齊兩種失敗</strong>),所以症狀是「有時可以有時不行」。改用 UTF-8 <strong>增量解碼器</strong>(<code>final=False</code> 語意正是「後面還有,尾端不完整不算錯」,非法位元組照樣拋錯)——把「被截斷」與「不是文字」分開,舊寫法混為一談。影響面比截圖大:<code>kind=source</code> 也吃 <code>text/plain</code>,<strong>帶中文註釋超過 4KB 的 <code>.py</code>/<code>.txt</code> 同樣被擋</strong>,公司內部開發者中文註釋是常態;英文文件不受影響,此 bug <strong>專打中文</strong>。🔴 護欄不動:不把 octet-stream 加進白名單、不看副檔名、HTML/SVG 仍一律拒收、attachment+nosniff 兜底未碰,皆有測試。活這麼久的原因是測試資料太乾淨(小檔 + 英文),新測試刻意用 &gt;4096 中文並把三種對齊全測;🔴 <strong>要換版才生效</strong>,建議併入 v0.2.2。<strong>5 條紅→綠,全套 520</strong></td>
+</tr>
+<tr>
+<td>T116</td>
+<td>發版前置:<code>APP_VERSION</code> → 0.2.2</td>
+<td>✅</td>
+<td>🟢</td>
+<td>T115 的修正要換版才生效(正式站仍跑 v0.2.1,中文大檔依舊傳不上去),Benny 裁示發下一版。依第八條 4 在打 tag <strong>之前</strong>改好常數。本版帶 6 個任務,其中<strong>只有兩個動到執行中的服務</strong>:T115 中文判型修正(主角)與 T113 壞 cookie 觀測;T110–T112、T114 是文件、測試與工具。<strong>為何 0.2.2 不是 0.3.0</strong>:無新功能面,一個 bug 修正 + 一個觀測補強,patch 語意正確;<strong>為何不重發 v0.2.1</strong>:第八條 5,該 tag 已發布且已部署,移動 tag 會讓「使用者手上那版」與「tag 說的那版」分家。依第三條 4 不寫新測試——版本號三個載體(頁尾/OpenAPI/問題回報附記)都讀同一常數,既有測試自動驗新值,再抄一次字面值只會製造「改版本要改兩處」的摩擦。🟢 <strong>無 migration</strong>,VM 換版不需 <code>alembic upgrade head</code>;換版驗證除哨兵外,🖐 <strong>人工必驗超過 4KB 的中文 <code>.md</code> 與帶中文註釋的 <code>.py</code> 能上傳</strong>(本版主角,腳本構不到),並反向確認 <code>.exe</code> 改名成 <code>.md</code> 仍被擋。全套 520</td>
+</tr>
+<tr>
+<td>T117</td>
+<td>🐛 CI Trivy 紅燈:base image 被本機快取釘住</td>
+<td>✅</td>
+<td>🟢</td>
+<td>PR #33 的 Trivy job 紅燈,列出的全是 <strong>base image 的 OS 套件</strong>(<code>util-linux</code> / <code>mount</code> / <code>login</code> / <code>libmount1</code> / <code>libblkid1</code> / <code>libsmartcols1</code> / <code>libuuid1</code>,CVE-2026-53612~53615),與本 PR 的 diff 無關——Dockerfile 的 runtime stage 從頭到尾沒有 <code>apt-get</code>。根因:建置指令沒有 <code>--pull</code>,而 runner 是 <strong>self-hosted</strong>,<code>python:3.12-slim</code> 這個 tag 一旦拉過就躺在本機層快取,上游把同一個 tag 重建、把 Debian 安全更新併進去,我們永遠取不到 → <strong>時間到了 CI 自己會紅,而且 main 一起紅,看起來卻像某個 PR 弄壞的</strong>。🔴 這不是放寬紅線:tag 仍是版本 tag 不是 <code>latest</code>,<code>--pull</code> 只影響「同一個 tag 取哪一份」;沒用 <code>.trivyignore</code>、沒放寬 <code>--severity</code>(T82 立過的界線);<code>--ignore-unfixed</code> 維持原狀——它本來就在,代表這批 CVE <strong>上游有修好的版本</strong>,我們只是拿不到。若 <code>--pull</code> 後仍紅代表上游尚未重建,屆時再於 runtime stage 明確 <code>apt-get upgrade</code>,<strong>先不做</strong>免得上游修好後留下長期贅生物</td>
+</tr>
+<tr>
+<td>T118</td>
+<td>專案頁顯示擁有者(過渡 sub 前 8 碼)+ 申請擴大名稱快取用途</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 看正式站:「沒有顯示作者的名字」——查證屬實,<code>專案資訊</code> 只有容量與時間,<strong>完全沒有擁有者欄位</strong>。對程式分享平台是核心缺口:要下載一支執行檔,「這是誰放的」是判斷信不信任它的第一個依據,<strong>尤其掃毒還沒接上</strong>(<code>not_scanned</code>),發布者是誰是使用者僅剩的依據。🔴 <strong>但名字放不上去</strong>:名字唯一來源 <code>display_name_cache</code> 受契約 §4.2a L1 管,而那條「僅管理後台顯示、<strong>不出現在一般使用者可見頁面</strong>」是<strong>我方自己寫進申請書的</strong>——當初為求好過把範圍縮到最小,現在反過來咬到自己;偏離平台契約的權限不在本專案(〈位階〉),只能送申請不能自行放寬。Benny 裁示<strong>兩個都做</strong>:(1)過渡顯示 <strong>sub 前 8 碼</strong>+誠實標註「顯示名稱待平台核准」(sub 是不透明識別碼非個資,業務庫本來就只存它;截斷比照 T59「僅供人眼辨識」;與 <code>not_scanned</code> 同一個態度);(2)申請書送 portal,<strong>只動「用途」一欄</strong>,明列不申請的四件事(Admin API / 進 API 回應 / 新欄位 / email),附契約增修建議稿與「若不同意」的替代方向詢問。🐛 測試自己先寫錯一次:三條都讓<strong>擁有者自己</strong>看自己的專案,於是「不得洩漏完整 sub」當場紅——<strong>卻不是功能有問題</strong>,而是導覽列本來就會顯示檢視者自己的 sub;「名字不得出現」那條更是永遠不可能過。改成<strong>由別人來看</strong>才是真正要問的問題。教訓:寫反向斷言前要先確認頁面沒有<strong>另一個合法來源</strong>會產生同一個字串。<strong>3 條紅→綠(功能紅、兩條護欄綠),全套 523</strong></td>
+</tr>
+<tr>
+<td>T119</td>
+<td>本地 WSL 開發環境 + 本機跑 CI</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「部屬 本地 WSL 跑 CI」。盤點發現 <strong>README 現行指示是錯的</strong>——「最省事的方式是 <code>docker compose up -d</code>」在 WSL 必然失敗三次:<code>cats-edge</code> 外部網路本機沒有、<code>ghcr.io</code> image 要登入且拉到的是<strong>舊版而非你的程式碼</strong>、CA 憑證路徑是 VM 上的。根目錄 compose 是<strong>正式機形狀</strong>,本來就不該當本機環境,依第二條 5 回寫(README v2.1)。好消息是 CI 主力本機全跑得動:<code>conftest</code> 用 <strong>SQLite + 假 S3</strong>,528 條測試<strong>不需要 DB / MinIO / 網路</strong>;真正需要相依的只有「用瀏覽器實際點」。新增 <code>docker-compose.dev.yml</code>(只起 PG + MinIO、綁 <code>127.0.0.1</code>、無 restart)與 <code>docs/runbook_本地開發與CI.md</code>(七節:WSL 準備→venv→起相依→本機跑 CI 三個 job→做不到的事→常見卡關→一頁速查)。🔴 <strong>最大風險是 dev compose 被誤用到正式機</strong>:它為了本機能連<strong>必須發布 port</strong>,而那正是平台鐵則禁止的——三層防線:檔名<strong>不叫</strong> <code>docker-compose.override.yml</code>(那名字會被自動載入,在 VM 上打一次就把 DB 開到主機且無警告)、刻意不設 restart(差異本身是標記)、<code>tests/test_dev_compose.py</code> <strong>兩邊一起釘</strong>(dev 不得有 cats-edge/ghcr/restart;正式檔仍須有 cats-edge 且 db/minio 不得有 ports)。<code>docker compose config</code> <strong>實跑通過</strong>,不只是讀過覺得對。查證後修掉兩個本來會寫錯的地方:<code>PUBLIC_BASE_URL</code> <strong>不必改</strong>(頁面連結一律 root-relative,絕對網址只用於 OIDC)、<strong>啟動 log 的 discovery error 是正常的</strong>(刻意不擋啟動)並附 <code>/health</code> ✅ <code>/ready</code> ❌ 的本機預期表。🔴 本機<strong>登入不能用</strong>且刻意不解決——不會為了開發方便要求 portal 在正式 client 加 localhost redirect URI。<strong>5 條紅→綠,全套 528</strong></td>
+</tr>
+<tr>
+<td>T120</td>
+<td>憲法第十條:指令必須標明「在哪台機器、在哪個目錄」</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「給指令要說明在哪一個平台執行 以及執行的檔案路徑」。不是龜毛——<strong>已經出過事</strong>:2026-08-11 換版第一次失敗,根因是「改 <code>docker-compose.yml</code> 的 image tag」那一步<strong>是編輯檔案,卻被當成 shell 指令貼進終端機</strong>,結果 pull 到舊版而容器顯示 Running。文件裡同時躺著<strong>三種機器</strong>的指令(WSL 開發機 / Windows Docker Desktop / Cats VM),長得一模一樣,而貼錯的代價<strong>不對稱</strong>:在開發機跑到 VM 指令頂多報錯,<strong>在 VM 跑到開發機指令會出事</strong>(dev compose 一貼就把 DB 的 port 開到主機)。第十條定:每個可貼區塊正上方標 <code>🖥️ 在哪執行</code>(機器 + 工作目錄)或 <code>📄 編輯哪個檔</code>;工作目錄一律絕對路徑或 <code>~</code> 起頭,不寫「專案根目錄」這種要讀者換算的話;聊天回覆指令同樣適用。兩份 runbook <strong>23 個區塊全標</strong>(本地 16 → v2.0、換版 7 → v1.9)。🔎 <strong>標記這個動作逼出三個坑</strong>(不是順便發現,是「要寫在哪執行就得先回答這是執行還是編輯」逼出來的):§A.1 打 tag 其實在<strong>本機 repo</strong> 卻夾在兩段 VM 指令中間、§C.2 的 cron 是<strong>編輯 crontab</strong> 不是貼進終端機(08-11 同一個分界換個地方等著)、本地 §3.2 的 <code>.env</code> 區塊<strong>看起來就像四條指令</strong>(照貼會得到四個 command not found 且不知錯在哪)。⚠️ 誠實記下第 4 項(聊天回覆)<strong>測試守不到</strong>——只掃 repo 內文件,靠自律。<strong>3 條紅→綠,全套 531</strong></td>
+</tr>
+<tr>
+<td>T121</td>
+<td>🐛 草稿版本回不去(版本歷史頁沒有編輯入口)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 實測:「草稿版本就不能再發布與編輯了」——他的專案裡躺著 <strong>4 個 0 檔案的草稿</strong>,每個只有一枚徽章、旁邊什麼都沒有。根因<strong>不是功能沒做</strong>:上傳與發布都在且有測試(三類齊備、已發布回 409、maintainer 把關);缺的是<strong>入口</strong>——上傳頁 <code>/releases/{id}/upload</code> 只在「建立版本」送出後被 <code>_redirect</code> 導向<strong>一次</strong>,使用者一離開就再也回不去;版本歷史頁只印徽章不給連結,專案頁又只顯示最新<strong>已發布</strong>版本。草稿因此變成孤兒:<strong>看得見、點不進去</strong>,每次建版沒一次做完就多一個殼。修法是版本歷史頁的草稿列加「繼續編輯」。🔴 兩條護欄與功能同等重要:(a)<strong>viewer 看得見草稿但改不動</strong>(發布要 maintainer 以上),給他一個按下去必然 403 的連結<strong>比不給更糟</strong>——新增 <code>security.may_manage_releases()</code> 與 <code>require_project_role</code> <strong>共用 <code>_ROLE_RANK</code></strong>,只是不拋例外(真正把關仍在 API,這裡少判只會少一個入口);(b)<strong>已發布的版本不得出現該入口</strong>,已發布不可變更,給連結等於誘導撞牆。🐛 順手修掉 <code>upload.html</code> 的 <code>**已發布**</code>——Markdown 寫在 HTML 模板裡不會變粗體,<strong>會原樣印出星號</strong>,已發布頁面一直掛著兩對星號沒人回報。📌 記一筆免得日後誤讀規模:「功能做完了」與「使用者找得到」是兩件事,而本例的症狀聽起來完全像前者。<strong>3 條紅→綠(功能紅、護欄綠),全套 534</strong></td>
+</tr>
+<tr>
+<td>T122</td>
+<td>管理員權限:網頁指派入口</td>
+<td>✅</td>
+<td>🟢</td>
+<td>依<a href="plans/施工計畫書_審核與回饋_T122-T125.md">施工計畫書</a> §1 施工。盤點結果:<strong>後端九成已存在</strong>——<code>platform_role</code> 欄位、<code>PATCH /v1/admin/users/{id}</code> 可改角色且有稽核、後台已顯示「管理員」徽章、<code>BOOTSTRAP_ADMIN_SUBS</code> 解決雞生蛋;<strong>唯一缺網頁按鈕</strong>(與 T121 同一形狀:功能在、入口沒有)。🔴 三條防呆:不能取消自己的管理員(手滑就沒人管得動,平台無 root 後門)、不能把未開通者設為管理員(繞過自己的門禁)、稽核照記。🔴 <strong>必須排在 T123 之前</strong>——審核制度要有可指派的管理員,否則全卡在 <code>.env</code> 那一個 bootstrap 帳號。防呆做<strong>兩層</strong>:畫面不給機會按(自己那列無按鈕、未開通者不顯示「設為管理員」),<strong>伺服器端 409 才是把關</strong>(表單可以偽造)。刻意<strong>不做</strong>「最後一個管理員不能被降級」:那要數管理員人數,而計數在並行下不可靠(兩人同時降對方,兩邊都讀到還有 2 個),要做對得上資料庫鎖;防呆 1 不需計數、只看「你是不是你」,永遠正確且已涵蓋最常見的手滑。🐛 測試踩到 local import 慣例導致 4 條以 <code>NameError</code> 紅——<strong>紅的原因不是功能有問題</strong>,這種紅要先看錯誤型別再動程式。<strong>5 條紅→綠,全套 539</strong></td>
+</tr>
+<tr>
+<td>T123</td>
+<td>發布審核:管理員核准後才可下載</td>
+<td>✅</td>
+<td>🟡</td>
+<td>依裁示施工:狀態機由兩態變三態 <code>draft →(送審)→ pending_review →(核准)→ published</code>,退回帶理由回到 draft。🎯 <strong>關鍵設計:<code>published</code> 的語意刻意不變</strong>(一直都是「可下載」)——既有已發布的版本因此<strong>一列都不用改</strong>,裁示第 2 條不是靠資料遷移達成而是靠設計,資料影響從 🔴 UPDATE 降為 🟡 純加欄位(實測 <code>alembic upgrade --sql</code> 產出的 PostgreSQL DDL <strong>沒有任何一行 UPDATE</strong>)。可見性沿用草稿既有的 404 規則(<code>is draft</code> → <code>is not published</code>),不發明新規則——兩套可見性遲早分岔,分岔的那邊就是漏洞。🔴 順手補上一道洞:<strong>待審中不得再改檔案</strong>(原本只擋 published),否則管理員核准的不是他看過的那一份,審核會變成能繞過的形式。🐛 <strong>up→down→up 演練當場抓到兩個 migration bug,而 548 條全綠也看不到</strong>(pytest 用 <code>create_all</code> 根本不跑 migration):SQLite 不支援 <code>ALTER COLUMN TYPE</code>(改用 <code>batch_alter_table</code>)、batch 模式外鍵必須具名。🔴 另有一個 <strong>SQLite 永遠測不到</strong>的坑:<code>native_enum=False</code> 存 VARCHAR、長度取最長值 → 原本 <code>VARCHAR(9)</code>,而 <code>pending_review</code> 有 14 字元,PostgreSQL 會拒寫而 SQLite 不檢查——靠讀 <code>_enum</code> 實作推出來的,已用 <code>--sql</code> 逐行確認放寬語句在裡面。既有 <strong>21 條測試依新行為改寫</strong>(需求變更的預期後果,非回歸):新增 <code>conftest.publish_and_approve()</code> 走真實 API 而非塞 DB(T84 假綠的教訓),並把 app 掛在 client 上讓幾十個 helper 的<strong>呼叫點一行未動</strong>。✅ <strong>PostgreSQL up→down→up 演練已完成</strong>(2026-08-13,Benny 在 WSL 以 dev compose 的 PG 15.8 執行,三步全過)——⚠️ 誠實註明那是<strong>空庫</strong>演練,證明的是 DDL 在 PostgreSQL 上跑得動(即本任務的風險:<code>ALTER COLUMN TYPE</code> 與 VARCHAR 長度),不是資料搬遷邏輯。通知缺口仍在(已知取捨)。<strong>9 條紅→綠,全套 548</strong></td>
+</tr>
+<tr>
+<td>T124</td>
+<td>專案回饋(專案留言板)</td>
+<td>✅</td>
+<td>🟡</td>
+<td>依裁示做<strong>專案留言板</strong>(計畫書 §3、§6-4)。現有的問題回報是<strong>平台層</strong>(回報網站問題,🔴 僅本人與管理員可見、404 不洩漏存在),與專案層公開回饋的可見性設計<strong>完全相反</strong>,不能沿用。三種解讀工作量差很多:(a) 專案留言板 (b) 版本層回饋 (c) 評分;建議 (a)——文字對「這支程式好不好用」的價值遠高於分數,且結構近似 <code>IssueComment</code> 可沿用逸出與長度限制。三件必須面對的事:可見性跟隨專案(private 的回饋絕不能外洩)、留言者身分又撞契約 §4.2a L1(獲准前只能顯示 sub 前 8 碼,一串 UUID 的留言板體驗很差)、保留與清理是否比照 365 天。<strong>實作結果</strong>:新表 <code>project_comments</code>(專案 CASCADE、使用者 RESTRICT、複合索引);可見性沿用 <code>require_project_read</code> 不另立一套(private 非成員 404 不是 403);<strong>能讀就能寫</strong>,viewer 也能留言——只有 maintainer 講得了話的留言板不叫 feedback。🔴 <strong>最重要的界線:專案擁有者不能刪別人的留言</strong>,只有留言者本人與平台管理員可以——擁有者若能刪掉評語,留言板就只會剩下好話,而<strong>一個只留得住讚美的回饋區比沒有回饋區更糟</strong>(它讓人誤以為「沒有負評」= 「沒有問題」);想回應批評的方式是再留一則言。<strong>刻意不做自動清理</strong>(與 issues 不同:回報是事務、處理完就沒價值,留言是<strong>內容</strong>,一年後仍有用)。🐛 第一版有一條<strong>為錯的理由而綠</strong>的假綠:「private 非成員 404」在端點根本不存在時本來就會過,而且<strong>永遠不會紅</strong>;補前提斷言(擁有者先拿到 200)後才真的紅——反向斷言必須先證明正向那條路是通的(T84 同一課換個面貌)。<strong>7 條紅→綠,全套 559</strong>;migration up→down→up(SQLite)通過</td>
+</tr>
+<tr>
+<td>T125</td>
+<td>版本作者屬名</td>
+<td>✅</td>
+<td>🟢</td>
+<td>依裁示施工(計畫書 §4、§6-3:採<strong>建版者</strong>)。好消息:<strong>資料早就在</strong>——<code>Release.created_by_id</code> 存在且必填,「初始版本 jack、v2 由 benny」資料庫現在就答得出來,只是沒顯示在任何地方。🔴 壞消息與 T118 同一個:顯示<strong>名字</strong>受契約 §4.2a L1 擋住(版本歷史頁是一般使用者可見頁面),申請書已送出且<strong>已把「上傳者」寫進請求範圍</strong>,獲准後一次補齊。分兩段:現在先顯示 <code>sub</code> 前 8 碼(格式與 T118 專案頁一致,🟢 不動資料)、獲准後換成名字(一行)。已裁示採<strong>建版的人</strong>(🟢 不動資料)。🔴 <strong>一次 <code>IN</code> 查完不逐列查</strong>——版本歷史頁一次列 20 版,逐列查就是 20 次查詢;比照 T84 有一條測試以 <code>before_cursor_execute</code> <strong>實際計數</strong>,1 版與 10 版必須相同。那條護欄<strong>實作前就綠</strong>,它真正的價值在<strong>實作後仍然綠</strong>:那才證明批次有效,而不是「有沒有做」。🐛 四條測試一開始都漏了上傳執行檔(<code>complete_kinds</code> 只補 source+doc),害兩條護欄以 422 誤紅——<strong>紅的原因不是功能</strong>,與 T122 的 <code>NameError</code> 同一課:先看清楚紅的理由再決定動不動程式。格式與 T118 專案頁擁有者<strong>刻意一致</strong>(同一件事不該長成兩種東西)。<strong>4 條紅→綠,全套 552</strong></td>
+</tr>
+<tr>
+<td>T126</td>
+<td>發版前置:<code>APP_VERSION</code> → 0.3.0</td>
+<td>✅</td>
+<td>🟢</td>
+<td>常數原為 0.2.2(T116 決定),但<strong>這一版後來長大了</strong>:累積了四項新功能(T122 管理員指派 / T123 審核制度 / T124 留言板 / T125 屬名)與<strong>兩個 migration</strong>。SemVer 在 0.x 的慣例是新功能與行為變更都升 minor,而且這一版有一件比新功能更重的事——🔴 <strong><code>POST /v1/releases/{id}/publish</code> 的語意改了</strong>:原本「發布,馬上可下載」,現在是「送審,等核准」;同一條端點、同樣回 200,<strong>結果完全不同</strong>。用 0.2.2 發等於對看 Release 頁的人說「這只是小修正」,而他下一步就會發現自己發布的東西沒人下載得到——<strong>版本號會說謊</strong>。0.2.2 從未打成 tag、只在分支上當過幾小時的常數值,<strong>跳號不補</strong>(SemVer 不要求連號,為了整齊而發一版是本末倒置)。依第三條 4 不寫新測試(三個載體讀同一常數)。🔴 本版<strong>有兩個 migration</strong>,VM 換版必須跑 <code>alembic upgrade head</code>;換版前先清空審核佇列(0009 的 downgrade 會把待審當回草稿)</td>
+</tr>
+<tr>
+<td>T127</td>
+<td>🐛 CI Trivy 紅燈:base image 的 openssl 落後安全更新</td>
+<td>⚠️</td>
+<td>🟢</td>
+<td>PR #33(v0.3.0)的 <code>Build image + Trivy 掃描</code> 紅:<code>libssl3t64</code> / <code>openssl</code> / <code>openssl-provider-legacy</code> 同一個 <strong>CVE-2026-14456</strong>(HIGH ×3,<code>3.5.6-1~deb13u2</code> → <code>3.5.7-1~deb13u2</code>)。<strong>與本 PR 的 diff 無關</strong>——runtime stage 沒有任何 <code>apt-get</code>,OS 套件原封不動來自 base image,main 現在建也會紅。🔍 <strong>這次不是 T117 的快取問題</strong>:<code>--pull</code> 確實生效了(掃到的就是 Debian 13.6 的當期版本),真正的原因是<strong>上游 <code>python:3.12-slim</code> 尚未重建</strong>——<code>--pull</code> 只能保證取到上游最新的那份,<strong>上游沒動就沒得取</strong>。處置正是 T117 日誌〈如果 <code>--pull</code> 之後還是紅〉那一節<strong>預先寫好</strong>的方案:runtime stage 只升 openssl 家族(不做整包 <code>apt-get upgrade -y</code>——那會讓「這個 image 裝了什麼」隨建置時間漂移,是 T82 遺留問題的 OS 版本)。🔴 <strong>仍然不用 <code>.trivyignore</code></strong>,而且這次誘惑比前兩次都大:CVE-2026-14456 是 OpenSSL <strong>QUIC 伺服器</strong>的記憶體無限成長,本服務沒有任何 QUIC 伺服器路徑(TLS 在 gateway 終結,OpenSSL 只被 Python 用在對外 client:JWKS、MinIO),<strong>幾乎確定不適用</strong>——但「我判斷用不到」不是關掉掃描的理由:判斷可能錯,而 ignore 檔留下的只有一行 CVE 編號、留不下今天這段推理;既然上游<strong>已經有修好的版本</strong>(<code>--ignore-unfixed</code> 一直開著,它出現就代表有得修),拿到它才是正解。⚠️ <strong>誠實記下一個風險</strong>:Dockerfile 第 12–16 行的歷史正是「apt 套件庫從 CI 網路不可達」(run #85)才把 apt 拿掉的,本次把 apt 加回來<strong>可能撞同一堵牆</strong>;若撞牆會<strong>大聲失敗</strong>(🔴 刻意不加 <code>\|\| true</code>——吞掉失敗等於發布一個自己以為修好的 image),❌ <strong>實測失敗,已回退</strong>——而且失敗的形狀與預期相反:牆還在(三個 suite 全部 connection timed out),但 🔴 <strong><code>apt-get update</code> 抓不到索引時只印 <code>W:</code>、exit code 仍是 0</strong>,<code>--only-upgrade</code> 拿 base image 的<strong>舊索引</strong>比對後回報「已經是最新版」,整條 <code>&amp;&amp;</code> 鏈<strong>成功</strong>,建置產出一個<strong>看起來已修好、實際一個位元組都沒動</strong>的 image。那條「刻意不加 <code>\|\| true</code>」的護欄立意正確但<strong>守錯了地方</strong>:我防的是「指令回傳非 0 而我吞掉」,而 apt 根本不回傳非 0——<strong>抓到這件事的是 Trivy,不是我寫的任何一道保險</strong>。📌 可帶走的一課:<strong><code>&amp;&amp;</code> 鏈只證明「每個指令都自稱成功」,不證明「事情做到了」</strong>;對「取得外部資源」這類步驟必須自己驗結果,不能把 exit code 當成事實——與 T84 / T124 的假綠同病,只是載體從測試換成了 shell。🔴 <strong>結論:我方修不掉,三條路都不在本 repo</strong>——A 等上游重建(ETA 未知)/ <strong>B 開通 CI 容器網路的 apt 或指向內部鏡像(建議,一勞永逸:這是第三次被 base image 的 OS 套件擋)</strong>/ C 放寬掃描(🔴 不建議,已立過兩次界線)。⚠️ <strong>此紅燈是 v0.3.0 的硬阻塞</strong>:<code>publish</code> job <code>needs: build</code>,Trivy 紅則 GHCR 推不上去,<strong>tag 打了也不會有 image</strong>。待 Benny 裁示</td>
+</tr>
+<tr>
+<td>T128</td>
+<td>狀態總覽頁 + 🐛 補上 HTML 覆蓋守門</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「目前狀態 寫成一份文件」。狀態原本散在<strong>四個地方</strong>——任務表(160+ 列,太細)、開發日誌(26 篇,一篇一件事拼不出全局)、跨專案索引(只涵蓋對外那一面)、GitHub PR(不含 staging 欠項與營運限制);四個都是對的,但<strong>沒有一頁看得完</strong>,於是「現在到底能不能發版」每次都要重查一遍。新增 <code>docs/狀態總覽.md</code> 七節,重點在按<strong>阻塞源</strong>重編的〈誰的球〉(平台網路 / cats-portal / staging),讓「<strong>唯一擋住發版的是 #11</strong>」變成一眼可見的事實而不是要推理出來的結論。🔴 開頭明示本頁是<strong>摘要不是真相來源</strong>——若讀者把摘要當權威,它就會變成第五份會漂移的真相,比沒有它更糟。🐛 <strong>彙整時順手抓到 <code>--check</code> 的盲點</strong>:它只掃 <code>render_docs.py</code> 自己的 TARGETS 清單,<strong>漏掉的東西不在清單裡,清單當然檢查不出來</strong>——前一天新建的第 11 份申請書因此沒有 HTML 版,而 CI 照樣綠。與 T117 / T127 同一形狀:<strong>檢查器只證明它檢查過的東西是對的,不證明該檢查的都檢查了</strong>;差別是這次的漏網之魚是文件,症狀更難察覺(沒有 HTML 版不會有任何錯誤訊息,只有對方收到 md 卻打不開時才發現,而那時已經寄出去了)。依第九條 7「規約若沒有測試,三個月後就是一句沒人記得的話」補守門第 9 條,🔴 <strong>判準綁索引不綁 glob</strong>(索引是「哪些算跨專案文件」的唯一登記處,綁 glob 等於讓規則散成兩份)。⚠️ 日誌計畫段為<strong>事後補記</strong>,已依第二條 2 明示。⚠️ 遺留:<strong>過期的狀態頁比沒有狀態頁更危險</strong>(看起來很權威),而測試查得出檔案在不在、抬頭齊不齊,<strong>查不出內容是否過期</strong>——建議每次發版與卡關項變動時更新。<strong>1 條紅→綠,全套 560</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1064,6 +1199,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </thead>
 <tbody>
 <tr>
+<td>v1.89</td>
+<td>2026-08-31 14:10</td>
+<td>Claude(Benny:「依你推薦執行」)</td>
+<td><strong>合併 PR #33</strong>(29 commits / 106 檔)。🔴 兩個真問題都處理了:①<strong>19 個任務編號整段撞號</strong>(T89–T107 兩邊意義完全不同)→ 已發布的不動,#33 整段平移 <strong>+21</strong>(T89→T110 … T107→T128),可驗算不必查對照表;②<strong>alembic 雙 head</strong>(兩個 <code>0009</code> 接同一個父節點,而 <code>0009_notify_email</code> 已在正式機跑過)→ #33 讓號改鏈為 <code>0010_release_review</code> / <code>0011_project_comments</code>,實測 <code>alembic heads</code> 只有一個。⚠ 重編號<strong>刻意不用整檔 sed</strong>:#33 從 v0.2.3 切出,它的分支上同時有我方已發布的 T89–T96,整檔 sed 會改掉 Release 說明引用的編號 —— 只改「#33 新增的那些行」(程式碼側 67 行 + 19 篇 dev-log + 1 份計畫書 + 40 列任務表)。<strong>647 passed</strong>、ruff 乾淨</td>
+</tr>
+<tr>
 <td>v1.88</td>
 <td>2026-08-31 12:20</td>
 <td>Claude(Benny 裁示 A 案)</td>
@@ -1284,6 +1425,144 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td><strong>T36 標籤分類完成,M4 全數 ✅</strong>;本專案第一個 🟡 加表任務,migration up→down→up 雙向演練通過;測試 125→143</td>
+</tr>
+<tr>
+<td>v1.78</td>
+<td>2026-08-12 22:20</td>
+<td>Claude(Benny 提出四項需求)</td>
+<td><strong>依第一條 4 先立計畫不動程式</strong>:新增 <a href="plans/施工計畫書_審核與回饋_T122-T125.md">施工計畫書 T122–T125</a>。盤點發現四項規模懸殊——T122 後端九成已存在只缺按鈕、T125 資料早就有只缺顯示(名字被契約擋住)、T124 不能沿用問題回報(可見性設計相反)、<strong>T123 最大</strong>(兩態變三態 + migration,且最大風險是「沒有通知管道」的營運現實)。四題待裁示、T122 必先於 T123</td>
+</tr>
+<tr>
+<td>v1.79</td>
+<td>2026-08-12 22:55</td>
+<td>Claude(Benny 四項需求之一)</td>
+<td><strong>T122 管理員指派入口</strong>:後端九成已存在(角色欄位、PATCH API、稽核、bootstrap),只缺網頁按鈕——與 T121 同一形狀。三條防呆做<strong>兩層</strong>(畫面不給機會按、伺服器端 409 才是把關);刻意不做「最後一個管理員不能被降級」(要計數,並行下不可靠)。全套 539</td>
+</tr>
+<tr>
+<td>v1.80</td>
+<td>2026-08-12 23:45</td>
+<td>Claude(Benny 四項需求之二)</td>
+<td><strong>T123 發布審核</strong>:兩態變三態,🎯 <code>published</code> 語意刻意不變,既有已發布版本<strong>一列都不用改</strong>(裁示第 2 條靠設計達成而非資料遷移,🔴 降為 🟡)。🐛 up→down→up 演練當場抓到兩個 <strong>548 條全綠也看不到</strong>的 migration bug(pytest 用 <code>create_all</code> 不跑 migration)。既有 21 條依新行為改寫。全套 548</td>
+</tr>
+<tr>
+<td>v1.81</td>
+<td>2026-08-13 00:05</td>
+<td>Claude(Benny 執行演練)</td>
+<td><strong>T123 欠項清除</strong>:0009 的 PostgreSQL up→down→up 三步全過,<code>information_schema</code> 量到 <code>status</code> 已是 VARCHAR(20);⚠️ 誠實註明那是<strong>空庫</strong>演練,證明 DDL 跑得動,不是資料搬遷邏輯</td>
+</tr>
+<tr>
+<td>v1.82</td>
+<td>2026-08-13 00:45</td>
+<td>Claude(Benny 四項需求之四)</td>
+<td><strong>T125 版本作者屬名</strong>:資料早就在(<code>created_by_id</code>),只缺顯示;名字仍卡在契約 §4.2a L1,先顯示 sub 前 8 碼。🔴 一次 <code>IN</code> 查完不逐列查,護欄<strong>實作前就綠</strong>——它真正的價值在<strong>實作後仍然綠</strong>。全套 552</td>
+</tr>
+<tr>
+<td>v1.83</td>
+<td>2026-08-13 01:25</td>
+<td>Claude(Benny 四項需求之三)</td>
+<td><strong>T124 專案留言板,四項需求全部完成</strong>:不可沿用問題回報(可見性設計相反)。🔴 <strong>專案擁有者不能刪別人的留言</strong>——只留得住讚美的回饋區比沒有回饋區更糟。🐛 一條<strong>為錯的理由而綠</strong>的假綠(端點不存在時 404 也會過,且永遠不會紅),補前提斷言後才真的紅。全套 559</td>
+</tr>
+<tr>
+<td>v1.84</td>
+<td>2026-08-13 01:50</td>
+<td>Claude(發版前置)</td>
+<td><strong>T126 <code>APP_VERSION</code> → 0.3.0</strong>:這一版累積四項新功能與兩個 migration,且 🔴 <code>publish</code> 的<strong>語意改了</strong>(發布→送審)——用 patch 版發等於版本號說謊。0.2.2 從未打成 tag,<strong>跳號不補</strong></td>
+</tr>
+<tr>
+<td>v1.85</td>
+<td>2026-08-26 07:15</td>
+<td>Claude(CI 紅燈觸發)</td>
+<td><strong>T127 openssl CVE 擋下建置</strong>:PR #33 的 Trivy job 紅,三筆 HIGH 是同一個 CVE-2026-14456。<strong>不是 T117 的快取</strong>——<code>--pull</code> 已生效,是<strong>上游 image 尚未重建</strong>;執行 T117 預先寫好的處置(runtime stage 只升 openssl 家族)。🔴 第三次重申不用 <code>.trivyignore</code>,即使本 CVE 對我方幾乎確定不適用。📌 順手補齊 <strong>v1.79–v1.84 六列漏記的版本歷史</strong>——那六次只改了抬頭沒補歷史列,正是第七條 4「缺一不可」要防的事</td>
+</tr>
+<tr>
+<td>v1.86</td>
+<td>2026-08-26 07:40</td>
+<td>Claude(CI 實測回報)</td>
+<td><strong>T127 方案失敗並回退</strong>:deb.debian.org 從 CI 容器網路仍不可達。🔴 真正的發現是第二個——<strong><code>apt-get update</code> 抓不到索引時 exit code 仍是 0</strong>,建置因此產出一個「看起來已修好、實際沒動過」的 image;護欄立意正確卻守錯地方,<strong>抓到的是 Trivy 不是護欄</strong>。一課:<code>&amp;&amp;</code> 鏈只證明每個指令自稱成功,不證明事情做到了。結論:我方修不掉,建議開通 apt(第三次被 base image 的 OS 套件擋);⚠️ 此紅燈是 <strong>v0.3.0 的硬阻塞</strong></td>
+</tr>
+<tr>
+<td>v1.87</td>
+<td>2026-08-26 08:35</td>
+<td>Claude(Benny:「目前狀態 寫成一份文件」)</td>
+<td><strong>T128 狀態總覽頁</strong>:狀態原本散在四處、沒有一頁看得完;重點在按阻塞源重編的〈誰的球〉,🔴 明示是摘要不是真相來源。🐛 順手抓到 <strong><code>--check</code> 的盲點</strong>——只掃 TARGETS 清單,漏掉的檔案不在清單裡就檢查不出來,第 11 份申請書因此沒有 HTML 版而 CI 照樣綠;補守門第 9 條(判準綁索引)。全套 560</td>
+</tr>
+<tr>
+<td>v1.77</td>
+<td>2026-08-12 22:05</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T121 草稿版本回不去</strong>:上傳頁只在建立版本後導向一次,離開就找不到路,草稿成孤兒;版本歷史頁草稿列加「繼續編輯」,判準與發布同一條(viewer 不給必然 403 的連結、已發布不給入口);🐛 順手修掉 HTML 模板裡的 Markdown 星號;全套 534</td>
+</tr>
+<tr>
+<td>v1.76</td>
+<td>2026-08-12 21:15</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T120 憲法第十條成文</strong>:指令要標明機器與工作目錄,🖥️ 執行與 📄 編輯必須分清楚(08-11 換版失敗的根因);兩份 runbook 23 個區塊全標;標記動作逼出三個坑(打 tag 在本機、cron 是編輯、<code>.env</code> 區塊看起來像指令);全套 531</td>
+</tr>
+<tr>
+<td>v1.75</td>
+<td>2026-08-12 20:30</td>
+<td>Claude(Benny:部屬本地 WSL 跑 CI)</td>
+<td><strong>T119 本地開發環境</strong>:新增 <code>docker-compose.dev.yml</code> 與本地 runbook;🐛 回寫 README 那句在 WSL 必敗的錯誤指示;dev/正式兩份 compose 由 5 條測試兩邊一起釘,防止互相污染;全套 528</td>
+</tr>
+<tr>
+<td>v1.74</td>
+<td>2026-08-12 19:45</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T117 CI <code>--pull</code></strong>(base image 被本機快取釘住,Trivy 對著沒改過的東西紅燈)+ <strong>T118 專案頁擁有者欄位</strong>(契約 §4.2a L1 擋住名字,過渡顯示 sub 前 8 碼並送申請擴大用途;🐛 測試視角寫錯的教訓);全套 523</td>
+</tr>
+<tr>
+<td>v1.73</td>
+<td>2026-08-12 18:50</td>
+<td>Claude(Benny:好)</td>
+<td><strong>T116 <code>APP_VERSION</code> → 0.2.2</strong>:依第八條 4 在打 tag 前改好;本版主角是 T115 中文文字檔判型修正(修正需換版才生效),另含 T113 觀測補強與 T110–T112/T114 文件工具;🟢 無 migration;換版驗證加一項🖐 人工必驗中文大檔上傳</td>
+</tr>
+<tr>
+<td>v1.72</td>
+<td>2026-08-12 18:30</td>
+<td>Claude(Benny 實測回報)</td>
+<td><strong>T115 修好中文文字檔上傳</strong>:判型的 UTF-8 截斷補救「砍尾端 3 bytes」會砍破前一個中文字,導致 &gt;4KB 的中文 <code>.md</code>/<code>.py</code> 被判成 binary 擋下(三種對齊兩種失敗,故症狀時好時壞);改用增量解碼器分開「被截斷」與「不是文字」;白名單與 HTML/SVG 拒收未動;🔴 要換版才生效,建議 v0.2.2;5 條紅→綠,全套 520</td>
+</tr>
+<tr>
+<td>v1.71</td>
+<td>2026-08-12 17:30</td>
+<td>Claude(Benny 裁示)</td>
+<td><strong>T114 憲法第九條成文</strong>:文件抬頭加 <code>專案</code>,跨專案文件加 <code>發文專案 / 受文專案 / 發文時間</code> 並以 <code>&lt;發文專案&gt;_致_&lt;受文專案&gt;_&lt;類別&gt;_&lt;主題&gt;_&lt;時間&gt;</code> 命名;新增跨專案文件索引(9 份登記在案)與 5 條守門測試;既有檔案不改名(不以新規則竄改舊日誌);T113 回覆文件升 v1.1 補 VM log 證據——<strong>:44 無紀錄排除可能(a)</strong>;全套 515</td>
+</tr>
+<tr>
+<td>v1.70</td>
+<td>2026-08-12 11:40</td>
+<td>Claude(portal v2.0 回函)</td>
+<td><strong>T113 完成</strong>:時序誤讀更正(refresh 在 authorize 之前不是 callback 之後)、§6.5 三問正面回答、壞 cookie 觀測補強(2 條紅→綠,全套 510);回覆文件《回覆_portal_session時序》成文;:44 踢回待雙方 log 比對</td>
+</tr>
+<tr>
+<td>v1.69</td>
+<td>2026-08-12 01:20</td>
+<td>Claude(Benny:可否寫測試腳本)</td>
+<td><strong>T112 冒煙腳本完成</strong>(守門 2 條紅→綠,全套 508):可腳本化者一鍵化、登入後項明示 SKIP;本機實跑抓到哨兵裸抓撿錯範例版本號的 bug,改錨定頁尾固定格式</td>
+</tr>
+<tr>
+<td>v1.68</td>
+<td>2026-08-12 00:30</td>
+<td>Claude(Benny:量身訂做測試項目)</td>
+<td><strong>T111 測試項目清單</strong>:11 區 97 項、自動/人工分工、冒煙子集與執行順序、測試地圖 SVG;SOP v2.1 補互指</td>
+</tr>
+<tr>
+<td>v1.67</td>
+<td>2026-08-11 23:55</td>
+<td>Claude(Benny:搭配 SVG、說明簡單一點)</td>
+<td><strong>測試 SOP 升 v2.0</strong>:精簡約四成 + 四張內嵌 SVG(層級/TDD 流程/假綠對照/換版冒煙),首度使用第四條 5–6 的 <code>&lt;!--SVG:名稱--&gt;</code> 機制於 architecture 以外的圖;規則內容不變</td>
+</tr>
+<tr>
+<td>v1.66</td>
+<td>2026-08-11 23:30</td>
+<td>Claude(Benny 指示)</td>
+<td><strong>T110 測試 SOP 成文</strong>:把散落的測試紀律收攏為 <code>docs/測試SOP.md</code>(照著做定位)——TDD 五步、撰寫規範、紅線對照表 13 列、十條實踩陷阱;每條規則標注出處任務編號</td>
+</tr>
+<tr>
+<td>v1.65</td>
+<td>2026-08-11 22:35</td>
+<td>Claude(換版實測回寫)</td>
+<td><strong>v0.2.1 已上線</strong>:VM 換版完成,三個版本號(程式碼 / tag / VM)首度一致;🐛 換版第一次失敗——<code>docker-compose.yml</code> 的 image tag <strong>沒改到</strong>(那一步是編輯檔案,被當成 shell 指令貼了),<code>pull</code> 拉的仍是 v0.2.0、容器顯示 <code>Running</code> 而非 <code>Started</code>;<strong>哨兵當場抓到</strong>(這正是 T68 版本號 + T81 搬到共用版型的價值:登入壞掉時仍能匿名驗版本)。換版指令改用 <code>sed -i</code> + <code>grep</code> 覆核,不再要求人工編輯</td>
 </tr>
 <tr>
 <td>v1.64</td>

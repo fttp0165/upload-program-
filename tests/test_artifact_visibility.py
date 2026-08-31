@@ -22,6 +22,21 @@ BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 EXE = b"MZ\x90\x00" + b"\x00" * 60
 
 
+async def _publish_and_approve(client, app, oidc, token, release_id):
+    """送審 + 核准。
+
+    ⚠ **T123(發布審核)之後,`publish` 的語意是「送審」不是「馬上可下載」** ——
+    本檔驗的是「檢視面顯示什麼」,而檢視面只看 published,所以必須走完核准這一步。
+    這不是放水:少了它,測試驗的會是一個空頁面(什麼都沒有當然也沒有壞檔案)。
+    """
+    resp = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    assert resp.status_code == 200, resp.text
+    await make_user(app, f"{release_id}-admin", admin=True)
+    admin_token = oidc.issue(f"{release_id}-admin")
+    ok = await client.post(f"/v1/releases/{release_id}/approve", headers=auth(admin_token))
+    assert ok.status_code == 200, ok.text
+
+
 async def _project_with_broken_artifact(client, app, oidc, slug):
     """造一個已發布版本:三類齊備(ready)+ 一個卡在 pending 的檔案。
 
@@ -69,8 +84,7 @@ async def _project_with_broken_artifact(client, app, oidc, slug):
         artifact.size_bytes = 0
         await session.commit()
 
-    publish = await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
-    assert publish.status_code == 200, publish.text
+    await _publish_and_approve(client, app, oidc, token, release_id)
     return token, release_id
 
 
@@ -135,7 +149,7 @@ async def test_全部ready時三頁顯示不變(client, app, oidc):
         headers=auth(token),
     )
     await complete_kinds(client, token, release_id)
-    await client.post(f"/v1/releases/{release_id}/publish", headers=auth(token))
+    await _publish_and_approve(client, app, oidc, token, release_id)
 
     project_page = await client.get("/projects/vis-d", headers={**BROWSER, **auth(token)})
     history = await client.get("/projects/vis-d/releases", headers={**BROWSER, **auth(token)})

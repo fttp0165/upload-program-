@@ -79,8 +79,12 @@ async def upload_artifact(
 
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
-    if release.status is ReleaseStatus.published:
-        raise problems.conflict("已發布的版本不可再變更檔案;請建立新版本。")
+    # T123:🔴 **只有草稿能改檔案**。原本只擋 published,但待審中若還能換檔,
+    # 管理員核准的就不是他看過的那一份——審核會變成一個能被繞過的形式。
+    if release.status is not ReleaseStatus.draft:
+        raise problems.conflict(
+            "只有草稿可以變更檔案。待審中的版本請先請管理員退回;已發布的請建立新版本。"
+        )
 
     name = _check_filename(filename)
 
@@ -247,7 +251,11 @@ async def download_artifact(
 ) -> StreamingResponse:
     release = await load_release(session, release_id)
     role = await require_project_read(session, release.project, identity)
-    if release.status is ReleaseStatus.draft and role is None and not identity.user.is_admin:
+    # T123:改成「不是 published 就擋」,`pending_review` 因此自動獲得與草稿
+    # **相同的可見性**——非成員 404、專案成員看得到。刻意沿用既有規則而不是
+    # 為審核另立一套:兩套可見性規則遲早會分岔,而分岔的那一邊就是漏洞。
+    # 🔴 404 不是 403——403 等於承認這個版本存在。
+    if release.status is not ReleaseStatus.published and role is None and not identity.user.is_admin:
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
@@ -325,8 +333,10 @@ async def delete_artifact(
 ) -> Response:
     release = await load_release(session, release_id)
     await require_project_role(session, release.project, identity, ProjectRole.maintainer)
-    if release.status is ReleaseStatus.published:
-        raise problems.conflict("已發布的版本不可刪除檔案;請建立新版本。")
+    if release.status is not ReleaseStatus.draft:
+        raise problems.conflict(
+            "只有草稿可以刪除檔案。待審中的版本請先請管理員退回;已發布的請建立新版本。"
+        )
 
     artifact = _find_artifact(release, artifact_id)
     # 刪除前先取:delete 之後屬性會過期,而「刪掉的是哪個檔」正是稽核的重點。

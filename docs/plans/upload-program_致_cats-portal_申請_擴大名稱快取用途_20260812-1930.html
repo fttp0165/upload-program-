@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申請:將顯示名稱快取的用途擴大至「專案頁擁有者辨識」</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background:#fff; color:#1a2540;
+       font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+       line-height:1.75; max-width:980px; margin:0 auto; padding:32px 20px; }
+h1 { font-size:1.55rem; border-bottom:3px solid #12228f; padding-bottom:10px; }
+h2 { font-size:1.2rem; margin-top:32px; color:#12228f; border-left:5px solid #12228f; padding-left:10px; }
+h3 { font-size:1.02rem; color:#334; margin-top:22px; }
+code { background:#f2f4f8; padding:1px 5px; border-radius:4px; font-size:.88em;
+       font-family:Consolas,"Courier New",monospace; }
+pre { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px; padding:12px;
+      overflow-x:auto; font-size:.82rem; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:.86rem; display:block; overflow-x:auto; }
+th,td { border:1px solid #dfe3ea; padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:#f7f8fb; color:#334; }
+blockquote { background:#f7f8fb; border-left:5px solid #12228f; border-radius:0 8px 8px 0;
+             padding:10px 18px; margin:16px 0; color:#334; }
+blockquote > :first-child { margin-top:0; }
+blockquote > :last-child { margin-bottom:0; }
+hr { border:none; border-top:1px solid #e6e9ef; margin:28px 0; }
+ul,ol { padding-left:22px; }
+li { margin:4px 0; }
+a { color:#12228f; }
+figure.diagram { margin:18px 0; overflow-x:auto; }
+figure.diagram svg { max-width:100%; height:auto; display:block; }
+details { margin:10px 0; font-size:.9rem; }
+summary { cursor:pointer; color:#12228f; }
+.banner { background:#f7f8fb; border:1px solid #e6e9ef; border-radius:8px;
+          padding:10px 16px; font-size:.85rem; color:#6b7280; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md</code> 產生。
+權威版本為 Markdown,請勿直接編輯本 HTML。</div>
+<h1>申請:將顯示名稱快取的用途擴大至「專案頁擁有者辨識」</h1>
+<p><strong>專案:</strong> upload-program
+<strong>發文專案:</strong> upload-program
+<strong>受文專案:</strong> cats-portal
+<strong>發文時間:</strong> 2026-08-12 19:30
+<strong>建立日期:</strong> 2026-08-12 19:30
+<strong>最後更新:</strong> 2026-08-12 19:30
+<strong>版本:</strong> v1.0
+<strong>申請標的:</strong> 帳號系統接入契約 <strong>§4.2a L1</strong> 之<strong>用途</strong>一項的範圍調整
+<strong>裁示前狀態:</strong> 本專案<strong>未顯示任何名字</strong>——專案頁目前以 <code>sub</code> 前 8 碼過渡。
+本文件是申請,不是通知。</p>
+<hr />
+<h2>1. 為什麼再來一次</h2>
+<p>2026-07-29 我方申請顯示名稱快取,貴方核准並寫進契約 §4.2a L1。
+那份申請書的「用途」欄是<strong>我方自己</strong>寫的:</p>
+<blockquote>
+<p>僅管理後台顯示(使用者管理、稽核紀錄的操作者辨識);
+<strong>不出現在一般使用者可見頁面</strong>、不進 API 回應、不作任何授權判定依據</p>
+</blockquote>
+<p>當時把範圍縮到最小,是為了讓申請容易評估——這一點我方不後悔。
+但上線營運後出現一個當時沒想到的場景,本文件請求<strong>只調整用途一項</strong>。</p>
+<h2>2. 現場問題</h2>
+<p>本服務是公司內部的<strong>程式分享平台</strong>:使用者上傳並互相下載
+原始碼、<strong>執行檔</strong>與說明文件。</p>
+<p>專案頁是使用者按下「下載」之前看到的最後一個畫面。目前那一頁能告訴他的是:
+檔名、大小、SHA-256、掃毒狀態、容量、時間——<strong>唯獨沒有「這是誰放的」</strong>。</p>
+<p>這在一般系統只是不方便,在本服務是<strong>安全問題</strong>:</p>
+<ul>
+<li>🔴 <strong>掃毒尚未接上</strong>,每個檔案誠實標示 <code>not_scanned</code>(契約無關,是我方自我加嚴)。
+  在沒有自動掃描的情況下,「發布者是誰」是使用者判斷要不要執行這支程式的
+  <strong>唯一</strong>依據。</li>
+<li>認不出發布者,使用者只有兩種選擇:全部信任,或全部不信任。兩種都不是我們
+  想要的結果。</li>
+<li>這與稽核紀錄的情況同構——貴方當初核准「稽核要認得出操作者」的理由是
+  「認不出人的稽核紀錄等於沒有稽核紀錄」;認不出發布者的程式分享平台,
+  在信任這件事上是一樣的處境。</li>
+</ul>
+<h2>3. 申請內容:只動「用途」一欄</h2>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>現行</th>
+<th>申請後</th>
+<th>變動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>快取內容</td>
+<td>僅 <code>name</code> claim,不含 email</td>
+<td><strong>同左</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td>來源</td>
+<td>使用者本人登入時的 ID token;<strong>不呼叫 Admin API</strong></td>
+<td><strong>同左</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td>更新</td>
+<td>每次登入覆寫(含覆寫成 NULL)</td>
+<td><strong>同左</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td><strong>用途</strong></td>
+<td><strong>僅管理後台顯示</strong></td>
+<td>管理後台顯示 <strong>+ 專案頁 / 版本頁的擁有者、上傳者辨識</strong></td>
+<td>✅ <strong>本申請</strong></td>
+</tr>
+<tr>
+<td>不進 API 回應</td>
+<td>是</td>
+<td><strong>同左(維持)</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td>不作授權判定依據</td>
+<td>是</td>
+<td><strong>同左(維持)</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td>可整批清除</td>
+<td>是</td>
+<td><strong>同左</strong></td>
+<td>無</td>
+</tr>
+</tbody>
+</table>
+<p><strong>請注意本申請刻意不含的東西:</strong></p>
+<ul>
+<li>❌ <strong>不申請</strong> Admin API 或任何新的 IdP 權限(契約 v2.0 §4.2a L1 已明文禁用,
+  我方接受;先前的 T73 申請書據此需重寫,另案處理)。</li>
+<li>❌ <strong>不申請</strong>把名字放進 JSON API——只有 HTML 頁面。
+  API 帶名字等於開一條整批匯出姓名對照表的路,這條界線我方主動維持。</li>
+<li>❌ <strong>不申請</strong>任何新欄位、不動資料庫結構。快取欄位早已存在且已獲准。</li>
+<li>❌ <strong>不申請</strong>顯示 email 或 <code>preferred_username</code>。</li>
+</ul>
+<p>換句話說:<strong>揭露面沒有變大,只是同一個已獲准的欄位多一個顯示位置</strong>,
+而且觀看者一律是<strong>已登入且已開通</strong>的內部同仁(本服務無匿名瀏覽)。</p>
+<h2>4. 我方在等待期間的做法</h2>
+<p>不等裁示、也不自行放寬。專案頁已加上「擁有者」欄位,顯示 <strong><code>sub</code> 前 8 碼</strong>:</p>
+<pre><code>擁有者    a1b2c3d4…    識別碼(顯示名稱待平台核准)
+</code></pre>
+<ul>
+<li><code>sub</code> 是不透明識別碼、不是個資,而且業務庫本來就只存它(§4.2 的要求)。</li>
+<li>截斷 8 碼比照管理後台既有慣例:僅供人眼對照,不給完整值。</li>
+<li>旁邊照實標註「待平台核准」——做不到的事就明說,與 <code>not_scanned</code> 同一個態度。</li>
+</ul>
+<p>獲准後,把這一格換成名字是<strong>一行的事</strong>;不准的話這個過渡狀態可以無限期維持,
+不會有殘留。三條自動化測試釘住現況(欄位存在、<strong>名字不得出現</strong>、
+<strong>完整 sub 不得外流</strong>),所以在裁示之前不可能有人不小心把名字放上去。</p>
+<h2>5. 契約增修建議稿(供貴方裁量,文字可自由改寫)</h2>
+<blockquote>
+<p>§4.2a L1 用途一項,建議調整為:</p>
+<p>「僅供<strong>本服務 HTML 頁面</strong>之使用者辨識——包含管理後台(使用者管理、稽核
+紀錄的操作者)與<strong>專案/版本頁的擁有者、上傳者</strong>;不進 API 回應、
+不作任何授權判定依據、不得再散布至本服務以外。」</p>
+</blockquote>
+<h2>6. 若貴方不同意</h2>
+<p>完全可以接受,我方維持 <code>sub</code> 前 8 碼的現狀,不會再提。
+若不同意,懇請順帶指點一個方向:在不落地任何姓名的前提下,
+<strong>有沒有平台認可的方式讓使用者辨識發布者?</strong>(例如平台提供的暱稱服務、
+或由使用者自行在本服務設定一個與 IdP 無關的顯示暱稱。)
+後者我方可以自建,但那等於在本服務造出第二套身分資料,
+在提出之前想先聽貴方意見——這正是本文件而不是逕行實作的原因。</p>
+<hr />
+<h2>版本歷史</h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>日期</th>
+<th>修改人</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.0</td>
+<td>2026-08-12 19:30</td>
+<td>Claude(Benny 裁示)</td>
+<td>初版:只申請調整 §4.2a L1「用途」一欄(增列專案/版本頁的擁有者與上傳者辨識),其餘七項全部維持;明列不申請的四件事(Admin API / API 回應 / 新欄位 / email);說明等待期間以 <code>sub</code> 前 8 碼過渡並有三條測試釘住;附契約增修建議稿與「若不同意」的替代方向詢問</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

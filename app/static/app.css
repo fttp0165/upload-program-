@@ -447,6 +447,58 @@ textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .release-version { font-weight: 800; font-size: 1.35rem; color: var(--ink); }
 .release-notes { white-space: pre-wrap; margin: .5rem 0 1rem; color: var(--fg-strong); }
 
+/* T121:草稿的「繼續編輯」入口。刻意做成連結而不是 .btn——
+   它與旁邊的「草稿」徽章是一組(狀態 + 該狀態下唯一能做的事),
+   做成實心按鈕會比版本號本身還搶眼。 */
+.release-edit {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.release-edit:hover { color: var(--ink-strong); }
+
+/* T125:版本建立者。與 T118 專案頁的擁有者同一個視覺分量——
+   它是輔助資訊,不該跟版本號搶。 */
+.release-author { font-size: .8rem; white-space: nowrap; }
+
+/* T124 專案留言板 */
+.comments { margin-top: 2.5rem; }
+.comment-list { list-style: none; margin: 0 0 1.5rem; padding: 0; }
+.comment {
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: .9rem 1.2rem;
+  margin-bottom: .8rem;
+}
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin: 0 0 .4rem;
+  font-size: .85rem;
+}
+.comment-head form { margin: 0; }
+.comment-body { color: var(--fg-strong); }
+.comment-body > :first-child { margin-top: 0; }
+.comment-body > :last-child { margin-bottom: 0; }
+
+/* 刪除是低調動作,不做成實心按鈕——它不該跟「送出回饋」搶注意力 */
+.btn-plain {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: .82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.btn-plain:hover { color: var(--red); }
+
 .artifact-list { list-style: none; margin: 0; padding: 0; }
 
 .artifact {

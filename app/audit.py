@@ -69,7 +69,9 @@ class AuditAction(enum.StrEnum):
 
     # 版本與檔案(F54:「建了/刪了什麼」「上傳與下載了什麼」)
     release_create = "release.create"
-    release_publish = "release.publish"
+    release_publish = "release.publish"   # T123 起語意為「送審」
+    release_approve = "release.approve"   # T123 管理員核准,版本正式可下載
+    release_reject = "release.reject"     # T123 管理員退回(必附理由)
     release_delete = "release.delete"
     artifact_upload = "artifact.upload"
     # T107:被擋下的上傳。🔴 刪了殘骸列之後,這是唯一還留著「有人試著傳一個

@@ -34,7 +34,9 @@
   {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
   {% if release.status.value == 'published' %}
-    <p class="notice">此版本**已發布**,不可再變更檔案。要調整請建立新版本。</p>
+    {# 🐛 T121:原本寫 `**已發布**`——那是 Markdown,在 HTML 模板裡不會變粗體,
+       會原樣顯示成星號。模板裡要粗體就用 <strong>。 #}
+    <p class="notice">此版本<strong>已發布</strong>,不可再變更檔案。要調整請建立新版本。</p>
   {% else %}
     {#
       T86:三格卡片,一格一類。

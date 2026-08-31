@@ -109,9 +109,10 @@ jobs:
       # 沒有 `--pull` 的話 `FROM python:3.12-slim` 會一直用**第一次拉下來的那份**。
       # 2026-08-24 的 Trivy 紅燈(util-linux CVE-2026-53612~53615)就是這樣來的
       # ——上一次 main 綠是 08-11,期間 Debian 公布了那四支,而我們的 base image 沒更新。
-      # 🔴 修法**不能**是 Dockerfile 加 `apt-get upgrade`:VM 連不到 apt 套件庫
-      # (2026-07-30 run #85 就是為此把 builder 的 apt 整段拿掉);base image 則走
-      # dockerd 的 registry mirror,那條路是通的。
+      # ⚠ 2026-08-31 更正(第二條 5):此處原本寫「修法不能是 Dockerfile 加
+      # apt-get upgrade,因為 VM 連不到 apt 套件庫」——**那則記載已經過期**。
+      # T93 實測 apt 可達,T102 起 Dockerfile 就是靠全量 apt-get upgrade +
+      # 「升級後不得還有可升級套件」的驗證在修 CVE。留著會讓下一個人再被擋一次。
       # `--pull` 保留(T93):runner 是同一台 VM,不加它 `FROM python:3.12-slim`
       # 會一直用第一次拉下來的那份 —— 2026-08-24 的 util-linux CVE 就是這樣來的。
       # 🔴 `--no-cache` **已收回**(第四輪暫時加、第五輪移除):OS 套件升級那層

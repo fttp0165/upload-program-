@@ -67,7 +67,16 @@ class ProjectRole(enum.StrEnum):
 
 
 class ReleaseStatus(enum.StrEnum):
+    # T123 審核制度。狀態機:
+    #   draft ──(作者送審)──> pending_review ──(管理員核准)──> published
+    #     ^                         │
+    #     └──(管理員退回 + 理由)────┘
+    #
+    # 🎯 `published` 的語意**刻意不變**(一直都是「可下載」)。這是整個設計的樞紐:
+    # 既有已發布的版本因此一列都不用改,自然滿足「既有已發布視為已核准」的裁示,
+    # 資料影響從 🔴 UPDATE 降為 🟡 純加欄位。
     draft = "draft"
+    pending_review = "pending_review"
     published = "published"
 
 
@@ -210,6 +219,38 @@ class ProjectMember(Base):
     user: Mapped[User] = relationship(back_populates="memberships")
 
 
+class ProjectComment(Base):
+    """專案留言板:使用者對這個專案的回饋(T124)。
+
+    🔴 **與問題回報(`Issue`)是相反方向的東西**,不可混用:
+    回報是「這個網站壞了」,只有本人與平台管理員看得到、404 不洩漏存在;
+    留言是「這支程式好不好用」,**就是要給同專案的人看的**。
+    兩者長得像,但把其中一邊的可見性套到另一邊,就會弄壞那一邊的保證。
+
+    🔴 刪除權限刻意**不含專案擁有者**(見 routers/projects.py):
+    擁有者若能刪掉別人的評語,留言板就只會剩下好話,
+    而一個只留得住讚美的回饋區比沒有回饋區更糟。
+    """
+
+    __tablename__ = "project_comments"
+    __table_args__ = (Index("ix_project_comments_project_created", "project_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # CASCADE:專案刪掉時留言一起走,不留孤兒(與 users 的 RESTRICT 是不同考量)。
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    # 存原文,顯示時才轉譯(沿用 markdown_lite,與問題回報同一套逸出規則)。
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    project: Mapped["Project"] = relationship()
+    author: Mapped["User"] = relationship(foreign_keys=[author_id])
+
+
 class Release(Base):
     __tablename__ = "releases"
     __table_args__ = (UniqueConstraint("project_id", "version", name="uq_release_version"),)
@@ -225,7 +266,17 @@ class Release(Base):
     )
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # 🔴 `published_at` 在**核准當下**寫入,不是送審當下——`latest_published_release()`
+    # 依它排序,語意維持「最新**可下載**的版本」,那條查詢一行都不用改。
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    # T123 審核結果。`review_note` 是**退回理由**——裁示要求必填:
+    # 沒有理由的退回,作者只能猜,然後重傳一模一樣的東西。
+    review_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), default=None
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     project: Mapped[Project] = relationship(back_populates="releases")
     # 🐛 根本原因(T50):原本是預設的 lazy="select",序列化 ReleaseOut 時才去碰 artifacts,

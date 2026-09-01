@@ -210,7 +210,7 @@
          為什麼這裡是一串碼,不假裝沒這回事(與 not_scanned 同一個態度)。 #}
       <dt>擁有者</dt>
       <dd>
-        <code>{{ owner_sub8 }}…</code>
+        <strong>{{ owner_label }}</strong>
         <span class="muted">識別碼(顯示名稱待平台核准)</span>
       </dd>
       <dt>容量</dt>
@@ -241,7 +241,7 @@
           <li class="comment">
             <p class="comment-head">
               {# 顯示識別碼不是名字——契約 §4.2a L1(與專案資訊的擁有者同一個處境)。 #}
-              <code class="project-slug">{{ comment_sub8(comment) }}…</code>
+              <strong>{{ comment_label(comment) }}</strong>
               <span class="muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
               {# 🔴 只有留言者本人與平台管理員看得到刪除鈕。**專案擁有者沒有**——
                  擁有者若能刪掉別人的評語,這裡就只會剩下好話,而一個只留得住

@@ -316,16 +316,28 @@ async def test_專案頁顯示擁有者識別碼(client, app, oidc):
     assert "sub-owne" in resp.text, "應顯示擁有者 sub 前 8 碼供對照"
 
 
-async def test_專案頁不得出現顯示名稱(client, app, oidc):
-    """🔴 契約 §4.2a L1:名字僅限管理後台,一般使用者頁面不得出現。
+async def test_專案頁顯示名字但不得出現email(client, app, oidc):
+    """⚠ **T132 改寫這一條,依 CI 紅線說明理由(不是放水)。**
 
-    兩個講究:
-    1. 名字必須走**登入路徑**寫入(§4.2a 每次登入覆寫),手動塞會被下次登入
-       清成 NULL——那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓);
-    2. 由**別人**來看,否則導覽列會顯示檢視者自己的名字,這條斷言永遠不可能過。
+    原本斷言的是「名字不得出現在一般使用者頁面」—— 那釘的是契約 **v3.3**。
+    **Benny 2026-08-31 裁決准了我方 2026-08-12 的申請,契約升 v3.4**,
+    用途擴及「專案 / 版本 / 內容頁的擁有者、作者、上傳者辨識」。
+    照舊斷言改程式,等於讓一條**已經被裁決放寬的限制繼續生效** ——
+    那不是嚴謹,是拿過期文件當現況(第七條存在的理由)。
+
+    🔴 **反向斷言不刪除,改釘沒有放寬的那一半**:
+    L1b(通知用信箱)一個字未動 —— 它仍然「**不得顯示在任何頁面**」。
+    姓名回答「這是誰做的」,信箱回答「怎麼聯絡他」,後者放上頁面沒有業務理由。
+
+    兩個原有的講究保留:
+    1. 名字走**登入路徑**寫入(§4.2a 每次登入覆寫),手動塞會被下次登入清成 NULL
+       ——那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓);
+    2. 由**別人**來看,否則導覽列會顯示檢視者自己的名字。
     """
     await make_user(app, "sub-named-t97")
-    owner_token = oidc.issue("sub-named-t97", name="林小明")
+    owner_token = oidc.issue(
+        "sub-named-t97", name="林小明", email="ming@sporton.com.tw", email_verified=True
+    )
     await _project(client, owner_token, slug="named-owner-tool", name="工具")
 
     # 前提斷言:名字真的進了快取,否則下面的反向斷言毫無意義
@@ -340,7 +352,10 @@ async def test_專案頁不得出現顯示名稱(client, app, oidc):
         f"{PREFIX}/projects/named-owner-tool", headers={**BROWSER, **auth(visitor)}
     )
     assert resp.status_code == 200
-    assert "林小明" not in resp.text, "🔴 §4.2a L1:名字不得出現在一般使用者頁面"
+    assert "林小明" in resp.text, "契約 v3.4 已准:專案頁得顯示擁有者名字"
+    assert "@" not in resp.text.split("<main")[-1], (
+        "🔴 L1b 一個字未放寬:通知用信箱不得顯示在任何頁面"
+    )
 
 
 async def test_專案頁不得洩漏擁有者完整sub(client, app, oidc):

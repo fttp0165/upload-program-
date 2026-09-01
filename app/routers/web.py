@@ -396,13 +396,11 @@ async def project_page(
 
     # T118:擁有者識別碼。程式分享平台上「這是誰放的」是使用者決定要不要信任
     # 一支執行檔的第一個依據——尤其掃毒還沒接上。
-    # 🔴 這裡刻意**只取 sub、不取 display_name_cache**:契約 §4.2a L1 的用途
-    # 限「管理後台顯示」,本頁是一般使用者可見頁面,放名字等於自行放寬契約。
-    # 已另送申請請 portal 擴大用途;獲准前以識別碼過渡(sub 是不透明識別碼,
-    # 不是個資,業務庫本來就只存它)。截斷 8 碼比照 T59 慣例:僅供人眼對照。
-    owner_sub = (
-        await session.execute(select(User.sub).where(User.id == project.owner_id))
-    ).scalar_one_or_none()
+    # ⚠ T132:改顯示名字(原本只取 sub)。契約 §4.2a L1 第 3 條已於 v3.4 放寬
+    # (Benny 2026-08-31 裁決准我方 2026-08-12 的申請),用途擴及本頁這種
+    # 「內容頁的擁有者辨識」。沒有名字的人退回 `sub` 前 8 碼 —— 那是契約第 6 項
+    # 的要求,不是可選的貼心。
+    owner_labels = await _labels_by_id(session, {project.owner_id})
 
     # T124 專案留言板。可見性已由上面的 `require_project_read` 決定——
     # 走到這裡就代表這個人讀得到本專案,留言跟著專案走,不另立規則。
@@ -418,7 +416,7 @@ async def project_page(
         .all()
     )
     # 🔴 一次批次取留言者識別碼(同 T125 的理由:逐列查就是 N+1)。
-    comment_subs = await _subs_by_id(session, {c.author_id for c in comments})
+    comment_labels = await _labels_by_id(session, {c.author_id for c in comments})
 
     return HTMLResponse(
         render(
@@ -435,10 +433,10 @@ async def project_page(
             # T106:檢視面只列上傳成功的檔案(按了會 404 的按鈕不該存在)。
             artifacts=ready_artifacts(release),
             quota_bytes=project_limit(settings, project),
-            owner_sub8=(owner_sub or "")[:8],
+            owner_label=owner_labels.get(project.owner_id, ""),
             comments=comments,
-            # 🔴 顯示識別碼不是名字——契約 §4.2a L1(與 T118 / T125 同一個處境)。
-            comment_sub8=lambda c: (comment_subs.get(c.author_id) or "")[:8],
+            # T132:顯示名字(契約 v3.4 已准);沒有名字者退回 sub 前 8 碼。
+            comment_label=lambda c: comment_labels.get(c.author_id, ""),
             # 🔴 只有留言者本人與平台管理員能刪。**專案擁有者刻意不在內**:
             # 擁有者若能刪掉別人的評語,留言板就只會剩下好話,而一個只留得住
             # 讚美的回饋區比沒有回饋區更糟。伺服器端同樣擋(routers/projects.py)。
@@ -687,7 +685,7 @@ async def project_releases_page(
         offset=offset,
     )
 
-    creator_subs = await _subs_by_id(session, {r.created_by_id for r in releases})
+    creator_labels = await _labels_by_id(session, {r.created_by_id for r in releases})
 
     base = f"/projects/{project.slug}/releases"
     next_url = (
@@ -723,9 +721,9 @@ async def project_releases_page(
             # 給他一個按下去必然 403 的連結,比不給更糟。
             can_edit_releases=may_manage_releases(role, identity.user),
             edit_url=lambda release: web_url(settings, f"/releases/{release.id}/upload"),
-            # T125:每一版的建立者。🔴 一次批次查完(見 `_subs_by_id`),
-            # 且刻意取 sub 不取名字——契約 §4.2a L1 的名稱快取僅限管理後台。
-            creator_sub8=lambda release: (creator_subs.get(release.created_by_id) or "")[:8],
+            # T125 / T132:每一版的建立者。🔴 一次批次查完(見 `_labels_by_id`);
+            # 顯示名字(契約 v3.4 已准),沒有名字者退回 sub 前 8 碼。
+            creator_label=lambda release: creator_labels.get(release.created_by_id, ""),
         )
     )
 
@@ -1246,21 +1244,38 @@ async def admin_disable(
 
 
 
-async def _subs_by_id(session: AsyncSession, ids: set) -> dict:
-    """批次取使用者的 `sub`(T125)。回傳 {user_id: sub}。副作用:無(唯讀,固定一次查詢)。
+async def _labels_by_id(session: AsyncSession, ids: set) -> dict:
+    """批次取「這個人在頁面上怎麼稱呼」(T132)。回傳 {user_id: 標籤}。
+
+    參數:session、user_id 集合。回傳:每人一個可直接顯示的字串。
+    副作用:無(唯讀,**固定一次查詢**)。
+
+    標籤 = 有 `display_name_cache` 就用名字;沒有就退回 `sub` 前 8 碼 + `…`。
 
     🔴 **一次 `IN` 查完,不逐列查**:版本歷史頁一次列 20 版,逐列查就是 20 次查詢。
     比照 T84 的 `_display_names()`,而且同樣有一條測試以 `before_cursor_execute`
     **實際計數**——查詢數必須與版本數無關,不能靠「應該不會慢」的直覺。
 
-    🔴 這裡取的是 `sub` 而**不是** `display_name_cache`:契約 §4.2a L1 的名稱快取
-    僅限管理後台顯示,版本歷史頁是一般使用者可見頁面(與 T118 專案頁同一個處境)。
-    已另送申請請 portal 擴大用途;獲准前以識別碼過渡。
+    ⚠ **2026-08-31 改為取名字(原本刻意只取 `sub`)。** 那個「只取 sub」的理由是
+    契約 §4.2a L1 第 3 條「僅供管理後台顯示」,而 **Benny 2026-08-31 裁決准了我方
+    2026-08-12 的申請,契約升 v3.4**:用途擴及「專案 / 版本 / 內容頁的擁有者、
+    作者、上傳者辨識」。裁決全文
+    `cats-portal/DOCS/裁決_擴大名稱快取用途_20260831.md`。
+
+    🔴 **放寬的只有「顯示在哪」**:名字仍**不進 API 回應**(有測試釘住)、
+    仍不得作授權依據、仍不得進 log、仍不得再散布至本服務以外。
+    🔴 fallback 不是貼心設計,是契約第 6 項的要求(「為空時不得阻斷任何功能,
+    顯示退回 `sub`」)—— 沒登入過的人本來就沒有名字,那是常態不是例外。
     """
     if not ids:
         return {}
-    rows = (await session.execute(select(User.id, User.sub).where(User.id.in_(ids)))).all()
-    return dict(rows)
+    rows = (
+        await session.execute(
+            select(User.id, User.sub, User.display_name_cache).where(User.id.in_(ids))
+        )
+    ).all()
+    return {uid: (name or f"{(sub or '')[:8]}…") for uid, sub, name in rows}
+
 
 async def _display_names(session: AsyncSession, ids: set) -> dict:
     """批次取顯示名稱(T84)。回傳 {user_id: 名稱};查不到或沒有快取的**不放進字典**。

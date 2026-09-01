@@ -232,7 +232,7 @@ class ProjectCommentOut(ORMModel):
     created_at: datetime
     # 🔴 只帶 `author_id`(資料庫 id),**不帶名字也不帶 sub**:
     # 名字受契約 §4.2a L1 限制;sub 是 IdP 的識別碼,沒有理由讓 API 整批吐出來。
-    # 畫面上的「誰留的」由網頁層另外批次組(見 web.py 的 `_subs_by_id`)。
+    # 畫面上的「誰留的」由網頁層另外批次組(見 web.py 的 `_labels_by_id`)。
     author_id: uuid.UUID
 
 

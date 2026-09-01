@@ -428,14 +428,22 @@ async def test_版本歷史顯示每一版的建立者(client, app, oidc):
     assert "sub-jack" in body, "每一版要看得出是誰做的"
 
 
-async def test_版本歷史不得出現顯示名稱(client, app, oidc):
-    """🔴 契約 §4.2a L1:名字僅限管理後台,一般使用者頁面不得出現。
+async def test_版本歷史顯示名字但不得出現email(client, app, oidc):
+    """⚠ **T132 改寫這一條,依 CI 紅線說明理由(不是放水)。**
 
-    名字必須走**登入路徑**寫入(每次登入覆寫),手動塞會被下次登入清掉——
-    那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓)。
+    原本斷言「名字不得出現在一般使用者頁面」,那釘的是契約 **v3.3**;
+    v3.4(Benny 2026-08-31 裁決)已把用途擴及版本頁的作者辨識。
+    照舊斷言改程式 = 讓一條已被放寬的限制繼續生效。
+
+    🔴 **反向斷言改釘沒有放寬的那一半**:L1b 通知用信箱仍**不得顯示在任何頁面**。
+
+    原有的講究保留:名字必須走**登入路徑**寫入(每次登入覆寫),手動塞會被下次
+    登入清掉——那樣測到的是「本來就沒有名字」,是假綠(T84 的教訓)。
     """
     await make_user(app, "sub-named-t104")
-    author = oidc.issue("sub-named-t104", name="陳大文")
+    author = oidc.issue(
+        "sub-named-t104", name="陳大文", email="dawen@sporton.com.tw", email_verified=True
+    )
     await _project(client, author, slug="named-author-tool")
     rid = await _create(client, author, "named-author-tool", "v1.0.0")
     await _upload(client, author, rid)  # binary(complete_kinds 不含)
@@ -455,7 +463,10 @@ async def test_版本歷史不得出現顯示名稱(client, app, oidc):
         headers={**BROWSER, **auth(oidc.issue("sub-reader-t104b"))},
     )
     assert resp.status_code == 200
-    assert "陳大文" not in resp.text, "🔴 §4.2a L1:名字不得出現在一般使用者頁面"
+    assert "陳大文" in resp.text, "契約 v3.4 已准:版本頁得顯示建立者名字"
+    assert "dawen@sporton.com.tw" not in resp.text, (
+        "🔴 L1b 一個字未放寬:通知用信箱不得顯示在任何頁面"
+    )
 
 
 async def test_版本歷史不得洩漏建立者完整sub(client, app, oidc):

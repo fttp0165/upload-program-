@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>跨專案文件索引</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 17:20
-<strong>最後更新:</strong> 2026-08-31 16:40
-<strong>版本:</strong> v1.3</p>
+<strong>最後更新:</strong> 2026-09-07 15:40
+<strong>版本:</strong> v1.4</p>
 <blockquote>
 <p>依憲法<strong>第九條 5</strong>:每份跨專案文件都要登記在這裡。
 這一頁回答四個問題——<strong>發過什麼、給誰、什麼時候、對方回了沒</strong>。</p>
@@ -141,7 +141,7 @@ summary { cursor:pointer; color:#12228f; }
 <td>2026-08-26 07:50</td>
 <td>申請</td>
 <td><a href="upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md">開通 CI 容器網路對 Debian 套件庫的連線</a></td>
-<td>⏳ <strong>待送出</strong>;🔴 <strong>我方發版被此阻塞</strong></td>
+<td>⏳ <strong>待送出</strong>;⚠ <strong>2026-09-07 更正:不再阻塞發版</strong> —— T102(08-27)改為 apt 全量升級 + 「升級後不得還有可升級套件」的驗證,CI run #249 起 Trivy 綠,v0.3.0 已於 08-31 發出。🔴 <strong>但申請不撤</strong>:T102 能成功代表 CI 的 apt 實際上連得到,而 T127 當天量到 timeout —— 中間是平台側開通了還是暫時性故障,<strong>我方沒有證據,不臆測</strong>;那條路現在通,不等於它被保證</td>
 </tr>
 </tbody>
 </table>
@@ -207,9 +207,9 @@ summary { cursor:pointer; color:#12228f; }
 <td>專案頁已以 <code>sub</code> 前 8 碼過渡,三條測試釘住「名字不得出現」,獲准後換字即可</td>
 </tr>
 <tr>
-<td>🔴 <strong>CI 容器網路連不到 Debian 套件庫</strong></td>
+<td>CI 容器網路連不到 Debian 套件庫</td>
 <td>#11</td>
-<td>Dockerfile 已回退不留無效 apt;<strong>v0.3.0 發不出去</strong>(<code>publish</code> needs <code>build</code>,Trivy 紅則 GHCR 推不上去)。獲准後在 runtime stage 加回只升 openssl 家族的一層,並<strong>自行驗證 <code>apt-get update</code> 的結果</strong></td>
+<td>⚠ <strong>2026-09-07 降級:不再阻塞發版</strong>(T102 改全量升級後 Trivy 綠,v0.3.0 已上線)。申請不撤 —— 那條路現在通不等於被保證,而<strong>我方對「當初的 timeout 為何消失」沒有證據</strong></td>
 </tr>
 </tbody>
 </table>
@@ -225,6 +225,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.4</td>
+<td>2026-09-07 15:40</td>
+<td>Claude(T136)</td>
+<td>第 11 份(CI 容器網路)<strong>降級</strong>:原記「🔴 我方發版被此阻塞」已成錯的 —— T102(08-27)改 apt 全量升級 + 驗證後 CI 綠,v0.3.0 08-31 已發出。🔴 <strong>申請不撤</strong>:T102 能成功代表 apt 實際上連得到,而 T127 當天量到 timeout,<strong>中間發生什麼我方沒有證據,不臆測</strong>;路現在通不等於被保證。§3 同列同步</td>
+</tr>
 <tr>
 <td>v1.3</td>
 <td>2026-08-31 16:40</td>

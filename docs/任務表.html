@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 16:45
-<strong>版本:</strong> v1.92</p>
+<strong>最後更新:</strong> 2026-09-07 10:40
+<strong>版本:</strong> v1.93</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 16:45)</h2>
-<p>任務 128 項:<strong>✅ 122 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>653 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-09-07 10:40)</h2>
+<p>任務 129 項:<strong>✅ 123 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>656 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -897,6 +897,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 連續三次回報「使用者還是看不到作者」;盤點是<strong>兩件不同的事</strong>:①線上是 v0.2.5,T118/T125 的程式碼還沒部署 ②🔴 <strong>就算部署了也不是名字是 <code>sub</code> 前 8 碼</strong> —— 契約 §4.2a L1 第 3 條「僅供管理後台顯示」擋著,而我方 2026-08-12 的《申請:擴大名稱快取用途》<strong>躺了 19 天沒被裁決</strong>;2026-08-31 Benny 裁決「<strong>准</strong>」,cats-portal 契約升 <strong>v3.4</strong>(裁決書已依第九條 4 原樣存進 <code>docs/plans/inbox/</code>,索引第 10 份 ⏳→✅);實作:<code>_subs_by_id()</code> → <strong><code>_labels_by_id()</code></strong>(一次 <code>IN</code> 查 <code>sub</code> + <code>display_name_cache</code>,查詢數與版本數無關的效能守門維持綠),標籤 = 有名字用名字、沒有就退回 8 碼 + <code>…</code>(🔴 <strong>fallback 不是貼心設計,是契約第 6 項的要求</strong>);🔴 <strong>放寬的只有「顯示在哪」</strong> —— 名字仍不進 API(新增守門測試掃四個端點)、仍不得作授權依據、仍不得進 log、🔴 契約新增「不得再散布至本服務以外」;⚠ <strong>改了兩條既有測試並在 dev-log 逐條說明</strong>(原斷言「名字不得出現在一般使用者頁面」釘的是 v3.3,照舊斷言改程式等於讓一條已被放寬的限制繼續生效)—— <strong>反向斷言沒刪掉,改釘 L1b 仍不得顯示在任何頁面</strong>,並補上帶 <code>email_verified=true</code> 的登入確保信箱真的進了快取才斷言它不出現(否則又是假綠);憲法紅線同步升 v2.8(<strong>紅線與實作打架比沒有紅線更危險</strong>);<strong>5 條新增(3 紅起步)+ 2 條改寫,全套 653</strong></td>
 </tr>
 <tr>
+<td>T133</td>
+<td>專案頁主要動作改成明顯的按鈕</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 截圖(紅框框住專案頁底部):「按鈕不明顯改成,明顯的按鈕」;原本是兩個純文字連結 + 一個 <code>·</code>,而那是這一頁<strong>唯一往下走的動作</strong>,截圖裡那個專案還沒有任何版本、「建立新版本」正是它此刻唯一該做的事;🔴 <strong>盤點時發現把它變醒目會放大一個既有缺陷</strong>:那一段原本<strong>沒有任何權限判斷</strong>,viewer 也看得到「建立新版本」點進去卻 403 —— 不明顯時代價很小,<strong>做成醒目的主要按鈕之後它就從「不明顯的連結」變成「醒目的陷阱」</strong>(版面上最搶眼的東西,按下去告訴你沒有權限),故本任務不是純樣式改動,<code>can_edit</code> 與 <code>may_manage_releases</code> 同一條界線不另立旗標;主次分明(<code>.btn</code> / <code>.btn .btn-quiet</code>)而非兩個等重(等重會讓人停下來讀字才知道按哪個);⚠ <strong>刻意不動</strong>:「取消」一律維持文字連結(取消不該與主要動作等重)、導覽連結不變、管理總覽的專案名不變(那是內文連結,變按鈕會讓清單變成一片色塊)、<code>release_new.html</code> 的輔助連結不變(那頁主要動作是送出表單);⚠ <strong>抓到自己寫的假綠,而且是新形狀</strong>:第一版斷言 <code>"btn" in tag</code>,而測試 slug 當時叫 <code>btn-proj</code> —— 斷言在檢查自己的測試資料,永遠綠;已改 slug + 斷 <code>class="btn</code>。<strong>本 repo 假綠第三種形狀</strong>(T90 撞 placeholder、T132 空迴圈、本次測試資料撞關鍵字),共同點是<strong>綠燈不是因為程式對,是因為斷言問錯了問題</strong>;<strong>3 條新增(2 紅起步),全套 656</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1224,6 +1231,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.93</td>
+<td>2026-09-07 10:40</td>
+<td>Claude(Benny 截圖回報)</td>
+<td><strong>T133</strong>:專案頁主要動作改成明顯的按鈕,🔴 並修掉被它放大的權限缺陷(viewer 原本看得到「建立新版本」但點了 403 —— 醒目的按鈕不得是陷阱)。⚠ 抓到自己寫的假綠第三種形狀(測試 slug 叫 <code>btn-proj</code>,斷言在檢查自己的測試資料)。<strong>656 passed</strong></td>
+</tr>
 <tr>
 <td>v1.92</td>
 <td>2026-08-31 16:45</td>

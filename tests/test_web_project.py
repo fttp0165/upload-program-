@@ -370,3 +370,88 @@ async def test_專案頁不得洩漏擁有者完整sub(client, app, oidc):
     resp = await client.get(f"{PREFIX}/projects/trunc-tool", headers={**BROWSER, **auth(visitor)})
     assert resp.status_code == 200
     assert sub not in resp.text, "🔴 不得輸出擁有者的完整 sub"
+
+
+# --- T133 主要動作改成明顯的按鈕 --------------------------------------------
+#
+# Benny 截圖回報:專案頁底部「建立新版本 · 查看版本歷史」是兩個純文字連結,
+# 而那是這一頁唯一「往下走」的動作。
+#
+# 🔴 盤點時發現的才是重點:那一段**沒有任何權限判斷**,viewer 也看得到
+# 「建立新版本」,點進去會 403。現在它不明顯所以代價小;**做成醒目的主要按鈕之後,
+# 它就從「不明顯的連結」變成「醒目的陷阱」** —— 版面上最搶眼的東西,
+# 按下去告訴你沒有權限。所以本任務不是純樣式改動。
+
+
+async def _member(client, app, oidc, slug, sub, role):
+    """把 sub 加進專案並給角色;回傳其 token。"""
+    user = await make_user(app, sub)
+    owner_token = oidc.issue(f"{slug}-owner")
+    put = await client.put(
+        f"{PREFIX}/v1/projects/{slug}/members",
+        json={"user_id": str(user.id), "role": role},
+        headers=auth(owner_token),
+    )
+    assert put.status_code == 200, put.text
+    return oidc.issue(sub)
+
+
+def _main(html: str) -> str:
+    """只取 `<main>` 內容再比對。
+
+    ⚠ 與 `test_web_releases.py::_main` 同一個理由(T67 的坑):版型骨架與側欄
+    也含連結與 class,在整頁 HTML 上斷言會測到版面而不是內容。
+    """
+    start = html.find("<main")
+    end = html.find("</main>", start)
+    return html[start:end] if start >= 0 and end > start else html
+
+
+async def _btn_page(client, app, oidc, slug, viewer_token):
+    resp = await client.get(f"{PREFIX}/projects/{slug}", headers={**BROWSER, **auth(viewer_token)})
+    assert resp.status_code == 200, resp.text
+    return resp.text
+
+
+async def test_maintainer看到的建立新版本是按鈕(client, app, oidc):
+    await make_user(app, "press-a-owner")
+    owner = oidc.issue("press-a-owner")
+    await _project(client, owner, slug="press-a", name="按鈕測試")
+    mt = await _member(client, app, oidc, "press-a", "press-a-mt", "maintainer")
+
+    body = _main(await _btn_page(client, app, oidc, "press-a", mt))
+
+    # ⚠ 第一版斷言是**假綠**:`class="btn"` 在 <main> 裡本來就有(編輯表單的送出鈕),
+    #   所以那條在改成按鈕之前就會綠。改為抓「那一個連結自己」的 tag 再看它的 class
+    #   ——同 T90 的教訓:整頁比對會撞到別的東西,區塊比對才保護得到東西。
+    anchor = re.search(r'<a[^>]*/projects/press-a/releases/new"[^>]*>', body)
+    assert anchor, "找不到建立新版本的連結"
+    # 🔴 斷 `class="btn` 而不是 `"btn" in tag`:第一版寫後者,而測試 slug 當時叫
+    #   `btn-proj` —— 斷言等於在檢查自己的測試資料,永遠綠。假綠的第三種形狀
+    #   (T90 是 placeholder、T132 是空迴圈,這次是**測試資料撞到關鍵字**)。
+    assert 'class="btn' in anchor.group(0), f"建立新版本要是主要按鈕,實際:{anchor.group(0)}"
+    assert "建立新版本" in body
+
+
+async def test_viewer看不到建立新版本(client, app, oidc):
+    """🔴 本任務真正的修正:醒目的按鈕不得是按下去會 403 的陷阱。"""
+    await make_user(app, "press-b-owner")
+    owner = oidc.issue("press-b-owner")
+    await _project(client, owner, slug="press-b", name="按鈕測試二")
+    viewer = await _member(client, app, oidc, "press-b", "press-b-viewer", "viewer")
+
+    body = _main(await _btn_page(client, app, oidc, "press-b", viewer))
+    assert "建立新版本" not in body, "viewer 建不了版本,不該看到那個入口"
+    # 守門:別把讀得到的人一起擋掉。
+    assert "查看版本歷史" in body
+
+
+async def test_改樣式不得改行為(client, app, oidc):
+    """守門:兩個動作的網址一字不變。"""
+    await make_user(app, "press-c-owner")
+    owner = oidc.issue("press-c-owner")
+    await _project(client, owner, slug="press-c", name="按鈕測試三")
+
+    body = _main(await _btn_page(client, app, oidc, "press-c", owner))
+    assert "/projects/press-c/releases/new" in body
+    assert "/projects/press-c/releases" in body

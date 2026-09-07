@@ -1013,3 +1013,15 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
   border: 1px solid var(--line);
 }
 .btn-quiet:hover { background: #f2f4f8; color: var(--ink); box-shadow: none; }
+
+/* T133:專案頁的主要動作列。原本是 `.history-link`(純文字連結 + 一個 `·`),
+   而那是這一頁唯一往下走的動作 —— 長得像內文連結就等於藏起來。
+   ⚠ 保留 `.history-link` 不刪:release_new.html 還在用它(那裡是輔助資訊,
+   不是主要動作,刻意不一起改成按鈕)。 */
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+  margin: 1.25rem 0 0;
+}

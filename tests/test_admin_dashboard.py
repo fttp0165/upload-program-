@@ -301,3 +301,61 @@ async def test_管理分頁沒有懸空連結(client, app, oidc):
         path = link[len(PREFIX) :] if link.startswith(PREFIX) else link
         resp = await client.get(path, headers={**BROWSER, **headers})
         assert resp.status_code == 200, f"分頁列的連結是懸空的:{link} → {resp.status_code}"
+
+
+# --- T135 稽核保留期未生效的偵測 --------------------------------------------
+#
+# 🔴 起因不是「要掛 cron」,是**為什麼它躺了兩個月沒有人發現**。
+# 稽核頁上那句「保留期 365 天」是**靜態文字** —— 它不管 cron 有沒有掛、
+# 不管最舊那一筆是多久以前,永遠長一樣。
+#
+# 本服務看不到 crontab(它在容器外,而容器不該有主機的視野),所以偵測的是
+# **同一件事的可觀測結果**:最舊一筆超過保留期。不論原因是 cron 沒掛、
+# 旗標打錯、還是容器沒起來,症狀都會出現在這裡。
+# **偵測結果而不是偵測原因** —— 原因有很多種,結果只有一個。
+
+
+async def _seed_audit(app, *, days_ago: int):
+    """塞一筆 days_ago 天前的稽核事件。"""
+    import uuid as _uuid
+
+    from app.models import AuditEvent
+
+    async with app.state.sessionmaker() as session:
+        session.add(
+            AuditEvent(
+                id=_uuid.uuid4(),
+                occurred_at=datetime.now(UTC) - timedelta(days=days_ago),
+                action="user.login",
+                actor_id=None,
+                target_type="user",
+                target_label="",
+            )
+        )
+        await session.commit()
+
+
+async def test_稽核最舊一筆超過保留期就列進待辦(client, app, oidc, settings):
+    await _seed_audit(app, days_ago=settings.audit_retention_days + 45)
+
+    headers = await _admin(app, oidc, "sub-retention-a")
+    body = _main((await client.get("/admin", headers={**BROWSER, **headers})).text)
+    assert "保留期" in body and "未生效" in body, "清理沒在跑,而畫面上看不出來"
+    # 天數要寫出來 —— 只說「未生效」的話,看的人不知道差多少。
+    assert str(settings.audit_retention_days + 45) in body
+
+
+async def test_保留期內不列進待辦(client, app, oidc, settings):
+    """🔴 守門:別做成常駐紅字。**常駐的紅字等於沒有紅字。**"""
+    await _seed_audit(app, days_ago=max(settings.audit_retention_days - 30, 1))
+
+    headers = await _admin(app, oidc, "sub-retention-b")
+    body = _main((await client.get("/admin", headers={**BROWSER, **headers})).text)
+    assert "未生效" not in body
+
+
+async def test_稽核表為空時不列進待辦(client, app, oidc):
+    """守門:新平台不該一開機就看到一個警告。"""
+    headers = await _admin(app, oidc, "sub-retention-c")
+    body = _main((await client.get("/admin", headers={**BROWSER, **headers})).text)
+    assert "未生效" not in body

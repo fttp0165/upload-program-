@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import Settings
 from .models import (
     Artifact,
+    AuditEvent,
     Issue,
     IssueStatus,
     Project,
@@ -114,6 +115,16 @@ class Todos:
     quota_warnings: list[ProjectUsage] = field(default_factory=list)
     stale_drafts: list[StaleDraft] = field(default_factory=list)
     orphan_projects: list[OrphanProject] = field(default_factory=list)
+    # T135:稽核保留期沒有生效。0 表示正常;>0 是「最舊一筆距今幾天」。
+    #
+    # 🔴 為什麼需要它:稽核頁上寫著「保留期 N 天」,而那是**靜態文字** ——
+    # 它不管清理有沒有在跑。2026-08-31 實測發現 cron 一行都沒掛、稽核表從上線起
+    # 一次都沒清過,而**沒有任何東西會告訴任何人**(躺了兩個月)。
+    #
+    # 🔴 偵測的是**結果不是原因**:本服務看不到 crontab(它在容器外,而容器不該有
+    # 主機的視野)。cron 沒掛、旗標打錯(`--apply` 寫成 `--yes` 會每天空跑)、
+    # 容器沒起來 —— 原因有很多種,而「最舊一筆超過保留期」是它們共同的症狀。
+    audit_oldest_days: int = 0
 
     @property
     def is_empty(self) -> bool:
@@ -125,6 +136,7 @@ class Todos:
             or self.quota_warnings
             or self.stale_drafts
             or self.orphan_projects
+            or self.audit_oldest_days
         )
 
 
@@ -275,6 +287,15 @@ async def collect_todos(session: AsyncSession, settings: Settings) -> Todos:
         .where(Release.status == ReleaseStatus.pending_review),
     )
 
+    # T135:稽核最舊一筆距今幾天;超過保留期就代表清理沒有在跑。
+    # ⚠ 空表回 None → 不觸發(新平台不該一開機就看到警告)。
+    oldest = (await session.execute(select(func.min(AuditEvent.occurred_at)))).scalar()
+    audit_oldest_days = 0
+    if oldest is not None:
+        age = (datetime.now(UTC) - _aware(oldest)).days
+        if age > settings.audit_retention_days:
+            audit_oldest_days = age
+
     return Todos(
         pending_users=kpi_pending,
         open_issues=open_issues,
@@ -283,6 +304,7 @@ async def collect_todos(session: AsyncSession, settings: Settings) -> Todos:
         quota_warnings=quota_warnings[:TOP_N],
         stale_drafts=stale_drafts,
         orphan_projects=orphan_projects,
+        audit_oldest_days=audit_oldest_days,
     )
 
 

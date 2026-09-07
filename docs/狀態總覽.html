@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 狀態總覽</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-26 08:20
-<strong>最後更新:</strong> 2026-09-07 15:35
-<strong>版本:</strong> v2.0</p>
+<strong>最後更新:</strong> 2026-09-07 23:00
+<strong>版本:</strong> v2.1</p>
 <blockquote>
 <p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
 <p>為什麼需要它:狀態散在任務表(200+ 列)、36 篇開發日誌、跨專案文件索引
@@ -64,8 +64,8 @@ summary { cursor:pointer; color:#12228f; }
 </blockquote>
 <hr />
 <h2>1. 一句話</h2>
-<p><strong>線上 v0.3.0 正常運作;v0.3.1(T133–T135)已測完待發,🟢 無 migration。
-沒有任何事情阻塞發版。</strong></p>
+<p><strong>線上 v0.3.1(2026-09-07 22:51 換版完成,容器實測 <code>running 0.3.1</code>);
+🟢 本版無 migration。沒有任何事情阻塞發版。</strong></p>
 <hr />
 <h2>2. 線上狀態</h2>
 <table>
@@ -82,15 +82,15 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>最後發布的 tag</td>
-<td><strong>v0.3.0</strong>(2026-08-31)</td>
+<td><strong>v0.3.1</strong>(2026-09-07)</td>
 </tr>
 <tr>
 <td>VM 實測</td>
-<td><strong>0.3.0</strong>(2026-09-07 首頁頁尾)</td>
+<td><strong>0.3.1</strong>(2026-09-07 22:51,<code>docker exec upload-program python -c "…APP_VERSION"</code>)</td>
 </tr>
 <tr>
 <td>準備發的下一版</td>
-<td><strong>v0.3.1</strong>(T136,<code>APP_VERSION</code> 已改)</td>
+<td>未定</td>
 </tr>
 <tr>
 <td>服務狀態</td>
@@ -111,7 +111,7 @@ summary { cursor:pointer; color:#12228f; }
 (<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。</p>
 </blockquote>
 <hr />
-<h2>3. v0.3.1:這一版有什麼</h2>
+<h2>3. v0.3.1:這一版有什麼(<strong>已上線</strong>)</h2>
 <table>
 <thead>
 <tr>
@@ -233,8 +233,16 @@ summary { cursor:pointer; color:#12228f; }
 <td><code>MAIL_ENABLED</code> 仍 <code>false</code>,而<strong>後台沒有任何地方看得出來「寄信其實沒開」</strong>(與 T135 修掉的那個病同一形狀,建議比照處理)</td>
 </tr>
 <tr>
-<td><strong>VM 的 GHCR 憑證過期</strong></td>
-<td>上次換版 <code>docker compose pull</code> 回 <code>unauthorized</code>,只因 image 已在本機才成功。發版前要在 VM <code>docker login ghcr.io</code></td>
+<td>~~VM 的 GHCR 憑證過期~~</td>
+<td>✅ <strong>2026-09-07 已解除</strong>:v0.3.1 換版時 <code>docker compose pull</code> 正常拉取,<code>unauthorized</code> 未再出現</td>
+</tr>
+<tr>
+<td>🐛 <strong>換版等待迴圈會靜默往下走</strong></td>
+<td>2026-09-07 給的 <code>for … do pull &amp;&amp; break; sleep; done &amp;&amp; up -d</code> —— <strong>十次都失敗時 <code>for</code> 的離開碼仍是 0</strong>,<code>&amp;&amp;</code> 會繼續執行 <code>up -d</code>,而 <code>up -d</code> 用得到的是<strong>舊 image</strong>。這次恰好成立(image 在第 10 次之後才推上),但那是運氣。修法:迴圈後加一道 <code>docker image inspect</code> 確認 tag 存在才往下</td>
+</tr>
+<tr>
+<td>⚠ <strong>VM 需要重開機</strong></td>
+<td>登入訊息 <code>*** System restart required ***</code> + 45 個待更新套件。那是<strong>全平台共用的 VM</strong>(gateway / PLM / AES_KEY 都在上面),不在我方權限內 —— 要向平台維運提</td>
 </tr>
 <tr>
 <td><strong>T105 / T130</strong></td>
@@ -284,7 +292,7 @@ T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真
 <h3>5.3 未排入(MVP 外或待前置)</h3>
 <p>T46 病毒掃描(<code>infected</code> 處置政策待定案)。</p>
 <hr />
-<h2>6. 發 v0.3.1 的步驟</h2>
+<h2>6. 發版步驟(v0.3.1 已照此走完)</h2>
 <ol>
 <li>合併 T133–T136 的 PR 到 <code>main</code></li>
 <li>🔴 <strong>打 tag 之前</strong>先在 <code>main</code> 上確認 <code>APP_VERSION == "0.3.1"</code>
@@ -332,6 +340,12 @@ T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.1</td>
+<td>2026-09-07 23:00</td>
+<td>Claude(T136)</td>
+<td><strong>依 v2.0 立下的規矩回寫</strong>:v0.3.1 已於 22:51 換版完成(容器實測 <code>running 0.3.1</code>),§1 / §2 / §3 標題 / §5.1 / §6 同步。✅ GHCR 憑證那一格結案(換版時 <code>pull</code> 正常,<code>unauthorized</code> 未再出現)。⚠ 換版過程留下兩件事寫進 §5.1:①我給的等待迴圈<strong>十次跑完仍會往下走</strong>(<code>for</code> 的離開碼是最後一個 <code>echo</code>),這次恰好成立是因為 image 剛好在那之前推上去 —— <strong>會安靜地用舊 image 重建</strong>,已列為欠項;②VM 登入訊息顯示 <code>System restart required</code> 與 45 個待更新套件,那是共用 VM,不在我方權限內</td>
+</tr>
 <tr>
 <td>v2.0</td>
 <td>2026-09-07 15:35</td>

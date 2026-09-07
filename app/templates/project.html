@@ -89,9 +89,22 @@
     {% endif %}
   </section>
 
-  <p class="history-link">
-    <a href="{{ url('/projects/' ~ project.slug ~ '/releases/new') }}">建立新版本</a> ·
-    <a href="{{ url('/projects/' ~ project.slug ~ '/releases') }}">查看版本歷史 →</a>
+  {#
+    T133:這一頁唯一「往下走」的動作,改成看得出是動作的按鈕。
+
+    🔴 **同時修掉一個被放大的缺陷**:這一段原本沒有任何權限判斷,viewer 也看得到
+    「建立新版本」,點進去會 403(`may_manage_releases` 要 maintainer 以上)。
+    不明顯的時候代價很小;**做成醒目的主要按鈕之後,它就從「不明顯的連結」變成
+    「醒目的陷阱」** —— 版面上最搶眼的東西,按下去告訴你沒有權限。
+    `can_edit` 與 `may_manage_releases` 是同一條界線,不另立旗標。
+
+    ⚠ 主次分明而不是兩個一樣重:兩個等重的按鈕會讓人停下來讀字才知道該按哪個。
+  #}
+  <p class="action-row">
+    {% if can_edit %}
+      <a class="btn" href="{{ url('/projects/' ~ project.slug ~ '/releases/new') }}">建立新版本</a>
+    {% endif %}
+    <a class="btn btn-quiet" href="{{ url('/projects/' ~ project.slug ~ '/releases') }}">查看版本歷史 →</a>
   </p>
   </div>
 

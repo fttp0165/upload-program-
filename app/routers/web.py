@@ -28,9 +28,11 @@ from ..dashboard import (
     QUOTA_WARN_RATIO,
     STALE_DRAFT_DAYS,
     collect_kpis,
+    collect_project_rows,
     collect_todos,
     human_bytes,
 )
+from ..duplicates import duplicate_groups
 from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
     AuditEvent,
@@ -1370,6 +1372,105 @@ async def admin_reject_release(
         return handled
     await reject_release(release_id, ReleaseReject(note=note), session, identity)
     return _redirect(request, "/admin/reviews")
+
+
+# --- T134 後台專案管理與重複建立的清除 -------------------------------------
+#
+# 🔴 盤點結果決定了形狀:刪除 API(`DELETE /v1/projects/{slug}`,連同物件與稽核)、
+# admin 放行(`require_project_role()` 對 `is_admin` 回 owner)、稽核動作
+# `project.delete` **早就都有**。缺的只有介面與「哪些算重複」的判定。
+# 從零做一套刪除路徑會做出第二套規則,而兩套刪除規則遲早分岔。
+#
+# 🔴 刪除採 Benny 裁示的 A 案:**要求輸入該專案短名**。零 JS 之下這是最穩的防誤按
+# (CSP 擋 inline script,而本專案表單一律零 JS);多打五秒,換掉「手滑刪掉別人的專案」。
+
+
+async def _admin_projects_context(session: AsyncSession, error: str = "") -> dict:
+    """組出專案管理頁的 context(清單 + 疑似重複分組)。
+
+    參數:session、error 要顯示的錯誤訊息。回傳:模板 context。副作用:無(唯讀)。
+
+    分組與清單共用同一批 row:兩邊各查一次會讓「疑似重複」與「全部專案」
+    在同一頁上顯示不同的數字,而那種不一致沒有人查得出來。
+    """
+    labels = await _labels_by_id(
+        session,
+        {
+            uid
+            for (uid,) in (await session.execute(select(Project.owner_id))).all()
+            if uid is not None
+        },
+    )
+    rows = await collect_project_rows(session, labels)
+    by_id = {row.project.id: row for row in rows}
+    groups = [
+        [by_id[project.id] for project in group]
+        for group in duplicate_groups(row.project for row in rows)
+    ]
+    return {"rows": rows, "groups": groups, "error": error}
+
+
+@router.get("/admin/projects", summary="管理後台:專案(含重複清除)")
+async def admin_projects_page(
+    request: Request, session: DbSession, identity: OptionalUser, error: str = ""
+) -> Response:
+    handled = await _require_web_admin(request, identity, "/admin/projects")
+    if handled is not None:
+        return handled
+    context = await _admin_projects_context(session, error)
+    return HTMLResponse(render(request, "admin_projects.html", identity=identity, **context))
+
+
+@router.post("/admin/projects/{slug}/delete", summary="刪除專案(需輸入短名確認)")
+async def admin_delete_project_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    confirm_slug: Annotated[str, Form()] = "",
+) -> Response:
+    """刪除一個專案。🔴 `confirm_slug` 必須逐字等於該專案短名,否則什麼都不做。
+
+    參數:slug、confirm_slug(表單)。回傳:成功 303 回列表;不符回 200 顯示錯誤。
+    副作用:刪 DB 列(版本與檔案隨 CASCADE)、刪物件儲存前綴、寫一筆稽核。
+
+    🔴 **不符時回 200 而不是 400**:這一頁是給人操作的,錯誤要顯示在他剛剛打字的
+    地方旁邊,而不是換成一頁 RFC 7807。伺服器端的界線沒有因此變鬆 —— 不符就是不刪。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/projects")
+    if handled is not None:
+        return handled
+
+    project = await get_project(session, slug)
+
+    if confirm_slug.strip() != project.slug:
+        # ⚠ 錯誤訊息帶上「你打的」與「應為」:少了這兩個值,打錯的人只會再打錯一次。
+        context = await _admin_projects_context(
+            session,
+            f"短名不符,沒有刪除任何東西。你輸入的是「{confirm_slug.strip()}」,"
+            f"應為「{project.slug}」。",
+        )
+        return HTMLResponse(
+            render(request, "admin_projects.html", identity=identity, **context),
+            status_code=200,
+        )
+
+    # 🔴 稽核欄位要在 delete 之前取(物件刪掉後屬性就過期),與 API 那支同一個理由。
+    project_id, project_slug = project.id, project.slug
+    # 先刪物件再刪 metadata:反過來的話 metadata 沒了就找不到物件,會留下孤兒佔空間。
+    await request.app.state.storage.delete_prefix(f"projects/{project_id}/")
+    await session.delete(project)
+    record(
+        session,
+        action=AuditAction.project_delete,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project_id,
+        target_label=project_slug,
+    )
+    await session.commit()
+    log.info("後台刪除專案", extra={"project_slug": project_slug})
+    return _redirect(request, "/admin/projects")
 
 
 @router.get("/admin/audit", summary="管理後台:稽核紀錄")

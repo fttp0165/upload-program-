@@ -43,17 +43,17 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-08-31 16:45
-<strong>版本:</strong> v1.92</p>
+<strong>最後更新:</strong> 2026-09-07 12:10
+<strong>版本:</strong> v1.94</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
 <strong>完成定義(憲法第一條 3):</strong> 驗收達成 + 測試全綠(實際跑過)+ 開發日誌已寫 + 文件已升版</p>
 </blockquote>
 <hr />
-<h2>目前進度(2026-08-31 16:45)</h2>
-<p>任務 128 項:<strong>✅ 122 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
-測試 <strong>653 passed</strong>、<code>ruff check</code> 乾淨。</p>
+<h2>目前進度(2026-09-07 12:10)</h2>
+<p>任務 130 項:<strong>✅ 124 / 🔵 1 / ⬜ 5</strong>(另 1 項 ~~T30~~ 已由 T40–T45 取代)。
+測試 <strong>663 passed</strong>、<code>ruff check</code> 乾淨。</p>
 <h3>三個版本號現在各在哪裡</h3>
 <table>
 <thead>
@@ -897,6 +897,20 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 連續三次回報「使用者還是看不到作者」;盤點是<strong>兩件不同的事</strong>:①線上是 v0.2.5,T118/T125 的程式碼還沒部署 ②🔴 <strong>就算部署了也不是名字是 <code>sub</code> 前 8 碼</strong> —— 契約 §4.2a L1 第 3 條「僅供管理後台顯示」擋著,而我方 2026-08-12 的《申請:擴大名稱快取用途》<strong>躺了 19 天沒被裁決</strong>;2026-08-31 Benny 裁決「<strong>准</strong>」,cats-portal 契約升 <strong>v3.4</strong>(裁決書已依第九條 4 原樣存進 <code>docs/plans/inbox/</code>,索引第 10 份 ⏳→✅);實作:<code>_subs_by_id()</code> → <strong><code>_labels_by_id()</code></strong>(一次 <code>IN</code> 查 <code>sub</code> + <code>display_name_cache</code>,查詢數與版本數無關的效能守門維持綠),標籤 = 有名字用名字、沒有就退回 8 碼 + <code>…</code>(🔴 <strong>fallback 不是貼心設計,是契約第 6 項的要求</strong>);🔴 <strong>放寬的只有「顯示在哪」</strong> —— 名字仍不進 API(新增守門測試掃四個端點)、仍不得作授權依據、仍不得進 log、🔴 契約新增「不得再散布至本服務以外」;⚠ <strong>改了兩條既有測試並在 dev-log 逐條說明</strong>(原斷言「名字不得出現在一般使用者頁面」釘的是 v3.3,照舊斷言改程式等於讓一條已被放寬的限制繼續生效)—— <strong>反向斷言沒刪掉,改釘 L1b 仍不得顯示在任何頁面</strong>,並補上帶 <code>email_verified=true</code> 的登入確保信箱真的進了快取才斷言它不出現(否則又是假綠);憲法紅線同步升 v2.8(<strong>紅線與實作打架比沒有紅線更危險</strong>);<strong>5 條新增(3 紅起步)+ 2 條改寫,全套 653</strong></td>
 </tr>
 <tr>
+<td>T133</td>
+<td>專案頁主要動作改成明顯的按鈕</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 截圖(紅框框住專案頁底部):「按鈕不明顯改成,明顯的按鈕」;原本是兩個純文字連結 + 一個 <code>·</code>,而那是這一頁<strong>唯一往下走的動作</strong>,截圖裡那個專案還沒有任何版本、「建立新版本」正是它此刻唯一該做的事;🔴 <strong>盤點時發現把它變醒目會放大一個既有缺陷</strong>:那一段原本<strong>沒有任何權限判斷</strong>,viewer 也看得到「建立新版本」點進去卻 403 —— 不明顯時代價很小,<strong>做成醒目的主要按鈕之後它就從「不明顯的連結」變成「醒目的陷阱」</strong>(版面上最搶眼的東西,按下去告訴你沒有權限),故本任務不是純樣式改動,<code>can_edit</code> 與 <code>may_manage_releases</code> 同一條界線不另立旗標;主次分明(<code>.btn</code> / <code>.btn .btn-quiet</code>)而非兩個等重(等重會讓人停下來讀字才知道按哪個);⚠ <strong>刻意不動</strong>:「取消」一律維持文字連結(取消不該與主要動作等重)、導覽連結不變、管理總覽的專案名不變(那是內文連結,變按鈕會讓清單變成一片色塊)、<code>release_new.html</code> 的輔助連結不變(那頁主要動作是送出表單);⚠ <strong>抓到自己寫的假綠,而且是新形狀</strong>:第一版斷言 <code>"btn" in tag</code>,而測試 slug 當時叫 <code>btn-proj</code> —— 斷言在檢查自己的測試資料,永遠綠;已改 slug + 斷 <code>class="btn</code>。<strong>本 repo 假綠第三種形狀</strong>(T90 撞 placeholder、T132 空迴圈、本次測試資料撞關鍵字),共同點是<strong>綠燈不是因為程式對,是因為斷言問錯了問題</strong>;<strong>3 條新增(2 紅起步),全套 656</strong></td>
+</tr>
+<tr>
+<td>T134</td>
+<td>後台專案管理與重複建立的清除</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「要建立後台管理機制,重複建立的案件管理員可以刪除」,確認方式裁示 <strong>A 案</strong>(輸入短名);獨立計畫書 <a href="plans/設計_後台專案管理與重複清除.md">設計_後台專案管理與重複清除</a> v1.1;🔴 <strong>盤點結果決定了範圍</strong>:刪除 API(連同物件與稽核)、admin 放行、稽核動作 <code>project.delete</code> <strong>早就都有</strong>,缺的只有介面與「哪些算重複」的判定 —— 從零做一套刪除路徑會做出第二套規則,而兩套刪除規則遲早分岔;⚠ <code>_admin_tabs.html</code> 寫著「<code>/admin/projects</code> 是 <strong>T72</strong> 才會有的頁面」,<strong>那一頁從 2026-07-31 預留到今天(38 天)沒有做</strong>,註解已回寫,編號用 T134(<strong>不追認一個沒有紀錄的編號</strong>);判定用<strong>正規化後的名稱</strong>而非「去掉 slug 的 <code>-N</code> 後綴」——🔴 後者會把 <code>Tool</code> 與 <code>Tool 2</code> 判成同一組,而 <code>Tool 2</code> 是<strong>使用者自己取的名字</strong>不是系統加的後綴(系統後綴只出現在 slug 上,名稱一字未改),<strong>刪除不可逆,誤判代價不對稱</strong>;🔴 <code>slugify()</code> 為空時退回名稱本身,否則<strong>全站中文名稱的專案會被歸成一大組</strong>;清單顯示<strong>版本/檔案/容量</strong>三個數字(🔴 不是裝飾:沒有它們,管理員無法判斷該刪哪一個,那個判斷就變成猜);有已發布版本者<strong>警告而不禁止</strong>(誤建的那個有時正好是有版本的那個,禁止會讓管理員無路可走);🔴 <strong>施工中抓到自己寫的假綠第四種形狀:文字切片切錯位置</strong> —— 兩條防誤判的反向測試一開始就綠,依計畫做反向驗證(故意把判準改壞)才發現守門是假的:<code>split("疑似重複")[1]</code> 而那個詞在頁面出現兩次,切到的是兩次之間的 201 個字;改結構定位後<strong>各自故意改壞重驗過</strong>(去 slug 後綴 → 紅、拿掉中文 fallback → 紅、還原 → 綠);⚠ 另抓到第一版 CSS 用了不存在的 <code>var(--muted)</code>(正確是 <code>--fg-muted</code>)—— <strong>未定義的變數會讓顏色靜默失效</strong>,已全檔掃過未定義變數 = 0;⚠ 改寫既有測試 1 條並讓它<strong>比原本更強</strong>(原本釘「<code>/admin/projects</code> 不得出現在分頁列」= 2026-07-31 的現況,改成<strong>逐一 GET 分頁列每個連結要求 200</strong>,下次有人加分頁而頁面沒做一樣會紅);<strong>6 條新增(4 紅起步 + 2 條反向驗證過),全套 663</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1224,6 +1238,18 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.94</td>
+<td>2026-09-07 12:10</td>
+<td>Claude(Benny 裁示 A 案)</td>
+<td><strong>T134 後台專案管理與重複清除</strong>:<code>/admin/projects</code>(那一頁預留 38 天沒做)、疑似重複分組、輸入短名確認的刪除。🔴 判定用正規化名稱而非去 slug 後綴(後者會誤判 <code>Tool</code> / <code>Tool 2</code>,而刪除不可逆)。🔴 抓到<strong>假綠第四種形狀:文字切片切錯位置</strong>,兩條防誤判守門改結構定位並故意改壞重驗過。<strong>663 passed</strong></td>
+</tr>
+<tr>
+<td>v1.93</td>
+<td>2026-09-07 10:40</td>
+<td>Claude(Benny 截圖回報)</td>
+<td><strong>T133</strong>:專案頁主要動作改成明顯的按鈕,🔴 並修掉被它放大的權限缺陷(viewer 原本看得到「建立新版本」但點了 403 —— 醒目的按鈕不得是陷阱)。⚠ 抓到自己寫的假綠第三種形狀(測試 slug 叫 <code>btn-proj</code>,斷言在檢查自己的測試資料)。<strong>656 passed</strong></td>
+</tr>
 <tr>
 <td>v1.92</td>
 <td>2026-08-31 16:45</td>

@@ -1,0 +1,95 @@
+{#
+  管理後台:專案管理與重複建立的清除(T134)。
+
+  🔴 本頁的按鈕會**不可逆地刪除資料**(連同該專案在物件儲存的所有檔案)。
+  沒有垃圾桶、沒有還原路徑 —— 所以刪除採 Benny 裁示的 A 案:**要輸入短名確認**。
+
+  🔴 顯示的 slug / 名稱是使用者可控內容,靠 autoescape 逸出,禁用 |safe。
+#}
+{% extends "base.html" %}
+
+{% block title %}專案管理 — upload-program{% endblock %}
+
+{% block content %}
+
+<h1>專案管理</h1>
+
+{% with current = "projects" %}{% include "_admin_tabs.html" %}{% endwith %}
+
+<p class="muted">
+  全站專案一覽,以及**疑似重複建立**的分組。重複的來源是同名專案第二次建立時
+  短名自動加後綴(例 <code>-2</code>)——名稱一模一樣,而兩列在清單上通常不相鄰。
+</p>
+
+<p class="err-hint">
+  🔴 刪除**不可逆**:連同該專案的所有版本與檔案一起消失,沒有還原路徑。
+  刪除前請確認「版本 / 檔案 / 容量」那三個數字 —— 它們就是你會失去的東西。
+</p>
+
+{% if error %}
+  <p class="notice notice-err">{{ error }}</p>
+{% endif %}
+
+{% macro project_card(row, oldest) %}
+  {% set p = row.project %}
+  <li class="admin-proj">
+    <div class="admin-proj-head">
+      <a class="admin-proj-name" href="{{ url('/projects/' ~ p.slug) }}">{{ p.name }}</a>
+      <code class="project-slug">{{ p.slug }}</code>
+      {% if oldest %}<span class="badge">最早建立</span>{% endif %}
+      <span class="badge">{{ p.visibility.value }}</span>
+    </div>
+    <dl class="admin-proj-meta">
+      <dt>擁有者</dt><dd>{{ row.owner_label }}</dd>
+      <dt>建立</dt><dd>{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>版本</dt><dd>{{ row.releases }}（已發布 {{ row.published }}）</dd>
+      <dt>檔案</dt><dd>{{ row.artifacts }}</dd>
+      <dt>容量</dt><dd>{{ row.size_text }}</dd>
+    </dl>
+
+    {% if row.published %}
+      {#  🔴 警告而不禁止:「重複建立的那一個」有時候正好是有版本的那一個
+          (傳錯地方),禁止會讓管理員無路可走。 #}
+      <p class="notice notice-warn">
+        ⚠ 這個專案有 <strong>{{ row.published }}</strong> 個已發布版本。
+        別人可能已經把固定連結貼進文件或信件裡 —— 刪掉之後那些連結會 404,
+        而點的人不會知道為什麼。
+      </p>
+    {% endif %}
+
+    <form method="post" action="{{ url('/admin/projects/' ~ p.slug ~ '/delete') }}"
+          class="admin-proj-del">
+      <label for="confirm-{{ p.slug }}">輸入短名 <code>{{ p.slug }}</code> 以確認刪除</label>
+      <div class="admin-proj-del-row">
+        <input id="confirm-{{ p.slug }}" name="confirm_slug" type="text"
+               autocomplete="off" placeholder="{{ p.slug }}" required>
+        <button type="submit" class="btn btn-danger">刪除這個專案</button>
+      </div>
+    </form>
+  </li>
+{% endmacro %}
+
+<h2>疑似重複({{ groups | length }} 組)</h2>
+{% if groups %}
+  {% for group in groups %}
+    <section class="dup-group">
+      <h3>{{ group[0].project.name }} — {{ group | length }} 個</h3>
+      <ul class="admin-proj-list">
+        {% for row in group %}{{ project_card(row, loop.first) }}{% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  <p class="notice">目前沒有名稱相同的專案。</p>
+{% endif %}
+
+<h2>全部專案({{ rows | length }})</h2>
+{% if rows %}
+  <ul class="admin-proj-list">
+    {% for row in rows %}{{ project_card(row, false) }}{% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">還沒有任何專案。</p>
+{% endif %}
+
+{% endblock %}

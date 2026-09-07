@@ -278,6 +278,26 @@ async def test_管理分頁有總覽入口(client, app, oidc):
     for path in ("/admin", "/admin/users", "/admin/audit"):
         resp = await client.get(path, headers={**BROWSER, **headers})
         assert f'href="{PREFIX}/admin"' in resp.text or "總覽" in resp.text
-    # 🔴 T72 之前不得出現懸空連結
+
+
+async def test_管理分頁沒有懸空連結(client, app, oidc):
+    """🔴 分頁列上的每一個連結都必須指向真的存在的頁面。
+
+    ⚠ **T134 改寫這一條,依 CI 紅線說明理由(不是放水)。**
+    原本寫的是「`/admin/projects` 不得出現在分頁列」——那是 2026-07-31 的現況
+    (該頁預留給 T72、還沒做),而 T134 把它做出來了,連結不再懸空。
+    照舊斷言改程式,就會為了讓測試綠而把剛做好的頁面從導覽裡藏起來。
+
+    🔴 **改寫的方向是讓它比原本更強**:原本只釘住「那一個路徑」,
+    改成**逐一 GET 分頁列上的每個連結並要求 200** —— 下一次有人加分頁而頁面沒做,
+    這條一樣會紅,不必回來改測試。
+    """
+    headers = await _admin(app, oidc)
     dash = await client.get("/admin", headers={**BROWSER, **headers})
-    assert f'href="{PREFIX}/admin/projects"' not in dash.text
+    nav = dash.text.split('class="admin-tabs"')[1].split("</nav>")[0]
+    links = re.findall(r'href="([^"]+)"', nav)
+    assert links, "分頁列一個連結都沒有,這條測試會永遠綠(假綠)"
+    for link in links:
+        path = link[len(PREFIX) :] if link.startswith(PREFIX) else link
+        resp = await client.get(path, headers={**BROWSER, **headers})
+        assert resp.status_code == 200, f"分頁列的連結是懸空的:{link} → {resp.status_code}"

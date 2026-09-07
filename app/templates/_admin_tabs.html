@@ -4,7 +4,9 @@
   原本兩個管理頁各寫一份,加第三頁時必然漏改其中一個——與站名、版本號
   同一類「一件事寫多份」的病。呼叫端傳 `current`(dashboard / users / audit)。
 
-  🔴 `/admin/projects` 是 T72 才會有的頁面,現在**不放連結**:懸空連結比沒有連結更糟。
+  ⚠ 這裡原本寫著「`/admin/projects` 是 T72 才會有的頁面,現在不放連結:懸空連結比
+  沒有連結更糟」——那一頁從 2026-07-31 預留到 2026-09-07 才由 **T134** 做出來
+  (T72 當時沒有進任務表,不追認一個沒有紀錄的編號)。連結已補上,不再懸空。
 #}
 <nav class="admin-tabs">
   {% if current == 'dashboard' %}<span class="current">總覽</span>
@@ -15,6 +17,11 @@
 
   {# T123:審核佇列。放在使用者與稽核之間——它是「每天要做的事」,
      比稽核紀錄(事後回查)更常用。 #}
+  {# T134:專案管理(含重複建立的清除)。放在使用者之後、待審核之前——
+     它與使用者一樣是「管資料的」,而待審核是「每天要處理的事」。 #}
+  {% if current == 'projects' %}<span class="current">專案</span>
+  {% else %}<a href="{{ url('/admin/projects') }}">專案</a>{% endif %}
+
   {% if current == 'reviews' %}<span class="current">待審核</span>
   {% else %}<a href="{{ url('/admin/reviews') }}">待審核</a>{% endif %}
 

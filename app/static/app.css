@@ -1025,3 +1025,38 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
   align-items: center;
   margin: 1.25rem 0 0;
 }
+
+/* T134:後台專案管理。🔴 這一頁有不可逆的刪除按鈕,樣式要讓它看起來就是那樣 ——
+   把危險的動作做得跟其他按鈕一樣,是把判斷責任丟給眼睛。 */
+.admin-proj-list { list-style: none; margin: 0 0 2rem; padding: 0; display: flex; flex-direction: column; gap: .9rem; }
+.admin-proj {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+}
+.admin-proj-head { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
+.admin-proj-name { font-weight: 700; font-size: 1.05rem; }
+.admin-proj-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .2rem .9rem;
+  margin: .7rem 0 0;
+  font-size: .92rem;
+}
+.admin-proj-meta dt { color: var(--fg-muted); }
+.admin-proj-meta dd { margin: 0; }
+.admin-proj-del { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--line); }
+.admin-proj-del label { display: block; font-size: .88rem; color: var(--fg-muted); margin-bottom: .35rem; }
+.admin-proj-del-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.admin-proj-del-row input { flex: 1 1 14rem; }
+.dup-group { margin-bottom: 1.6rem; }
+.dup-group > h3 { font-size: 1rem; margin: 0 0 .6rem; }
+
+/* 危險動作:紅色實心。⚠ 只有「刪除」用它 —— 到處都紅等於沒有紅色。 */
+.btn-danger { background: var(--red); }
+.btn-danger:hover { background: #8f1d17; box-shadow: 0 3px 8px rgba(179, 38, 30, .32); }
+
+/* 提示的兩個變體:錯誤(紅)與警告(琥珀)。原本只有中性的 .notice。 */
+.notice-err { border-left: 3px solid var(--red); background: var(--red-bg); }
+.notice-warn { border-left: 3px solid var(--amber); background: var(--amber-bg); }

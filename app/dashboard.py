@@ -304,3 +304,83 @@ def human_bytes(value: int) -> str:
             return f"{amount:.0f} {unit}" if unit == "B" else f"{amount:.1f} {unit}"
         amount /= step
     return f"{amount:.1f} TB"
+
+
+# --- T134:後台專案清單(含「刪掉會失去什麼」的數字)------------------------
+
+
+@dataclass
+class ProjectRow:
+    """後台專案清單的一列。
+
+    🔴 `releases` / `artifacts` / `total_bytes` 不是裝飾:**沒有它們,管理員無法
+    判斷該刪哪一個**。兩個同名專案,一個有 3 版 12 個檔、一個是空的,該刪哪個
+    顯而易見;只列名稱與時間的話,那個判斷就變成猜 —— 而刪除是不可逆的。
+    """
+
+    project: object
+    owner_label: str
+    releases: int
+    published: int
+    artifacts: int
+    total_bytes: int
+
+    @property
+    def size_text(self) -> str:
+        return human_bytes(self.total_bytes)
+
+
+async def collect_project_rows(session: AsyncSession, labels: dict) -> list[ProjectRow]:
+    """撈出全部專案 + 每個專案的版本數 / 已發布數 / 檔案數 / 容量。
+
+    參數:session、labels 為 {user_id: 顯示標籤}(由呼叫端以 `_labels_by_id()` 備好)。
+    回傳:依建立時間由新到舊的 ProjectRow 清單。副作用:無(唯讀)。
+
+    🔴 **三個聚合各一次 GROUP BY,不逐專案查**:後台頁一次列全站專案,
+    逐列查就是 N+1(比照 T84 / T132 的批次查詢,同一個理由)。
+    """
+    projects = (
+        (await session.execute(select(Project).order_by(Project.created_at.desc())))
+        .scalars()
+        .all()
+    )
+
+    rel_counts = dict(
+        (
+            await session.execute(
+                select(Release.project_id, func.count()).group_by(Release.project_id)
+            )
+        ).all()
+    )
+    pub_counts = dict(
+        (
+            await session.execute(
+                select(Release.project_id, func.count())
+                .where(Release.status == ReleaseStatus.published)
+                .group_by(Release.project_id)
+            )
+        ).all()
+    )
+    # 檔案數只算 ready:傳到一半的不是「會失去的東西」(T106 / T107 同一條規則)。
+    art_counts = dict(
+        (
+            await session.execute(
+                select(Release.project_id, func.count())
+                .join(Artifact, Artifact.release_id == Release.id)
+                .where(Artifact.upload_status == UploadStatus.ready)
+                .group_by(Release.project_id)
+            )
+        ).all()
+    )
+
+    return [
+        ProjectRow(
+            project=project,
+            owner_label=labels.get(project.owner_id, ""),
+            releases=rel_counts.get(project.id, 0),
+            published=pub_counts.get(project.id, 0),
+            artifacts=art_counts.get(project.id, 0),
+            total_bytes=project.total_bytes,
+        )
+        for project in projects
+    ]

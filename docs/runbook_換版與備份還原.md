@@ -2,8 +2,8 @@
 
 **專案:** upload-program
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-09-07 14:40
-**版本:** v1.13
+**最後更新:** 2026-09-07 15:20
+**版本:** v1.14
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -267,6 +267,27 @@ docker compose exec -T svc python tools/purge_audit.py --apply
 
 ⚠ **「0 筆」不代表 cron 可以不掛**:它只代表現在還沒到期。到期那天沒掛就是不會清。
 
+#### 再驗一次 —— 用 cron 的環境,不是你的 shell
+
+> 🖥️ **在哪執行:** Cats VM(ssh)· 工作目錄 `/opt/upload-program`
+
+```bash
+env -i /bin/sh -c 'cd /opt/upload-program && docker compose exec -T svc python tools/purge_audit.py --apply >> /srv/plm-data/backup/upload-program/audit-purge.log 2>&1'; echo "exit=$?"; tail -3 /srv/plm-data/backup/upload-program/audit-purge.log
+```
+
+要看到 `exit=0`,且 log 尾巴出現「已刪除 N 筆」。
+
+🔴 **為什麼上一段驗過了還要再驗一次:** 上一段是在**有完整 PATH 的登入 shell** 裡跑的,
+而 cron 的 `PATH` 只有 `/usr/bin:/bin`,也沒有任何 `~/.profile` 的變數。
+`env -i` 清掉全部環境變數來模擬那個最小環境。**若 `docker` 在 cron 的 PATH 上找不到,
+cron 會每天靜默失敗,而症狀與「cron 根本沒掛」一模一樣** ——
+掛好了卻不會跑,是這件事最貴的失敗形狀。
+
+修法(只在 `exit` 非 0、通常是 `127 docker: not found` 時需要):在 crontab 那兩行
+之前加一行 `PATH=/usr/local/bin:/usr/bin:/bin`。
+
+✅ **2026-09-07 實測 `exit=0`**、log 出現「已刪除 0 筆」—— 本機不需要加 `PATH`。
+
 ### C.3 一次性:清掉上傳沒成功的殘骸(T107)
 
 🔴 **這一支不掛 cron。** 它刪的是 artifact 列,而 T107 之後**不會再產生新的殘骸**
@@ -325,6 +346,7 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 
 | 版本 | 日期 | 修改人 | 摘要 |
 |---|---|---|---|
+| v1.14 | 2026-09-07 15:20 | Claude(Benny 實測) | **§C.2 新增「用 cron 的環境再驗一次」**(`env -i /bin/sh -c …`)。手動驗過不等於 cron 會跑:手動是在**有完整 PATH 的登入 shell**,而 cron 的 `PATH` 只有 `/usr/bin:/bin`、沒有 `~/.profile`。🔴 **若 `docker` 不在 cron 的 PATH 上,cron 會每天靜默失敗,而症狀與「cron 根本沒掛」一模一樣** —— 掛好了卻不會跑,是這件事最貴的失敗形狀(而且 T135 的偵測卡片會亮,但沒有人知道是這個原因)。附非 0 時的修法(crontab 加 `PATH=` 一行)。✅ 2026-09-07 實測 `exit=0`,本機不需要加 |
 | v1.13 | 2026-09-07 14:40 | Claude(Benny 實測回報) | 🔴 **§C.2 整節重寫 —— 舊版本身就是事故來源,三個錯都不會有錯誤訊息**:①備份路徑寫 `/home/deploy/upload-backups` 且無 `umask`,而 crontab 上**早就掛好** `umask 077` + `/srv/plm-data/backup/upload-program` → 照舊版做在**錯誤的磁碟**上長出第二份 **646 MB** 備份、權限比現行寬(2026-09-07 真的發生);②log 寫 `/var/log/`,而 `deploy` **沒有寫入權** → 重導向失敗會讓**整條 cron 失敗而沒有人看到**;③那個 ```cron 區塊標著「貼進編輯器」卻**長得跟可貼指令一模一樣** → 2026-09-07 被貼進終端機得到 `30: command not found` ×3,**與 2026-08-11 換版失敗同一形狀**(第十條 2)。🔴 **③ 的修法不是把警語寫大一點,是把區塊變成真的可以貼** —— 只要一個區塊「看起來可貼但其實不可貼」,警語就是在跟習慣對賭,而習慣會贏;本節因此**不再列出 cron 內容**,只給一行會先備份現行 crontab 的安裝指令,加的兩條與各自旗標改用表格說明(兩支腳本旗標不同,抄錯就是每天空跑且無錯誤訊息)。⚠ 實測補記:手動 `--apply` **已刪除 0 筆**(未滿保留期,同時驗證 `tools/` 已進 image);**「0 筆」不代表 cron 可以不掛** —— 它只代表現在還沒到期 |
 | v1.12 | 2026-08-31 12:15 | Claude(Benny 裁示 A 案) | 🔴 **§C.2 據實標註兩件事**:①實測 cron **從來沒掛上去**,稽核保留期清理一次都沒跑過(那是只增不減的個資表)②**T109 之前就算掛了也會失敗** —— `tools/` 不在 image 內,`docker compose exec … python tools/purge_audit.py` 必得 `No such file`。**這些指令需要 v0.2.6 以上的 image**,換版後再掛 cron 並當場手跑一次確認。§C.3 同步標註版本需求。守門:`tests/test_ops_scripts.py` 會檢查 runbook 引用的每一支腳本都被 Dockerfile COPY 涵蓋 —— 擋的是下一次。⚠ **本列原編為 v1.9,合併 PR #33 時改編為 v1.12**(另一條線也用了 v1.9~v1.11);內容一字未改,只改版號 |
 | v1.8 | 2026-08-31 10:30 | Claude(Benny:「沒有上傳成功的 就不用顯示了」) | **新增 §C.3:一次性清掉上傳沒成功的殘骸**(T107 的 `tools/purge_failed_artifacts.py`)。🔴 明寫**不掛 cron** —— T107 之後不再產生新殘骸,把它排程化只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,那是最難察覺的風險形狀。⚠ 旗標是 `--apply`(同 `purge_audit.py`,不是 `purge_issues.py` 的 `--yes`),不加只會 dry-run 且不會有任何錯誤訊息;執行前必須先備份 |

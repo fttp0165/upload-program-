@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-09-07 14:40
-<strong>版本:</strong> v1.13
+<strong>最後更新:</strong> 2026-09-07 15:20
+<strong>版本:</strong> v1.14
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -373,6 +373,21 @@ docker compose exec svc alembic downgrade -1
 需 <strong>v0.2.6 以上</strong>)。2026-09-07 實測:<strong>已刪除 0 筆</strong> —— 平台上線未滿保留期,
 沒有東西該被清,<code>tools/</code> 進 image 這件事同時驗證過了。</p>
 <p>⚠ <strong>「0 筆」不代表 cron 可以不掛</strong>:它只代表現在還沒到期。到期那天沒掛就是不會清。</p>
+<h4>再驗一次 —— 用 cron 的環境,不是你的 shell</h4>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
+<pre><code class="language-bash">env -i /bin/sh -c 'cd /opt/upload-program &amp;&amp; docker compose exec -T svc python tools/purge_audit.py --apply &gt;&gt; /srv/plm-data/backup/upload-program/audit-purge.log 2&gt;&amp;1'; echo &quot;exit=$?&quot;; tail -3 /srv/plm-data/backup/upload-program/audit-purge.log
+</code></pre>
+<p>要看到 <code>exit=0</code>,且 log 尾巴出現「已刪除 N 筆」。</p>
+<p>🔴 <strong>為什麼上一段驗過了還要再驗一次:</strong> 上一段是在<strong>有完整 PATH 的登入 shell</strong> 裡跑的,
+而 cron 的 <code>PATH</code> 只有 <code>/usr/bin:/bin</code>,也沒有任何 <code>~/.profile</code> 的變數。
+<code>env -i</code> 清掉全部環境變數來模擬那個最小環境。<strong>若 <code>docker</code> 在 cron 的 PATH 上找不到,
+cron 會每天靜默失敗,而症狀與「cron 根本沒掛」一模一樣</strong> ——
+掛好了卻不會跑,是這件事最貴的失敗形狀。</p>
+<p>修法(只在 <code>exit</code> 非 0、通常是 <code>127 docker: not found</code> 時需要):在 crontab 那兩行
+之前加一行 <code>PATH=/usr/local/bin:/usr/bin:/bin</code>。</p>
+<p>✅ <strong>2026-09-07 實測 <code>exit=0</code></strong>、log 出現「已刪除 0 筆」—— 本機不需要加 <code>PATH</code>。</p>
 <h3>C.3 一次性:清掉上傳沒成功的殘骸(T107)</h3>
 <p>🔴 <strong>這一支不掛 cron。</strong> 它刪的是 artifact 列,而 T107 之後<strong>不會再產生新的殘骸</strong>
 ——掛成排程只會讓一支「平常什麼都不做、哪天出事就大量刪東西」的腳本在夜裡跑,
@@ -493,6 +508,12 @@ docker compose exec -T svc python tools/purge_failed_artifacts.py --apply
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.14</td>
+<td>2026-09-07 15:20</td>
+<td>Claude(Benny 實測)</td>
+<td><strong>§C.2 新增「用 cron 的環境再驗一次」</strong>(<code>env -i /bin/sh -c …</code>)。手動驗過不等於 cron 會跑:手動是在<strong>有完整 PATH 的登入 shell</strong>,而 cron 的 <code>PATH</code> 只有 <code>/usr/bin:/bin</code>、沒有 <code>~/.profile</code>。🔴 <strong>若 <code>docker</code> 不在 cron 的 PATH 上,cron 會每天靜默失敗,而症狀與「cron 根本沒掛」一模一樣</strong> —— 掛好了卻不會跑,是這件事最貴的失敗形狀(而且 T135 的偵測卡片會亮,但沒有人知道是這個原因)。附非 0 時的修法(crontab 加 <code>PATH=</code> 一行)。✅ 2026-09-07 實測 <code>exit=0</code>,本機不需要加</td>
+</tr>
 <tr>
 <td>v1.13</td>
 <td>2026-09-07 14:40</td>

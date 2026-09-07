@@ -43,20 +43,29 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 狀態總覽</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-26 08:20
-<strong>最後更新:</strong> 2026-08-26 08:20
-<strong>版本:</strong> v1.0</p>
+<strong>最後更新:</strong> 2026-09-07 15:35
+<strong>版本:</strong> v2.0</p>
 <blockquote>
 <p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
-<p>為什麼需要它:狀態目前散在任務表(160+ 列)、26 篇開發日誌、跨專案文件索引
+<p>為什麼需要它:狀態散在任務表(200+ 列)、36 篇開發日誌、跨專案文件索引
 與 GitHub PR 四個地方。每個都是對的,但<strong>沒有一頁看得完</strong>,
 於是「現在到底能不能發版」這種問題每次都要重查一遍。</p>
 <p>🔴 本頁是<strong>摘要,不是真相來源</strong>。任何一格與任務表 / 日誌 / 索引衝突時,
 <strong>以那些為準</strong>——它們有完整脈絡,本頁只有結論。</p>
+<p>🔴 <strong>v2.0 是一次全面改正,不是增補。</strong> v1.0(2026-08-26)到 2026-09-07 之間
+<strong>幾乎每一格都變成錯的</strong>:它說線上是 v0.2.3(實際 v0.3.0)、說 v0.3.0
+「被 CI 紅燈擋住發不出去」(實際 08-31 就發出去了)、說唯一阻塞發版的是 #11
+(已不阻塞)、說三處顯示的是識別碼不是名字(#10 已獲准,T132 已改真名)。</p>
+<p>⚠ <strong>這正是 T128 建立本頁時自己預告過的失敗</strong>:「測試查得出檔案在不在、
+抬頭齊不齊,<strong>查不出內容是否過期</strong>」,並建議「每次發版與卡關項變動時更新」——
+那句建議<strong>沒有觸發器</strong>,所以它只在有人想起來時才發生。
+<strong>一頁格式整齊、有版本號、每一格都在說謊的文件,比沒有這一頁更危險。</strong>
+自 v2.0 起的規矩:<strong>發版任務(如 T136)一律連同本頁回寫</strong>,與第六條 4 同一個道理。</p>
 </blockquote>
 <hr />
 <h2>1. 一句話</h2>
-<p><strong>線上服務正常;v0.3.0 已經做完並測完,但被一條 CI 紅燈擋住發不出去,
-而那條紅燈我方修不掉——球在平台網路側。</strong></p>
+<p><strong>線上 v0.3.0 正常運作;v0.3.1(T133–T135)已測完待發,🟢 無 migration。
+沒有任何事情阻塞發版。</strong></p>
 <hr />
 <h2>2. 線上狀態</h2>
 <table>
@@ -73,36 +82,36 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>最後發布的 tag</td>
-<td><strong>v0.2.3</strong></td>
+<td><strong>v0.3.0</strong>(2026-08-31)</td>
+</tr>
+<tr>
+<td>VM 實測</td>
+<td><strong>0.3.0</strong>(2026-09-07 首頁頁尾)</td>
+</tr>
+<tr>
+<td>準備發的下一版</td>
+<td><strong>v0.3.1</strong>(T136,<code>APP_VERSION</code> 已改)</td>
 </tr>
 <tr>
 <td>服務狀態</td>
-<td>🟢 <strong>正常</strong>——本文所述的阻塞<strong>不影響已上線的版本</strong>,只影響「發下一版」</td>
+<td>🟢 正常</td>
 </tr>
 <tr>
 <td>正式資料</td>
 <td>平台已上線使用中;🔴 任何動資料庫的操作,動手前必先備份並於 staging 演練</td>
 </tr>
+<tr>
+<td>維運排程</td>
+<td>✅ 備份 02:30 / 稽核清理 04:00 / 回報清理 04:30(2026-09-07 掛上並以 cron 的最小環境實測 <code>exit=0</code>)</td>
+</tr>
 </tbody>
 </table>
 <blockquote>
 <p>⚠️ VM 上實際跑的版本以首頁頁尾顯示的版本號為準
-(T68 起版本號顯示在服務首頁;<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。
-本表寫的是<strong>最後打出去的 tag</strong>,不是遠端量測結果。</p>
+(<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。</p>
 </blockquote>
 <hr />
-<h2>3. v0.3.0:做完了什麼</h2>
-<p><code>app/version.py</code> 的 <code>APP_VERSION</code> 已是 <strong>0.3.0</strong>(第八條 4:必須在打 tag 之前改好)。</p>
-<h3>3.1 🔴 這一版改變了既有行為</h3>
-<p><strong><code>POST /v1/releases/{id}/publish</code> 的語意變了。</strong>
-原本是「發布,馬上可下載」,現在是「<strong>送審</strong>,等管理員核准」。
-同一條端點、同樣回 200,但結果完全不同。</p>
-<p>作者按下「發布」之後,版本停在<strong>待審核</strong>;要管理員到 <code>/admin/reviews</code> 核准,
-其他人才下載得到。🔴 <strong>核准前沒有任何人會收到通知</strong>——平台沒有 email 也沒有推播,
-管理總覽的待辦區是唯一的提醒。這是已知的營運限制,不是被忽略的問題。</p>
-<p>這也是版本號從 0.2.x 跳到 0.3.0 的理由:用 patch 版發這種東西,
-等於對看 Release 頁的人說「只是小修正」,而他下一步就會發現自己發布的東西沒人下載得到。</p>
-<h3>3.2 四項新功能(2026-08-12 需求)</h3>
+<h2>3. v0.3.1:這一版有什麼</h2>
 <table>
 <thead>
 <tr>
@@ -113,68 +122,24 @@ summary { cursor:pointer; color:#12228f; }
 </thead>
 <tbody>
 <tr>
-<td><strong>T122</strong></td>
-<td>管理員指派入口(<code>/admin/users</code> 可直接設為/取消管理員)</td>
+<td><strong>T133</strong></td>
+<td>專案頁主要動作改成明顯的按鈕;🔴 順帶修掉被它放大的權限缺陷(viewer 原本看得到「建立新版本」卻會 403)</td>
 <td>🟢 不動</td>
 </tr>
 <tr>
-<td><strong>T123</strong></td>
-<td>發布審核:<code>草稿 →(送審)→ 待審核 →(核准)→ 已發布</code></td>
-<td>🟡 加欄位</td>
+<td><strong>T134</strong></td>
+<td>後台「專案」分頁:疑似重複分組 + 輸入短名確認的刪除</td>
+<td>🟢 不動(但<strong>按鈕會不可逆地刪資料</strong>)</td>
 </tr>
 <tr>
-<td><strong>T124</strong></td>
-<td>專案留言板(專案頁的「使用回饋」)</td>
-<td>🟡 加表</td>
-</tr>
-<tr>
-<td><strong>T125</strong></td>
-<td>版本作者屬名(版本歷史每一版顯示建立者)</td>
-<td>🟢 不動</td>
+<td><strong>T135</strong></td>
+<td>管理總覽偵測「稽核保留期未生效」</td>
+<td>🟢 不動(唯讀)</td>
 </tr>
 </tbody>
 </table>
-<p>三條刻意寫下的界線:
-- 🔴 <strong>不能取消自己的管理員身分</strong>(平台無 root 後門,手滑就沒人管得動系統)。
-- 🔴 <strong>退回必須寫理由</strong>——沒有理由的退回,作者只能猜,然後重傳一模一樣的東西。
-- 🔴 <strong>專案擁有者不能刪別人的留言</strong>,只有留言者本人與平台管理員可以。
-  擁有者若能刪掉評語,留言板就只會剩好話,而<strong>一個只留得住讚美的回饋區比沒有回饋區更糟</strong>。</p>
-<h3>3.3 修正與基礎工程</h3>
-<table>
-<thead>
-<tr>
-<th>任務</th>
-<th>內容</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>T115</strong></td>
-<td>🐛 <strong>中文文字檔上傳被擋</strong>——判型的 UTF-8 截斷補救砍過頭,超過 4KB 的中文 <code>.md</code> / <code>.py</code> 被判成 binary</td>
-</tr>
-<tr>
-<td><strong>T117</strong></td>
-<td>🐛 CI Trivy 紅燈:base image 被 self-hosted runner 的快取釘住(加 <code>--pull</code>)</td>
-</tr>
-<tr>
-<td><strong>T118 / T121</strong></td>
-<td>專案頁顯示擁有者 · 🐛 草稿版本回不去(補上編輯入口)</td>
-</tr>
-<tr>
-<td><strong>T119</strong></td>
-<td>本地 WSL 開發環境(dev compose + 本機跑 CI)</td>
-</tr>
-<tr>
-<td><strong>T114 / T120</strong></td>
-<td>憲法第九條(文件識別)、第十條(指令標明機器與目錄)</td>
-</tr>
-<tr>
-<td><strong>T126 / T127</strong></td>
-<td>版本號 → 0.3.0 · 🐛 openssl CVE(見 §4)</td>
-</tr>
-</tbody>
-</table>
-<h3>3.4 測試與演練</h3>
+<p>🔴 <strong>T134 的按鈕是本版唯一的危險面</strong>:它刪的是專案連同物件與版本,
+<strong>沒有還原路徑</strong>。上線後第一次使用前先跑一次 <code>./backup.sh</code>。</p>
 <table>
 <thead>
 <tr>
@@ -185,7 +150,7 @@ summary { cursor:pointer; color:#12228f; }
 <tbody>
 <tr>
 <td>全站測試</td>
-<td><strong>559 passed</strong>(本版新增 38 條;既有 21 條依新行為改寫)</td>
+<td><strong>666 passed</strong></td>
 </tr>
 <tr>
 <td><code>ruff check</code></td>
@@ -196,130 +161,92 @@ summary { cursor:pointer; color:#12228f; }
 <td>md / HTML 同步</td>
 </tr>
 <tr>
-<td>migration <code>0009</code></td>
-<td>🔴 <strong>真 PostgreSQL up→down→up 演練通過</strong></td>
+<td>migration</td>
+<td><strong>無</strong>(三個任務都不動 schema)</td>
 </tr>
 <tr>
-<td>migration <code>0010</code></td>
-<td>🔴 <strong>真 PostgreSQL up→down→up 演練通過</strong></td>
+<td><code>.env</code></td>
+<td><strong>無新增變數</strong></td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p>⚠️ 兩次演練都是<strong>空庫</strong>演練。證明的是 DDL 在 PostgreSQL 上跑得動
-(即本版的實際風險:<code>ALTER COLUMN TYPE</code> 與 VARCHAR 長度),<strong>不是</strong>資料搬遷邏輯。</p>
-</blockquote>
-<p>📌 值得記一筆:演練當場抓到<strong>兩個「559 條全綠也看不到」的 migration bug</strong>
-——pytest 用 <code>create_all</code>,<strong>根本不跑 migration</strong>。</p>
+<h3>3.1 v0.3.0(已上線)改變過的既有行為 —— 仍然有效,記在這裡免得被忘記</h3>
+<p><strong><code>POST /v1/releases/{id}/publish</code> 的語意是「送審」不是「馬上可下載」。</strong>
+作者按下發布後版本停在<strong>待審核</strong>,要管理員到 <code>/admin/reviews</code> 核准。
+🔴 <strong>核准前沒有任何人會收到通知</strong> —— 平台沒有 email 也沒有推播,
+管理總覽的待辦區是唯一的提醒。這是已知的營運限制(見 §7)。</p>
 <hr />
-<h2>4. 🔴 卡住的事:CI Trivy 紅燈(T127)</h2>
-<h3>4.1 現況</h3>
+<h2>4. 曾經卡住發版的那件事:已解除</h2>
+<p>2026-08-26 的 v1.0 把「CI Trivy 紅燈(openssl CVE-2026-14456)」列為<strong>唯一阻塞發版</strong>的事。
+<strong>已解除</strong>,經過如下:</p>
 <table>
 <thead>
 <tr>
-<th>CI job</th>
-<th>結果</th>
+<th>時間</th>
+<th>事情</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>測試 / lint / 文件同步</td>
-<td>✅ 綠(559 passed)</td>
+<td>2026-08-26(T127)</td>
+<td>Trivy 紅;試著在 runtime stage 自己升 openssl → <code>deb.debian.org</code> <strong>connection timed out</strong>;回退,備妥申請書 #11</td>
 </tr>
 <tr>
-<td><strong>Build image + Trivy 掃描</strong></td>
-<td>❌ <strong>紅</strong></td>
+<td>2026-08-27(T102)</td>
+<td>改為 <code>apt-get upgrade -y</code> <strong>全量升級</strong>,並保留 T127 最貴的那一課:<strong>驗證不相信離開碼</strong> —— 判準是「升級後不得還有可升級的套件」(<code>apt-get -s upgrade</code> 的 <code>Inst</code> 計數必須為 0),不必維護 CVE 清單。<strong>CI run #249 起 Trivy 綠</strong></td>
 </tr>
 <tr>
-<td>Push GHCR(僅版本 tag)</td>
-<td>⏭ 因 <code>needs: build</code> 而跳過</td>
+<td>2026-08-31</td>
+<td>v0.3.0 發出並上線</td>
+</tr>
+<tr>
+<td>2026-09-07</td>
+<td>PR #39 的 CI 全綠(663 passed、Trivy 零 HIGH)</td>
 </tr>
 </tbody>
 </table>
-<pre><code>upload-program:ci (debian 13.6)          Total: 3 (HIGH: 3, CRITICAL: 0)
-
-libssl3t64 / openssl / openssl-provider-legacy
-CVE-2026-14456  HIGH  fixed  3.5.6-1~deb13u2 → 3.5.7-1~deb13u2
-</code></pre>
-<p>三筆是<strong>同一個來源套件(openssl)的三個二進位套件</strong>,同一個 CVE。</p>
-<h3>4.2 為什麼我方修不掉</h3>
-<ul>
-<li>我方 image 的 runtime stage <strong>從頭到尾沒有任何 <code>apt-get</code></strong>,
-  OS 套件原封不動來自官方 <code>python:3.12-slim</code>。<strong><code>main</code> 現在建也會紅。</strong></li>
-<li>Debian 已發布修好的 <code>3.5.7-1~deb13u2</code>,但<strong>官方 image 尚未重建併入</strong>。
-  建置已帶 <code>--pull</code>(T117),但<strong>上游沒動,我們就沒得取</strong>。</li>
-<li>試過在 runtime stage 自己升 openssl → <strong>失敗</strong>:
-  <code>deb.debian.org</code> 從 CI runner 的容器網路 <strong>connection timed out</strong>
-  (三個 suite 全部),與 2026-07-30 run #85 同一堵牆。</li>
-</ul>
-<h3>4.3 📌 那次嘗試順便挖出一個更重要的東西</h3>
-<pre><code>W: Some index files failed to download. They have been ignored, or old ones used instead.
-libssl3t64 is already the newest version (3.5.6-1~deb13u2).
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-#9 DONE 37.7s                    ← 建置「成功」
-</code></pre>
-<p>🔴 <strong><code>apt-get update</code> 抓不到索引時只印 <code>W:</code>,exit code 仍是 0。</strong>
-後續的 <code>--only-upgrade</code> 因此拿 base image 裡的<strong>舊索引</strong>比對,回報「已經是最新版」,
-整條 <code>&amp;&amp;</code> 鏈<strong>成功</strong>——建置產出一個<strong>看起來已修補、實際一個位元組都沒動</strong>的 image。</p>
-<p>當時特地寫了「刻意不加 <code>|| true</code>」來防這件事,<strong>護欄守錯了地方</strong>:
-防的是「指令回傳非 0 而我吞掉」,而 apt 根本不回傳非 0。
-<strong>真正抓到它的是 Trivy,不是任何一道自寫的保險。</strong></p>
-<p>一課:<strong><code>&amp;&amp;</code> 鏈只證明「每個指令都自稱成功」,不證明「事情做到了」。</strong>
-對「取得外部資源」這類步驟必須自己驗結果,不能把 exit code 當成事實。
-(與 T84 / T124 的假綠同病,只是載體從測試換成了 shell。)</p>
-<p>已回退,Dockerfile 不留任何無效的 apt——留著會讓下一個讀的人以為 openssl 有在升。</p>
-<h3>4.4 裁示與已採取的行動</h3>
-<p>Benny 2026-08-26 裁示:<strong>開通 apt</strong>(不等上游、不放寬掃描)。</p>
-<p>已備妥跨專案申請書並登記進索引(第 11 份),申請內容擇一:</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>內容</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>A</td>
-<td>開通 <code>docker build</code> 網路對 <code>deb.debian.org</code> / <code>security.debian.org</code> 的 egress</td>
-</tr>
-<tr>
-<td><strong>B</strong></td>
-<td>提供<strong>公司內部 Debian 鏡像</strong>位址,我方改寫 <code>sources</code> 指過去(<strong>我方偏好</strong>)</td>
-</tr>
-</tbody>
-</table>
-<p>範圍刻意寫小:<strong>只在建置期</strong>、<strong>只要 Debian 官方兩個網域</strong>、<strong>只升不裝</strong>。</p>
-<blockquote>
-<p>誠實揭露:CVE-2026-14456 是 OpenSSL <strong>QUIC 伺服器</strong>的記憶體無限成長,
-本服務沒有任何 QUIC 伺服器路徑(TLS 在 gateway 終結;OpenSSL 只被 Python
-用在對外 client:JWKS、MinIO),<strong>幾乎確定不適用</strong>。
-<strong>仍然申請開通而不主張豁免</strong>,理由有二:判斷可能錯且會隨相依演進失效;
-更重要的是<strong>這次成不成立不影響下一次</strong>——真正的問題是
-「runtime stage 沒有 apt 就代表我方對 OS 層 CVE 完全無能為力」。</p>
-</blockquote>
-<p>📌 <strong>這是第三次</strong>被 base image 的 OS 套件擋(run #85 繞掉了、T117 上游剛好已重建、
-本次沒有運氣)。所以申請的是制度,不是這一個 CVE。</p>
+<p>⚠ <strong>誠實揭露一個我方沒有證據的缺口:</strong> T102 的全量升級能成功,代表 CI 的 apt
+<strong>實際上連得到套件庫</strong> —— 而 T127 當天量到的是 timeout。中間是平台側開通了、
+還是當天的暫時性故障,<strong>我方沒有證據,不臆測</strong>。
+🔴 <strong>因此 #11 申請書仍未送出、仍留在索引裡</strong>:那條路現在通,不等於它被保證。</p>
+<p>📌 T127 挖出的那一課與這件事的成敗無關,值得單獨留著:
+<strong><code>apt-get update</code> 抓不到索引時只印 <code>W:</code>,exit code 仍是 0</strong> ——
+<code>&amp;&amp;</code> 鏈只證明「每個指令都自稱成功」,不證明「事情做到了」。
+對「取得外部資源」的步驟必須自己驗結果。</p>
 <hr />
 <h2>5. 誰的球</h2>
-<h3>5.1 🔴 卡在平台/網路側(<strong>唯一阻塞發版的</strong>)</h3>
+<h3>5.1 我方(不阻塞發版,但都是欠項)</h3>
 <table>
 <thead>
 <tr>
 <th>事項</th>
-<th>索引 #</th>
-<th>我方狀態</th>
+<th>狀態</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>CI 容器網路開通 Debian 套件庫</strong></td>
-<td>#11</td>
-<td>Dockerfile 已回退;<strong>v0.3.0 發不出去</strong>。獲准後加回只升 openssl 的一層,並<strong>自行驗證 <code>apt-get update</code> 的結果</strong></td>
+<td><strong>T27 還原演練 / J-07 回滾演練</strong></td>
+<td>runbook 文件齊備,<strong>還原本身尚未實際演練過</strong> —— 🔴 沒還原過的備份等於沒有備份</td>
+</tr>
+<tr>
+<td><strong>SMTP relay 從沒驗過</strong></td>
+<td><code>MAIL_ENABLED</code> 仍 <code>false</code>,而<strong>後台沒有任何地方看得出來「寄信其實沒開」</strong>(與 T135 修掉的那個病同一形狀,建議比照處理)</td>
+</tr>
+<tr>
+<td><strong>VM 的 GHCR 憑證過期</strong></td>
+<td>上次換版 <code>docker compose pull</code> 回 <code>unauthorized</code>,只因 image 已在本機才成功。發版前要在 VM <code>docker login ghcr.io</code></td>
+</tr>
+<tr>
+<td><strong>T105 / T130</strong></td>
+<td><code>APP_VERSION</code> 不得 ≤ 最新 tag 的 CI 守門(v0.2.4 事故的結論)、以及「同一段檢查指令同時活在 <code>ci.yml</code> 與 runbook」會漂移</td>
+</tr>
+<tr>
+<td><strong>T96 遺留</strong></td>
+<td>純中文專案名 → <code>p-1ded8d7a</code> 這種不可讀網址,三個選項待裁示</td>
 </tr>
 </tbody>
 </table>
-<h3>5.2 卡在 cats-portal(不阻塞發版)</h3>
+<h3>5.2 卡在 cats-portal</h3>
 <table>
 <thead>
 <tr>
@@ -342,74 +269,56 @@ libssl3t64 is already the newest version (3.5.6-1~deb13u2).
 <tr>
 <td>session 時序三問</td>
 <td>#9</td>
-<td>我方已排除「續期失敗」一路,剩兩種可能待對方資料收斂</td>
+<td>已排除「續期失敗」一路,剩兩種可能待對方資料收斂;⏳ <strong>文件仍未送出</strong></td>
 </tr>
 <tr>
-<td>§4.2a L1 用途擴大(顯示名字)</td>
-<td>#10</td>
-<td>三處已以 <code>sub</code> 前 8 碼過渡,測試釘住「名字不得出現」,<strong>獲准後換字即可</strong></td>
+<td>CI 容器網路開通 Debian 套件庫</td>
+<td>#11</td>
+<td>⏳ <strong>仍未送出</strong>;那條路目前通(見 §4),但沒有被保證</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p>📌 #9 與 #10 兩份文件<strong>尚未實際送出</strong>(檔案已備妥、已登記)。</p>
-<h1>10 是把專案頁擁有者、版本建立者、留言者三處 UUID 換成名字的<strong>唯一</strong>途徑。</h1>
-</blockquote>
-<h3>5.3 卡在 staging(不阻塞發版)</h3>
-<table>
-<thead>
-<tr>
-<th>事項</th>
-<th>說明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>T27 還原演練</td>
-<td>runbook 文件已完成;<strong>還原本身尚未實際演練過</strong>——🔴 沒還原過的備份等於沒有備份</td>
-</tr>
-<tr>
-<td>J-07 回滾演練</td>
-<td>同上,尚未演練</td>
-</tr>
-</tbody>
-</table>
-<h3>5.4 未排入(MVP 外或待前置)</h3>
-<p>T46 病毒掃描(<code>infected</code> 處置政策待定案)、T29 接入冒煙清單全數通過。</p>
+<p>✅ <strong>#10(§4.2a L1 用途擴大)已於 2026-08-31 裁決「准」</strong>,契約升 v3.4,
+T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真名。
+⚠ 從送出到裁決躺了 <strong>19 天</strong>,期間使用者看到的是 UUID。</p>
+<h3>5.3 未排入(MVP 外或待前置)</h3>
+<p>T46 病毒掃描(<code>infected</code> 處置政策待定案)。</p>
 <hr />
-<h2>6. v0.3.0 的下一步(Trivy 轉綠之後)</h2>
+<h2>6. 發 v0.3.1 的步驟</h2>
 <ol>
-<li>合併 PR #33</li>
-<li>打 <code>v0.3.0</code> tag(🔴 我方 tag push 得 403,<strong>這是政策,不繞過</strong>——由 Benny 推)</li>
-<li>Release 頁貼上四段內容(第八條 3:本版內容 / 資料影響 / 部署注意 / 測試)</li>
+<li>合併 T133–T136 的 PR 到 <code>main</code></li>
+<li>🔴 <strong>打 tag 之前</strong>先在 <code>main</code> 上確認 <code>APP_VERSION == "0.3.1"</code>
+   (v0.2.4 事故:tag 指到了 <code>APP_VERSION</code> 還是舊值的 commit,而 CI 照樣綠、
+   錯的 image 照樣推上 GHCR)</li>
+<li>打 <code>v0.3.1</code> tag(🔴 我方 tag push 得 403,<strong>這是政策,不繞過</strong> —— 由 Benny 推)</li>
+<li>Release 頁貼四段內容(第八條 3:本版內容 / 資料影響 / 部署注意 / 測試)</li>
 <li>VM 換版:
-   - 🔴 <strong>必須跑 migration</strong>:<code>docker compose exec svc alembic upgrade head</code>
-   - <code>.env</code> <strong>無新增變數</strong>
-   - 🔴 換版重建容器後<strong>必須</strong> <code>docker exec portal-gateway nginx -s reload</code>,否則 502</li>
+   - <code>.env</code> <strong>無新增變數</strong>、<strong>不需跑 migration</strong>
+   - 🔴 換版重建容器後<strong>必須</strong> <code>docker exec portal-gateway nginx -s reload</code>,否則 502
+   - ⚠ 先 <code>docker login ghcr.io</code>(見 §5.1)</li>
 <li>換版後驗證:
-   - <code>tools/smoke.sh --vm --expect v0.3.0</code>(⚠️ 本次請一併 scp 這支腳本上 VM)
-   - 🖐 <strong>人工必驗</strong>:超過 4KB 的<strong>中文 <code>.md</code></strong> 傳進「說明」卡片 → <strong>必須成功</strong>
-   - 🖐 送審 →<code>/admin/reviews</code> 核准 → 其他帳號下載得到,走一遍
-   - 🖐 反向:<code>.exe</code> 改名成 <code>.md</code> 傳進「說明」→ <strong>仍須被擋</strong></li>
+   - <code>tools/smoke.sh --vm --expect v0.3.1</code>
+   - 🖐 專案頁看到明顯的「建立新版本」按鈕;<strong>用 viewer 帳號看不到它</strong>
+   - 🖐 <code>/admin/projects</code> 列得出專案與版本/檔案/容量;<strong>先 <code>./backup.sh</code> 再試刪除</strong>
+   - 🖐 管理總覽:稽核保留期的待辦<strong>不該出現</strong>(cron 已掛、未到期)</li>
 </ol>
-<h3>🔴 回滾的代價(runbook §B 已載明)</h3>
-<ul>
-<li>退 <code>0009</code> 會把<strong>待審中的版本一律當回草稿</strong>,退回理由整欄消失
-  → <strong>退版前請先清空審核佇列</strong>(全部核准或退回)。</li>
-<li>退 <code>0010</code> 會<strong>失去全部專案留言</strong>,無法重建。</li>
-</ul>
+<h3>🔴 回滾的代價</h3>
+<p><strong>v0.3.1 → v0.3.0:退回舊 image 即可,無資料代價</strong>(本版無 migration)。
+⚠ 但<strong>再往下退到 0.2.x 仍有 v0.3.0 的代價</strong>:退 <code>0010</code> 會把待審版本一律當回草稿、
+退回理由整欄消失;退 <code>0011</code> 會失去全部專案留言(runbook §B)。</p>
 <hr />
 <h2>7. 已知的營運限制(不是缺陷,是取捨)</h2>
 <ol>
 <li>🔴 <strong>平台沒有任何通知管道。</strong> 作者送審後、專案被留言後,對方都不會收到提醒。
    審核靠管理員<strong>主動看</strong>管理總覽的待辦區。若實際運作上沒人天天看後台,
-   審核制度會製造比它解決的更多問題——<strong>這是要評估的營運現實,不是技術問題</strong>。</li>
-<li>🔴 <strong>三處顯示的是識別碼不是名字</strong>(專案擁有者、版本建立者、留言者)。
-   全部卡在同一份申請書(#10)。一串 UUID 的體驗確實不好,
-   這是<strong>誠實的過渡狀態,不是設計目標</strong>。</li>
+   審核制度會製造比它解決的更多問題 —— <strong>這是要評估的營運現實,不是技術問題</strong>。
+   ⚠ <code>MAIL_ENABLED</code> 即使打開也只寄「有人回報問題」給管理員(T99),
+   <strong>不包含送審與留言</strong>。</li>
 <li><strong>掃毒尚未接上</strong>,每個檔案誠實標示 <code>not_scanned</code>(T46)。</li>
 <li><strong>留言沒有分頁</strong>,少的時候沒問題,多起來要加。<strong>不預先做</strong>,但記在這裡。</li>
-<li><strong>requirements 仍是相容區間不是 lock 檔</strong>——建置不可重現(T82 遺留)。</li>
+<li><strong>requirements 仍是相容區間不是 lock 檔</strong> —— 建置不可重現(T82 遺留)。</li>
+<li><strong><code>/admin/projects</code> 的刪除沒有還原路徑</strong>,也沒有「軟刪除」。
+   確認方式是輸入短名(T134 A 案),那是唯一的煞車。</li>
 </ol>
 <hr />
 <h2>版本歷史</h2>
@@ -423,6 +332,12 @@ libssl3t64 is already the newest version (3.5.6-1~deb13u2).
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.0</td>
+<td>2026-09-07 15:35</td>
+<td>Claude(T136)</td>
+<td>🔴 <strong>全面改正(結構性,故升主版號)</strong>:v1.0 到今天之間<strong>幾乎每一格都變成錯的</strong> —— 線上版本(v0.2.3 → <strong>v0.3.0</strong>)、「v0.3.0 被 CI 紅燈擋住發不出去」(<strong>08-31 已發出</strong>)、「唯一阻塞發版的是 #11」(<strong>已不阻塞</strong>,T102 08-27 起 Trivy 綠)、「三處顯示識別碼不是名字」(<strong>#10 已獲准</strong>,T132 已改真名)、§6「v0.3.0 的下一步」(<strong>全部走完</strong>)。⚠ <strong>這正是 T128 建立本頁時自己預告過的失敗</strong>:守門測試查得出檔案在不在,<strong>查不出內容是否過期</strong>,而「每次發版時更新」那句建議<strong>沒有觸發器</strong>。故 v2.0 起立規矩:<strong>發版任務一律連同本頁回寫</strong>(與第六條 4 同一個道理)。內容改為以 <strong>v0.3.1</strong> 為主體,§4 改寫成「曾經卡住發版的事:已解除」並<strong>誠實揭露我方沒有證據的缺口</strong>(T102 的 apt 連得到、T127 量到 timeout,中間發生什麼我方無證據,故 #11 仍留在索引);§5 按「誰的球」重編並補上四項我方欠項(還原演練、SMTP 從沒驗過、GHCR 憑證過期、T105/T130)</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-08-26 08:20</td>

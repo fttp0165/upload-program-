@@ -146,6 +146,30 @@
       </div>
     {% endif %}
 
+    {% if todos.audit_oldest_days %}
+      <div class="todo card">
+        <h3>稽核保留期未生效</h3>
+        <p>
+          稽核紀錄最舊一筆距今 <strong>{{ todos.audit_oldest_days }} 天</strong>,
+          已超過設定的保留期 <strong>{{ retention_days }} 天</strong>——
+          代表<strong>清除作業沒有在跑</strong>。
+        </p>
+        {#
+          🔴 這張卡偵測的是**結果不是原因**:本服務看不到主機的 crontab
+          (它在容器外,而容器不該有主機的視野)。cron 沒掛、旗標打錯、
+          容器沒起來——原因很多,而「最舊一筆超過保留期」是共同的症狀。
+
+          🔴 為什麼需要它:稽核頁上的「保留期 N 天」是**靜態文字**,它不管
+          清理有沒有在跑。2026-08-31 實測發現 cron 一行都沒掛、稽核表從上線
+          起一次都沒清過,而**沒有任何東西會告訴任何人**——躺了兩個月。
+        #}
+        <p class="muted">
+          請依 runbook §C.2 在 Cats VM 上掛 <code>tools/purge_audit.py</code> 的 cron,
+          並<strong>手動跑一次</strong>確認不是 <code>No such file</code>。
+        </p>
+      </div>
+    {% endif %}
+
     {% if todos.not_scanned_artifacts %}
       <div class="todo card">
         <h3>未掃描的檔案({{ todos.not_scanned_artifacts }})</h3>

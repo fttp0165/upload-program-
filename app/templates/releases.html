@@ -89,14 +89,16 @@
                   <li class="artifact">
                     <div class="artifact-head">
                       <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
-                      <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.download_count }} 次下載</span>
+                      <span class="muted">{{ artifact.kind | kind_label }} · <span title="{{ artifact.size_bytes }} bytes">{{ artifact.size_bytes | human_bytes }}</span> · {{ artifact.download_count }} 次下載</span>
                     </div>
                     <dl class="artifact-meta">
-                      <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+                      {# T144:🔴 **不截短** —— 校驗用的值截了就沒用。改成點一下全選
+                   (`user-select: all`),不必用滑鼠拖 64 個字。 #}
+                <dt>SHA-256</dt><dd><code class="hash">{{ artifact.sha256 }}</code></dd>
                       <dt>掃毒狀態</dt>
                       <dd>
                         {% if artifact.scan_status.value == 'not_scanned' %}
-                          <span class="badge badge-warn">未掃描 not_scanned</span>
+                          <span class="badge badge-warn" title="scan_status = not_scanned">未掃描</span>
                           <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
                         {% else %}
                           {{ artifact.scan_status.value }}

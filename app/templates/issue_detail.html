@@ -43,7 +43,7 @@
         <img class="issue-image"
              src="{{ url('/v1/issues/' ~ issue.id ~ '/attachments/' ~ item.id) }}"
              alt="{{ item.filename }}">
-        <figcaption class="muted">{{ item.filename }} · {{ item.size_bytes }} bytes</figcaption>
+        <figcaption class="muted">{{ item.filename }} · <span title="{{ item.size_bytes }} bytes">{{ item.size_bytes | human_bytes }}</span></figcaption>
       </figure>
     {% endfor %}
   </section>

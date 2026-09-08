@@ -134,7 +134,7 @@
           <button class="btn btn-quiet" type="submit">儲存</button>
           <span class="muted">
             {% if user.max_artifact_bytes %}
-              目前:{{ user.max_artifact_bytes }} bytes(個別設定)
+              目前:<span title="{{ user.max_artifact_bytes }} bytes">{{ user.max_artifact_bytes | human_bytes }}</span>(個別設定)
             {% else %}
               目前:沿用全站 {{ global_limit_mb }} MB
             {% endif %}

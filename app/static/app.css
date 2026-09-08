@@ -1074,3 +1074,23 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 .limit-form input[type="number"] {
   width: 7rem;
 }
+
+/* T144:可讀性優化。
+   🔴 這三個 class 都是為了「不用滑鼠精準拖選」而存在 —— SHA-256 有 64 個字,
+   固定連結有 80 幾個,而它們的用途都是**被複製走**。`user-select: all` 讓
+   點一下就全選;不加 JS 複製鈕的理由是 CSP 之下每一段 JS 都是成本,
+   而這個做法已經達到同樣的目的。 */
+.hash,
+.permalink {
+  user-select: all;
+  word-break: break-all;
+}
+.permalink {
+  font-family: var(--mono);
+  font-size: .85em;
+}
+
+/* 容量條逼近上限:轉 amber。門檻與管理總覽的 QUOTA_WARN_RATIO 同一個數字(80%)
+   —— 兩邊各寫一個門檻,遲早出現「總覽說要注意了,而專案頁還是綠的」。 */
+progress.quota-warn::-webkit-progress-value { background: var(--amber); }
+progress.quota-warn::-moz-progress-bar { background: var(--amber); }

@@ -249,6 +249,22 @@ async def test_首頁的專案卡片連到專案頁(client, active_user):
 # --- T40 的紅線維持 ---------------------------------------------------------
 
 
+# T144 的具名例外:「固定連結」刻意是**絕對網址**。
+# 🔴 它的用途就是**貼進文件**,而只有路徑的字串貼出去既不能點、也看不出是哪台機器。
+# 沿用 T51 `/account` 的處理方式:**具名例外,不放寬斷言** ——
+# 而這個例外自己有測試(test_ui_readability.py::test_固定連結是可點的絕對網址)
+# 釘住它必須以 `public_base_url` 開頭,所以「絕對」這件事不會變成任意。
+_PERMALINK_RE = re.compile(
+    r"""<a[^>]*class=["'][^"']*\bpermalink\b[^"']*["'][^>]*?href\s*=\s*["']([^"']*)["']"""
+    r"""|<a[^>]*href\s*=\s*["']([^"']*)["'][^>]*class=["'][^"']*\bpermalink\b""",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _permalinks(html: str) -> set[str]:
+    return {g for m in _PERMALINK_RE.findall(html) for g in m if g}
+
+
 async def test_專案頁所有連結帶前綴且無絕對網址(client, active_user):
     _, token = active_user
     await _project(client, token)
@@ -260,8 +276,10 @@ async def test_專案頁所有連結帶前綴且無絕對網址(client, active_u
     resp = await client.get("/projects/demo-tool", headers={**BROWSER, **auth(token)})
     found = _links(resp.text)
     assert found
+    permalinks = _permalinks(resp.text)
+    assert permalinks, "固定連結不見了——它是本條的具名例外,消失就該重新檢視這個例外"
     for link in found:
-        if link in PLATFORM_URLS:
+        if link in PLATFORM_URLS or link in permalinks:
             continue
         assert link.startswith(f"{PREFIX}/"), link
         assert not link.startswith(("http://", "https://", "//")), link

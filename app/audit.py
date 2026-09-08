@@ -51,6 +51,9 @@ class AuditAction(enum.StrEnum):
     user_activate = "user.activate"
     user_disable = "user.disable"
     user_set_role = "user.set_role"
+    # T141:調整某個帳號的單檔上限。`action` 是 String(64) 且刻意不下 CHECK,
+    # 所以新增動作不需要 migration(T38 的設計決定在這裡收租)。
+    user_set_upload_limit = "user.set_upload_limit"
 
     # 專案(F54:「建了/刪了什麼」)
     project_create = "project.create"

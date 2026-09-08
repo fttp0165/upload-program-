@@ -21,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from .. import filetypes, problems, quota
+from .. import filetypes, limits, problems, quota
 from ..audit import AuditAction, record
 from ..models import Artifact, ArtifactKind, ProjectRole, ReleaseStatus, UploadStatus
 from ..schemas import ArtifactOut
@@ -88,11 +88,19 @@ async def upload_artifact(
 
     name = _check_filename(filename)
 
+    # T141:單檔上限可以逐個帳號設定,故一律走 `limits.effective_artifact_limit`,
+    # 不再直接讀 `settings.max_artifact_bytes` —— 三個生效點(這裡、下面的串流上限、
+    # 上傳頁的前端預檢值)必須用同一個判準,否則症狀是「畫面說可以但傳不上去」。
+    artifact_limit = limits.effective_artifact_limit(settings, identity.user)
+
     # 先用 Content-Length 擋掉明顯過大的請求,不用等收完才發現。
     if content_length is not None:
-        if content_length > settings.max_artifact_bytes:
+        if content_length > artifact_limit:
+            # 🔴 訊息要分得出是**帳號**限制還是全站限制:否則使用者問「為什麼我只能
+            # 傳這麼小」時,沒有人分得出他是被單獨設定過、還是全站就這麼小。
+            scope = "本帳號上限" if limits.is_personal_limit(settings, identity.user) else "單檔上限"
             raise problems.payload_too_large(
-                f"單檔上限 {settings.max_artifact_bytes} bytes,本次 {content_length} bytes"
+                f"{scope} {artifact_limit} bytes,本次 {content_length} bytes"
             )
         # T49:上限依專案級距而定,訊息由 quota 模組統一組(預檢與收完後檢查共用一份,
         # 否則兩條路徑的訊息必然漂移)。
@@ -139,7 +147,7 @@ async def upload_artifact(
 
     try:
         result = await storage.upload_stream(
-            key, request.stream(), settings.max_artifact_bytes, on_head=_on_head
+            key, request.stream(), artifact_limit, on_head=_on_head
         )
     except _Rejected as exc:
         await _discard(session, storage, artifact, key, identity.user.id)

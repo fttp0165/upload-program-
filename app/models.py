@@ -127,6 +127,12 @@ class User(Base):
     #    ——唯一鍵永遠是 `sub`(一個人可以換信箱,換信箱不該讓他變成另一個人)。
     # 320 = RFC 5321 的地址上限(64 local + @ + 255 domain)。
     notify_email: Mapped[str | None] = mapped_column(String(320), default=None)
+    # T141:這個帳號的單檔上限(bytes)。
+    # 🔴 **nullable 而不是「建帳號時填入全站值」**:後者會讓全站上限被調整時,
+    # 既有帳號全部卡在舊值,而且看不出哪些是「刻意設定」哪些是「當時的預設快照」。
+    # `NULL` 讓「沒有特別規定」與「規定成某個數字」在資料上分得開。
+    # 有效上限的計算(含與全站上限取 min 的理由)在 `app/limits.py`。
+    max_artifact_bytes: Mapped[int | None] = mapped_column(BigInteger, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

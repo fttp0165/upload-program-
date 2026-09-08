@@ -33,6 +33,7 @@ from ..dashboard import (
     human_bytes,
 )
 from ..duplicates import duplicate_groups
+from ..limits import effective_artifact_limit
 from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
     AuditEvent,
@@ -923,7 +924,9 @@ async def upload_page(
             # JS 要打的端點:由伺服器算好前綴放進 data-* 屬性,
             # JS 不自己拼路徑(它不知道前綴是什麼)。
             upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
-            max_artifact_bytes=settings.max_artifact_bytes,
+            # T141:🔴 這裡必須是**這個使用者的**有效上限,不是全站值 ——
+            # 拿全站值的話,前端預檢會對被調小的帳號**放行一個必定失敗的上傳**。
+            max_artifact_bytes=effective_artifact_limit(settings, identity.user),
             # T86:三格卡片。每格配上「這一類目前已經有哪個檔」——
             # 只認 ready,傳到一半的不算數(與 missing_required_kinds 同一條規則)。
             upload_cards=[
@@ -1104,6 +1107,9 @@ async def admin_users_page(
             pending_users=pending,
             other_users=others,
             me=identity.user,
+            # T141:畫面要說得出「沿用全站」是多少 —— 只寫「沿用全站」的話,
+            # 管理員得離開這一頁去查 .env 才知道那是多大。
+            global_limit_mb=request.app.state.settings.max_artifact_bytes // (1024 * 1024),
             error=request.query_params.get("error"),
         )
     )
@@ -1204,6 +1210,85 @@ async def admin_set_role(
         log.info(
             "調整平台角色",
             extra={"user_id": str(user.id), "new_role": wanted.value, "by": str(identity.user.id)},
+        )
+
+    return _redirect(request, "/admin/users")
+
+
+@router.post("/admin/users/{user_id}/upload-limit", summary="設定帳號的單檔上限")
+async def admin_set_upload_limit(
+    user_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    limit_mb: Annotated[str, Form()] = "",
+) -> Response:
+    """設定(或清除)某個帳號的單檔上限。
+
+    參數:user_id 目標使用者、limit_mb 以 **MB** 為單位的字串,**空白 = 清除**
+    (回到沿用全站上限)。
+    回傳:302 回使用者清單;值不合法時 422。
+    副作用:改寫 `users.max_artifact_bytes` 並留稽核 `user.set_upload_limit`。
+
+    🔴 **只有平台管理員能設**(比照 F17 的專案級距):本人若能自調,等於沒有上限。
+
+    🔴 **不得存下大於全站上限的值。** 那個欄位會撒謊 —— 存得下、畫面說可以,
+    而上傳會撞 **gateway 的 413**,而那一頁不說上限也不說用量。
+    2026-09-08 這件事真的發生過一次(App 已是 500 MB 而 gateway 還是 128m,
+    使用者只看到「上傳失敗(413)」),所以這不是假設而是紀錄。
+
+    ⚠ 以 MB 收而不是 bytes:`524288000` 這種數字是給程式看的,要求人現場換算
+    只會換算錯,而換算錯不會有任何錯誤訊息。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    settings = request.app.state.settings
+    user = (
+        await session.execute(select(User).where(User.id == parse_uuid(user_id, "使用者")))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    raw = (limit_mb or "").strip()
+    if raw == "":
+        wanted: int | None = None
+    else:
+        if not raw.isdigit() or int(raw) <= 0:
+            raise problems.unprocessable(
+                "bad-upload-limit", "上限不正確", "請填一個正整數(單位 MB),或留空表示沿用全站上限。"
+            )
+        wanted = int(raw) * 1024 * 1024
+        if wanted > settings.max_artifact_bytes:
+            raise problems.unprocessable(
+                "bad-upload-limit",
+                "上限超過全站上限",
+                f"帳號上限不得大於全站上限 {settings.max_artifact_bytes} bytes"
+                f"({settings.max_artifact_bytes // (1024 * 1024)} MB)。"
+                "要放大全站上限請改 .env 的 MAX_ARTIFACT_BYTES,"
+                "並先確認 gateway 的 client_max_body_size 夠大。",
+            )
+
+    if user.max_artifact_bytes != wanted:
+        user.max_artifact_bytes = wanted
+        record(
+            session,
+            action=AuditAction.user_set_upload_limit,
+            actor_id=identity.user.id,
+            target_type="user",
+            target_id=user.id,
+            # 稽核記「改成什麼」;清除時記 default,讓紀錄看得出動作而不是空白。
+            target_label=str(wanted) if wanted is not None else "default",
+        )
+        await session.commit()
+        log.info(
+            "調整帳號單檔上限",
+            extra={
+                "user_id": str(user.id),
+                "max_artifact_bytes": wanted,
+                "by": str(identity.user.id),
+            },
         )
 
     return _redirect(request, "/admin/users")

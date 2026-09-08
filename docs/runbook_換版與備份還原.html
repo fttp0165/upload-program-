@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 維運 runbook:換版、回滾、備份、還原演練</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-29 04:10
-<strong>最後更新:</strong> 2026-09-07 15:20
-<strong>版本:</strong> v1.14
+<strong>最後更新:</strong> 2026-09-08 18:50
+<strong>版本:</strong> v1.15
 <strong>對應任務:</strong> T27
 <strong>適用環境:</strong> Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)</p>
 <blockquote>
@@ -124,12 +124,28 @@ PLM 與 AES_KEY 正式站一起中斷。所以 portal 的 <code>/upload/</code> 
 docker compose config -q        # compose 語法與 .env 齊全性
 </code></pre>
 <h3>A.1 發版:打 tag,讓 CI 產 image</h3>
-<p>在開發機(不是 VM):</p>
+<p>🔴 <strong>一行,而且驗不過就不會打 tag</strong>(2026-09-08 T143 事故後改寫):</p>
 <blockquote>
-<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code>(本機 repo,不是 VM)</p>
+<p>🖥️ <strong>在哪執行:</strong> WSL(Ubuntu)· 工作目錄 <code>~/upload-program-</code>
+—— <strong>提示字元必須是 <code>bennyin@BENNYLIN-NB2</code></strong>。⚠ <strong>VM 上也有一個
+<code>~/upload-program-</code>,而它停在六週前</strong> —— 在那裡打 tag,tag 就會指到六週前。</p>
 </blockquote>
-<pre><code class="language-bash">git tag v1.2.0 &amp;&amp; git push origin v1.2.0
+<p>把下面兩處的 <code>貼版本號</code>(共 3 個)換成要發的版本,例如 <code>0.4.1</code> / <code>v0.4.1</code>:</p>
+<pre><code class="language-bash">cd ~/upload-program- &amp;&amp; git checkout main &amp;&amp; git pull &amp;&amp; test &quot;$(grep -c 'APP_VERSION = &quot;貼版本號&quot;' app/version.py)&quot; = 1 &amp;&amp; git tag v貼版本號 &amp;&amp; git push origin v貼版本號 || echo &quot;❌ 停:常數不是該版或不在 main,tag 沒有打出去&quot;
 </code></pre>
+<p>🔴 <strong>關鍵不是那個 <code>test</code>,是那個 <code>&amp;&amp;</code>。</strong> 驗證與打 tag 在<strong>同一個指令</strong>裡,
+所以「先驗證」這件事<strong>沒有辦法被單獨略過</strong> ——
+而 2026-09-08 的事故就是它被單獨略過:當時的步驟是<strong>兩個可以分開貼的區塊</strong>,
+而<strong>可以分開貼的東西就會被分開貼</strong>(與 §C.2 ③ 完全同一個形狀,同一天內第二次)。</p>
+<blockquote>
+<p>🔴 <strong>2026-09-08 T143:<code>v0.4.0</code> 誤指到 2026-07-29 的 commit,
+而 CI 三關全綠、image 已推上 GHCR。</strong>
+那個 image 沒有六週的任何改動,連 <code>app/version.py</code> 都還不存在。
+<strong>CI 的「確認此版本尚未發布過」只確認 tag 沒重複,不確認 tag 指到的東西對不對</strong>;
+而<strong>舊程式自己的測試今天照樣全綠</strong> —— 綠燈證明的是「那一版自己完整」,
+不是「那一版是我們要發的」。
+⚠ 真正的守門是 <strong>T105</strong>(CI 在 tag 事件檢查 <code>APP_VERSION</code> 等於 tag 名),<strong>尚未實作</strong>。</p>
+</blockquote>
 <p>CI 只在 <code>v*</code> tag 推 GHCR(<code>ghcr.io/fttp0165/upload-program:v1.2.0</code>),
 <strong>不推 latest</strong>。等 CI 全綠(含 Trivy)再進下一步——CI 紅著就部署,
 等於把 CI 白裝了。<strong>驗收點是 repo 側欄 Packages 出現該版 tag</strong>,

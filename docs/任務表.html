@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-08 18:50
-<strong>版本:</strong> v2.05</p>
+<strong>最後更新:</strong> 2026-09-08 20:15
+<strong>版本:</strong> v2.06</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -974,6 +974,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>tag <code>v0.4.0</code> 指到 <strong><code>1c4b530</code>(2026-07-29,六週前)</strong> 而非 <code>ef3ec03</code>,<strong>CI 三關全綠、image 已推上 GHCR</strong> —— 那個 image 沒有 T137~T142,<strong>連 <code>app/version.py</code> 都還不存在</strong>;根因:<code>git tag</code> 在 <strong>VM 的 <code>~/upload-program-</code></strong> 下執行,而那個 clone 停在六週前;🔴 <strong>這是 v0.2.4 事故的完全重演,而我寫了「先驗常數再打 tag」卻把它寫成兩個可以分開貼的區塊</strong> —— <strong>可以分開貼的東西就會被分開貼</strong>;⚠ <strong>同一天內我已經修過這個形狀一次</strong>(runbook §C.2 ③ 的結論正是「修法不是把警語寫大一點,是把區塊變成真的可以貼」),而我在自己的發版步驟裡又犯一次;🔴 <strong>CI 為什麼沒攔住</strong>:<code>Push GHCR</code> 只確認「這個 tag 沒發布過」,不確認「這個 tag 指到的東西對不對」;而<strong>七月底那份程式的測試今天照樣全綠</strong> —— 綠燈證明的是「那一版自己是完整的」,不是「那一版是我們要發的」;處置:<strong>不刪 tag 不刪 image</strong>(第八條 5,刪掉會讓拉過的人手上有一個不存在的版本)、Release 改標「作廢請勿使用」、改發 <strong>v0.4.1</strong>、<strong>VM 千萬不要 pull v0.4.0</strong>(它跑得起來且看起來正常,但資料庫已是新 schema);<strong>改掉的東西</strong>:發版指令變成<strong>一行</strong>,驗證與打 tag 在同一個 <code>&amp;&amp;</code> 鏈裡 —— 🔴 關鍵不是那個 <code>test</code> 而是那個 <code>&amp;&amp;</code>,<strong>「先驗證」因此沒辦法被單獨略過</strong>,已回寫 runbook §A.1;🔴 <strong>遺留:T105 必須做(第三次記下)</strong> —— 人工檢查已證明兩次不可靠,CI 在 tag 事件檢查 <code>APP_VERSION</code> 是否等於 tag 名<strong>是唯一能在錯誤流出去之前攔住它的地方</strong></td>
 </tr>
 <tr>
+<td>T144</td>
+<td>前端可讀性優化(A 案)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「依據 UI/UX 美化優化前端頁面」;計畫書 <a href="plans/設計_前端可讀性優化.md">設計_前端可讀性優化</a> v1.0;🔴 <strong>原則:不換皮,修「看得懂」</strong> —— T56 已有設計語言而<strong>版面沒有測試守著</strong>,大改版面是「改了才知道哪裡壞」的變更;七項全部來自 2026-09-08 專案頁的<strong>實際截圖</strong>:①②裸位元組 <code>195245216 / 2147483648 bytes</code> → <code>186.2 MB / 2.0 GB</code>(原始值進 <code>title</code>)—— ⚠ <strong>管理總覽從 T70 起就有 <code>human_bytes</code>,而在那之前只有那一頁在用它</strong>,故註冊成 Jinja filter 讓「用它」比「印原始值」更省事;③檔案類別 <code>source</code> → <code>程式碼</code>,🔴 <strong>單一真相是上傳頁卡片的 <code>REQUIRED_KINDS</code></strong>(兩份對照表遲早分岔,而使用者不知道那是同一件事);④掃毒徽章去掉英文 enum;⑤⑥<code>user-select: all</code> —— 固定連結改<strong>可點的絕對網址</strong>(它的用途就是貼進文件,而只有路徑的字串貼出去不能點也看不出是哪台機器)、SHA-256 <strong>不截短</strong>(校驗值截了就沒用)但點一下全選;⑦移除<strong>過時文案</strong>「顯示名稱待平台核准」(契約 v3.4 已核准,那句話從核准那天起就是錯的,而過時的說明比沒有說明更糟);外加容量條 ≥80% 轉 amber(門檻用<strong>管理總覽的同一個數字</strong>,否則會出現「總覽說要注意了而專案頁還是綠的」);⚠ <strong>撞到 T53 的既有紅線</strong>(專案頁不得有絕對網址),沿用 <strong>T51 的前例:具名例外而非放寬斷言</strong>,例外只認 <code>class="permalink"</code>、自己有測試釘住必須以 <code>public_base_url</code> 開頭,並加 <code>assert permalinks</code> 讓<strong>例外的對象消失時也要紅</strong>;✅ 實測那條斷言仍咬得動(把下載鈕改成絕對網址 → 紅);⚠ <strong>我寫的反向斷言第一版咬到自己</strong>:整頁掃 <code>\d{7,} bytes</code> 連刻意留的 <code>title</code> 提示都咬 —— 🔴 <strong>修法是讓斷言符合它自己宣稱的意圖</strong>(剝標籤只掃文字節點)<strong>而不是放寬正則</strong>(放寬會連 inline 違規一起放過,整條就廢了),剝標籤後仍咬得動 inline 違規;<strong>8 條新增(全紅起步,兩條主斷言各自改壞重驗),全套 700</strong>;🟢 純顯示層、<strong>API 回應一個位元組都沒改</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1301,6 +1308,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.06</td>
+<td>2026-09-08 20:15</td>
+<td>Claude(Benny:UI/UX 優化,選 A 案)</td>
+<td><strong>T144 前端可讀性優化</strong>:七項全來自實際截圖 —— 裸位元組 → <code>186.2 MB</code>、<code>source</code> → <code>程式碼</code>(單一真相 = 上傳頁的 <code>REQUIRED_KINDS</code>)、固定連結變<strong>可點的絕對網址</strong>、SHA-256 點一下全選、移除過時文案「待平台核准」、容量條 80% 轉 amber(與總覽同一門檻)。⚠ 撞到 T53 紅線 → <strong>具名例外不放寬斷言</strong>(T51 前例),例外自己有測試且對象消失也會紅。⚠ 我的反向斷言第一版咬到自己 → <strong>改成符合它宣稱的意圖</strong>(剝標籤只掃文字)而非放寬正則。<strong>700 passed</strong></td>
+</tr>
 <tr>
 <td>v2.05</td>
 <td>2026-09-08 18:50</td>

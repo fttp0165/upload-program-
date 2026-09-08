@@ -112,21 +112,27 @@
                 {% else %}
                   <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
                 {% endif %}
-                <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.download_count }} 次下載</span>
+                <span class="muted">{{ artifact.kind | kind_label }} · <span title="{{ artifact.size_bytes }} bytes">{{ artifact.size_bytes | human_bytes }}</span> · {{ artifact.download_count }} 次下載</span>
               </div>
               <dl class="artifact-meta">
-                <dt>SHA-256</dt><dd>{{ artifact.sha256 }}</dd>
+                {# T144:🔴 **不截短** —— 校驗用的值截了就沒用。改成點一下全選
+                   (`user-select: all`),不必用滑鼠拖 64 個字。 #}
+                <dt>SHA-256</dt><dd><code class="hash">{{ artifact.sha256 }}</code></dd>
                 <dt>掃毒狀態</dt>
                 <dd>
                   {% if artifact.scan_status.value == 'not_scanned' %}
-                    <span class="badge badge-warn">未掃描 not_scanned</span>
+                    <span class="badge badge-warn" title="scan_status = not_scanned">未掃描</span>
                     <span class="muted">(尚未接上掃毒;請自行以 SHA-256 校驗來源)</span>
                   {% else %}
                     {{ artifact.scan_status.value }}
                   {% endif %}
                 </dd>
+                {# T144:固定連結的存在意義是**貼進文件**,而原本它是純文字、
+                   又只有路徑沒有 host —— 貼出去不能點,也看不出是哪一台機器。
+                   改成絕對網址 + 可點 + `user-select: all`(點一下全選)。 #}
                 <dt>固定連結</dt>
-                <dd><code>{{ latest_url(artifact.filename) }}</code></dd>
+                <dd><a class="permalink" href="{{ absolute(latest_url(artifact.filename)) }}"
+                       >{{ absolute(latest_url(artifact.filename)) }}</a></dd>
               </dl>
             </li>
           {% endfor %}
@@ -268,19 +274,23 @@
     <h2>專案資訊</h2>
     <dl class="info-grid">
       {# T118:擁有者排在最前面——要下載一支執行檔的人,先想知道的是「這誰放的」。
-         🔴 顯示的是**識別碼不是名字**:契約 §4.2a L1 的名稱快取限「管理後台顯示」,
-         本頁是一般使用者可見頁面。已送申請請 portal 擴大用途;在那之前照實說明
-         為什麼這裡是一串碼,不假裝沒這回事(與 not_scanned 同一個態度)。 #}
+         T144:移除「顯示名稱待平台核准」那句話 —— 契約 v3.4(2026-08-31)**已核准**,
+         T132 起這裡顯示的就是真名。🔴 **那句話從核准那天起就是錯的,而它還掛著一週** ——
+         過時的說明比沒有說明更糟,它讓人以為功能還沒做。
+         `owner_label` 沒有名字時退回 `sub` 前 8 碼(契約第 6 項要求),故不再另寫註腳。 #}
       <dt>擁有者</dt>
-      <dd>
-        <strong>{{ owner_label }}</strong>
-        <span class="muted">識別碼(顯示名稱待平台核准)</span>
-      </dd>
+      <dd><strong>{{ owner_label }}</strong></dd>
       <dt>容量</dt>
       <dd>
-        {{ project.total_bytes }} / {{ quota_bytes }} bytes({{ project.quota_tier.value }} 級距)
-        {# 動態寬度只有原生元素做得到——CSP 禁 inline style #}
-        <progress value="{{ project.total_bytes }}" max="{{ quota_bytes }}"></progress>
+        <span title="{{ project.total_bytes }} / {{ quota_bytes }} bytes">
+          {{ project.total_bytes | human_bytes }} / {{ quota_bytes | human_bytes }}</span>
+        <span class="muted">({{ project.quota_tier.value }} 級距)</span>
+        {# 動態寬度只有原生元素做得到——CSP 禁 inline style。
+           T144:逼近上限時轉 amber。🔴 門檻用的是**管理總覽的同一個數字**
+           (`QUOTA_WARN_RATIO` = 80%)—— 兩邊各寫一個門檻,遲早會出現
+           「總覽說要注意了,而專案頁還是綠的」。 #}
+        <progress class="{{ 'quota-warn' if quota_bytes and project.total_bytes >= quota_bytes * 0.8 else '' }}"
+                  value="{{ project.total_bytes }}" max="{{ quota_bytes }}"></progress>
       </dd>
       <dt>建立時間</dt><dd>{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
       <dt>最後更新</dt><dd>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>

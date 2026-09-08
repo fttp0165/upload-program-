@@ -2,8 +2,8 @@
 
 **專案:** upload-program
 **建立日期:** 2026-07-29 04:10
-**最後更新:** 2026-09-07 15:20
-**版本:** v1.14
+**最後更新:** 2026-09-08 18:50
+**版本:** v1.15
 **對應任務:** T27
 **適用環境:** Cats 共用 VM(單機 docker compose,gateway 由 portal 管理)
 
@@ -53,13 +53,30 @@ docker compose config -q        # compose 語法與 .env 齊全性
 
 ### A.1 發版:打 tag,讓 CI 產 image
 
-在開發機(不是 VM):
+🔴 **一行,而且驗不過就不會打 tag**(2026-09-08 T143 事故後改寫):
 
-> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`(本機 repo,不是 VM)
+> 🖥️ **在哪執行:** WSL(Ubuntu)· 工作目錄 `~/upload-program-`
+> —— **提示字元必須是 `bennyin@BENNYLIN-NB2`**。⚠ **VM 上也有一個
+> `~/upload-program-`,而它停在六週前** —— 在那裡打 tag,tag 就會指到六週前。
+
+把下面兩處的 `貼版本號`(共 3 個)換成要發的版本,例如 `0.4.1` / `v0.4.1`:
 
 ```bash
-git tag v1.2.0 && git push origin v1.2.0
+cd ~/upload-program- && git checkout main && git pull && test "$(grep -c 'APP_VERSION = "貼版本號"' app/version.py)" = 1 && git tag v貼版本號 && git push origin v貼版本號 || echo "❌ 停:常數不是該版或不在 main,tag 沒有打出去"
 ```
+
+🔴 **關鍵不是那個 `test`,是那個 `&&`。** 驗證與打 tag 在**同一個指令**裡,
+所以「先驗證」這件事**沒有辦法被單獨略過** ——
+而 2026-09-08 的事故就是它被單獨略過:當時的步驟是**兩個可以分開貼的區塊**,
+而**可以分開貼的東西就會被分開貼**(與 §C.2 ③ 完全同一個形狀,同一天內第二次)。
+
+> 🔴 **2026-09-08 T143:`v0.4.0` 誤指到 2026-07-29 的 commit,
+> 而 CI 三關全綠、image 已推上 GHCR。**
+> 那個 image 沒有六週的任何改動,連 `app/version.py` 都還不存在。
+> **CI 的「確認此版本尚未發布過」只確認 tag 沒重複,不確認 tag 指到的東西對不對**;
+> 而**舊程式自己的測試今天照樣全綠** —— 綠燈證明的是「那一版自己完整」,
+> 不是「那一版是我們要發的」。
+> ⚠ 真正的守門是 **T105**(CI 在 tag 事件檢查 `APP_VERSION` 等於 tag 名),**尚未實作**。
 
 CI 只在 `v*` tag 推 GHCR(`ghcr.io/fttp0165/upload-program:v1.2.0`),
 **不推 latest**。等 CI 全綠(含 Trivy)再進下一步——CI 紅著就部署,

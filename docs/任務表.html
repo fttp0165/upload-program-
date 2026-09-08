@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-08 10:00
-<strong>版本:</strong> v2.00</p>
+<strong>最後更新:</strong> 2026-09-08 11:00
+<strong>版本:</strong> v2.01</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -939,6 +939,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny 在四個選項中選定 <strong>200 MB</strong>(110 MB 不動 gateway / <strong>200 MB</strong> / 500 MB / 1 GB);🔴 <strong>盤點的結論不是「改一個常數」,是一個數字散在四個地方,而漏掉任一個的症狀都不指向根因</strong>:①<code>app/config.py</code>(業務層)②<code>.env.example</code>(<strong>有守門,唯一不會流出去的</strong>)③<strong>gateway <code>/upload/</code> 的 <code>client_max_body_size</code></strong>(權威在 cats-portal,128m → 256m)—— 漏掉它使用者看到的是 <strong>nginx 自己的 413 錯誤頁</strong>,不說上限、不說用量,<strong>而 App 端帶完整 RFC 7807 的檢查根本沒機會執行</strong>,他會以為網站壞了;④<code>app/static/upload.js</code> 的 <code>TIMEOUT_MS</code>(10 → 20 分鐘)—— 漏掉它大檔在慢速線路上得到「上傳逾時」,他會以為檔案太大或伺服器慢;🔴 <strong>所以本任務最有價值的產出是一條耦合守門測試</strong>:以內網最低 256 KB/s 為地板,<code>upload.js</code> 的逾時必須夠傳完 <code>max_artifact_bytes</code>(200 MB ÷ 256 KB/s ≈ 13.3 分鐘 → 10 分鐘不夠、20 分鐘夠),下一次有人只改設定不改 JS,CI 就會紅(<strong>已故意改回 10 分鐘實測紅、還原綠</strong>);第①③兩處綁不住 —— ③在別的 repo,故把「調這個值要連動哪兩處」<strong>寫進 <code>app/config.py</code> 的註解</strong>,讓下一個改的人在同一個畫面上讀到;⚠ 既有斷言 <code>test_預設單檔上限為100MB</code> 改值改名 —— <strong>不是放水</strong>:它釘的意圖是「預設值必須是<strong>被裁示過的那個數字</strong>」,裁示換了數字才跟著換;⚠ <code>docs/功能需求大綱.md</code> → v3.16(F34 與 §4),而 <strong>§6 的 Q7 決策紀錄一字未改</strong>(那是當時的裁示不是現況,改它等於竄改歷史);🔴 <strong>生效順序:先 gateway 再 App</strong> —— 反過來會有一段「App 說可以、nginx 半路砍斷」的期間,而那比維持 100 MB 更糟;<strong>狀態 🔵:gateway 尚未在 VM 套用(🟡 需低峰 + <code>ops/gateway-apply.sh</code>),套用後才轉 ✅</strong>;<strong>2 條(1 改值 + 1 新增耦合守門,實測會咬人),全套 671</strong></td>
 </tr>
 <tr>
+<td>T139</td>
+<td>發版前置:<code>APP_VERSION</code> → 0.3.2</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「發 0.3.2」。本版=<strong>T137</strong>(說明收 .7z)+ <strong>T138</strong>(單檔 200 MB);依第八條 4 在<strong>打 tag 之前</strong>改好常數(v0.2.4 事故:tag 指到常數還是舊值的 commit,而 CI 照樣綠、錯的 image 照樣推上 GHCR);<strong>patch 版而非 0.4.0 的理由</strong>:兩者都<strong>只放寬既有行為</strong>(原本傳得上去的一樣傳得上去、原本被擋的仍被擋),對照 v0.3.0 升次版號是因為 <code>publish</code> 從「發布」變成「送審」—— <strong>那才是會讓看 Release 頁的人誤判的改動</strong>;🔴 <strong>這一版部署有兩件與往常不同的事</strong>:①<strong>gateway 的 256m 已於 09-08 10:36 先套用</strong>(reload 零停機),所以換版之後 200 MB 才真的生效,換版驗證要加一項「傳 &gt;128 MB 的檔不得出現 <strong>nginx 的 413 錯誤頁</strong>」(同時也是驗 gateway 那邊「<code>proxy_*_timeout</code> 維持 150s」那個<strong>尚未被大檔驗證過</strong>的判斷);②⚠ <strong>VM 的 <code>.env</code> 若明寫 <code>MAX_ARTIFACT_BYTES=104857600</code> 會蓋掉程式預設</strong>,而症狀是<strong>上限仍是 100 MB 且沒有任何錯誤訊息</strong> —— 這是本版唯一會造成「換了版卻沒生效」的地方;依 v2.0 立的規矩<strong>同批回寫狀態總覽 → v2.2</strong>;依第三條 4 不寫新測試(只改一個字串常數),全套 <strong>671</strong> 維持全綠</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1266,6 +1273,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.01</td>
+<td>2026-09-08 11:00</td>
+<td>Claude(Benny:「發 0.3.2」)</td>
+<td><strong>T139 發版前置</strong>:<code>APP_VERSION</code> → <strong>0.3.2</strong>(T137 + T138)。patch 版的理由:兩者<strong>只放寬既有行為</strong>,不像 v0.3.0 改了 <code>publish</code> 的語意。🔴 部署有兩件與往常不同:<strong>gateway 256m 已先套用</strong>(換版後 200 MB 才生效,驗證要加「傳 &gt;128 MB 不得看到 nginx 錯誤頁」)、⚠ <strong>VM 的 <code>.env</code> 可能蓋掉程式預設而無任何錯誤訊息</strong>。狀態總覽同批回寫 → v2.2。<strong>671 passed</strong></td>
+</tr>
 <tr>
 <td>v2.00</td>
 <td>2026-09-08 10:00</td>

@@ -42,8 +42,8 @@ summary { cursor:pointer; color:#12228f; }
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
 <h1>upload-program 功能需求大綱</h1>
 <p><strong>建立日期:</strong> 2026-07-26 00:15
-<strong>最後更新:</strong> 2026-09-08 09:40
-<strong>版本:</strong> v3.16</p>
+<strong>最後更新:</strong> 2026-09-08 11:45
+<strong>版本:</strong> v3.17</p>
 <blockquote>
 <p>本文把「簡易型 GitHub」拆成可驗收的功能項,是後續所有任務的<strong>需求來源</strong>。
 範圍界線與里程碑見 <a href="開發計畫書.md">開發計畫書.md</a>;技術設計見 <a href="設計_MVP.md">設計_MVP.md</a>;
@@ -480,10 +480,10 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>F34</td>
 <td>容量限制</td>
-<td><strong>單檔上限 200 MB</strong>(2026-09-08 Benny 選定,原 100 MB,T138);專案總容量依級距(標準 2 GB / 擴充 10 GB,見 F17),超過回 413</td>
+<td><strong>單檔上限 500 MB</strong>(2026-09-08 Benny 改定,同日先由 100 MB 調到 200 MB〔T138〕再改 500 MB〔T140〕);專案總容量依級距(標準 2 GB / 擴充 10 GB,見 F17),超過回 413</td>
 <td>P0</td>
 <td>M5</td>
-<td>✅ 已實作(T33 + T49 級距 + T138)</td>
+<td>✅ 已實作(T33 + T49 級距 + T138 + T140)</td>
 </tr>
 <tr>
 <td>F35</td>
@@ -879,7 +879,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td><strong>容量</strong></td>
-<td><strong>單檔上限 200 MB</strong>(2026-09-08,T138;原 100 MB);專案總容量<strong>標準 2 GB / 擴充 10 GB</strong>(2026-07-26 定案)。gateway <code>client_max_body_size</code> 需 ≥ 單檔上限並留餘裕 —— 隨 T138 由 <code>128m</code> 調為 <strong><code>256m</code></strong>(權威在 cats-portal)。🔴 <strong>兩者的生效順序不能顛倒:先放大 gateway,再放大 App</strong></td>
+<td><strong>單檔上限 500 MB</strong>(2026-09-08,T140;同日 T138 先調到 200 MB);專案總容量<strong>標準 2 GB / 擴充 10 GB</strong>(2026-07-26 定案)。gateway <code>client_max_body_size</code> 需 ≥ 單檔上限並留餘裕 —— 隨 T138 → T140 由 <code>128m</code> → <code>256m</code> → <strong><code>640m</code></strong>(權威在 cats-portal)。🔴 <strong>兩者的生效順序不能顛倒:先放大 gateway,再放大 App</strong></td>
 </tr>
 <tr>
 <td><strong>效能</strong></td>
@@ -1224,6 +1224,12 @@ MVP 範圍因此擴大;另新增前端模組 H 共 7 項,以及容量級距 F17/
 <td>2026-07-27 05:50</td>
 <td>Claude(Benny 授權)</td>
 <td>F42 標籤分類由 ⬜ 改 ✅(T36);§7 總結重算(已 35 / 未 16);<strong>M4 全數完成</strong></td>
+</tr>
+<tr>
+<td>v3.17</td>
+<td>2026-09-08 11:45</td>
+<td>Claude(Benny 改定 500 MB)</td>
+<td><strong>F34 單檔上限 200 MB → 500 MB</strong>(T140,同日)。🔴 這次四個值裡<strong>有一個指令改不到</strong>:<code>upload.js</code> 的 <code>TIMEOUT_MS</code> 在 image 裡且沒有 env 可覆寫 —— 500 MB ÷ 256 KB/s ≈ <strong>33.4 分鐘</strong>,而當時是 20 分鐘 → 慢速線路上傳到一半被前端自己中止,訊息是「上傳逾時」而<strong>使用者會以為檔案太大或伺服器壞了</strong>;已改為 40 分鐘。✅ <strong>T138 一小時前才寫下的耦合守門測試在這裡真的咬人</strong>(只改設定不改 JS → 紅,已實測)。gateway 隨之 <code>256m</code> → <code>640m</code>。⚠ <strong>專案總容量仍 2 GB,500 MB 的檔一個專案只放得下 4 個</strong> —— 這個不對稱該一併看</td>
 </tr>
 <tr>
 <td>v3.16</td>

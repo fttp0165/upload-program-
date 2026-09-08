@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 狀態總覽</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-26 08:20
-<strong>最後更新:</strong> 2026-09-08 11:00
-<strong>版本:</strong> v2.2</p>
+<strong>最後更新:</strong> 2026-09-08 13:15
+<strong>版本:</strong> v2.3</p>
 <blockquote>
 <p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
 <p>為什麼需要它:狀態散在任務表(200+ 列)、36 篇開發日誌、跨專案文件索引
@@ -91,7 +91,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>準備發的下一版</td>
-<td><strong>v0.3.2</strong>(T139,<code>APP_VERSION</code> 已改)</td>
+<td><strong>v0.4.0</strong>(T141;⚠ v0.3.2 從未推 tag,其內容一併帶進 0.4.0)</td>
 </tr>
 <tr>
 <td>服務狀態</td>
@@ -103,7 +103,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>gateway <code>/upload/</code> 上限</td>
-<td><strong>256m</strong>(2026-09-08 10:36 套用,reload 零停機,五條路由全通)</td>
+<td><strong>640m</strong>(2026-09-08 11:54 套用,reload 零停機,五條路由全通;10:36 曾套 256m)</td>
 </tr>
 <tr>
 <td>維運排程</td>
@@ -116,7 +116,42 @@ summary { cursor:pointer; color:#12228f; }
 (<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。</p>
 </blockquote>
 <hr />
-<h2>3. v0.3.2:這一版有什麼(<strong>待發</strong>)</h2>
+<h2>3. v0.4.0:這一版有什麼(<strong>待發</strong>)</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>資料影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T137</strong></td>
+<td>「說明」類別接受 <code>.7z</code></td>
+<td>🟢</td>
+</tr>
+<tr>
+<td><strong>T138 / T140</strong></td>
+<td>單檔上限 100 MB → 200 MB → <strong>500 MB</strong>;gateway <code>128m → 256m → 640m</code>(已套用)、<code>upload.js</code> 逾時 10 → 40 分鐘</td>
+<td>🟢</td>
+</tr>
+<tr>
+<td><strong>T141</strong></td>
+<td><strong>後台可逐個帳號設定單檔上限</strong>(<code>/admin/users</code>)</td>
+<td>🟡 <strong>migration 0012</strong></td>
+</tr>
+</tbody>
+</table>
+<p>🔴 <strong>版本號從 0.3.2 改成 0.4.0 的理由</strong>:0.3.2 的 tag <strong>從未推出</strong>,而 T141 有 migration,
+而 0.3.2 的 Release 內容寫的是「🟢 無 migration」—— 沿用會讓 tag 指到一個含 migration
+的 commit 而 Release 頁說沒有,<strong>那是 v0.2.4 事故的同一個形狀</strong>。</p>
+<p>🔴 <strong>換版必須跑 migration</strong>:<code>docker compose exec svc alembic upgrade head</code>
+(真 PostgreSQL up→down→up 已演練;⚠ downgrade 會失去「哪些帳號有個別上限」這個
+管理員的決定,退版前先跑 migration 檔頭寫的 SELECT)。</p>
+<p>⚠ VM 的 <code>.env</code> 目前是 <code>MAX_ARTIFACT_BYTES=524288000</code>(500 MB),與程式預設一致。</p>
+<hr />
+<h2>3b. 已上線的 v0.3.1 有什麼</h2>
 <table>
 <thead>
 <tr>
@@ -143,7 +178,7 @@ summary { cursor:pointer; color:#12228f; }
 <p>⚠ <strong>VM 的 <code>.env</code> 若明寫 <code>MAX_ARTIFACT_BYTES=104857600</code>,它會蓋掉程式預設</strong> ——
 換版前必須確認。🔴 症狀是<strong>上限仍是 100 MB 而沒有任何錯誤訊息</strong>。</p>
 <hr />
-<h2>3b. v0.3.1(已上線)有什麼</h2>
+<h3>v0.3.1 的內容</h3>
 <table>
 <thead>
 <tr>
@@ -372,6 +407,12 @@ T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.3</td>
+<td>2026-09-08 13:15</td>
+<td>Claude(T141)</td>
+<td>依規矩連同發版回寫:下一版改為 <strong>v0.4.0</strong>(T137/T138/T140/<strong>T141</strong>),🔴 記下<strong>版本號從 0.3.2 改成 0.4.0 的理由</strong>(0.3.2 從未推 tag,而 T141 有 migration 而 0.3.2 的 Release 寫「無 migration」→ 沿用是 v0.2.4 事故的同一形狀);gateway 那一列更新為 <strong>640m</strong>(11:54 套用);換版步驟補上 <code>alembic upgrade head</code> 與 downgrade 的代價</td>
+</tr>
 <tr>
 <td>v2.2</td>
 <td>2026-09-08 11:00</td>

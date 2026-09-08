@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .. import problems
+from .. import problems, source_access
 from ..audit import AuditAction, record
 from ..dashboard import (
     QUOTA_WARN_RATIO,
@@ -33,8 +33,10 @@ from ..dashboard import (
     human_bytes,
 )
 from ..duplicates import duplicate_groups
+from ..limits import effective_artifact_limit
 from ..members import project_members, remove_member, search_active_users, set_member
 from ..models import (
+    ArtifactKind,
     AuditEvent,
     PlatformRole,
     Project,
@@ -42,6 +44,8 @@ from ..models import (
     ProjectRole,
     Release,
     ReleaseStatus,
+    SourceAccessRequest,
+    SourceAccessStatus,
     UploadStatus,
     User,
     UserStatus,
@@ -455,8 +459,242 @@ async def project_page(
                 settings, f"/v1/releases/{artifact.release_id}/artifacts/{artifact.id}/download"
             ),
             tag_url=lambda name: _page_url(settings, "/", q=None, tag=name, offset=0),
+            # T142:程式碼門禁。
+            # 🔴 `access_pending` 要出現在**作者一定會看到的地方**(專案頁),
+            # 而不是只在一個要主動點進去的頁面 —— 平台沒有 email 也沒有推播,
+            # 少了這個數字,申請會安靜地躺在資料庫裡,而申請人以為系統壞了。
+            access_pending=(
+                await source_access.pending_count(session, project) if can_manage else 0
+            ),
+            # 當事人能不能下載程式碼(決定按鈕顯示「下載」還是「申請下載」)。
+            # ⚠ 這只是**體驗**;伺服器端仍會擋(`_download_response`)。
+            may_download_source=await source_access.may_download(
+                session, project, identity.user, ArtifactKind.source, member_role
+            ),
+            my_access=await source_access.my_request(session, project, identity.user),
+            locked_kind=source_access.is_locked_kind,
         )
     )
+
+
+# --- T142 程式碼下載的申請與核准 --------------------------------------------
+#
+# 🔴 為什麼申請/核准是**網頁表單**而不是 API:會打 API 的人不需要這個系統的
+# 後台(T122 同一句話)。而這件事的當事人是專案作者與想下載的同事,
+# 兩邊都不會拿 curl。
+
+
+async def _load_access_request(session, project, request_id: str):
+    """撈出一筆申請,並確認它屬於這個專案。
+
+    🔴 **必須確認 project_id 相符**:少了那一句,帶著別的專案的申請 id
+    就能讓「這個專案的作者」去決定「另一個專案的申請」——
+    而那條路不會有任何錯誤訊息。
+    """
+    row = (
+        await session.execute(
+            select(SourceAccessRequest).where(
+                SourceAccessRequest.id == parse_uuid(request_id, "申請"),
+                SourceAccessRequest.project_id == project.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise problems.not_found("找不到該申請")
+    return row
+
+
+async def _require_project_author(request: Request, session, slug: str, identity):
+    """本組端點的共同關卡:必須是**專案作者**或平台管理員。
+
+    回傳 `(handled, project)`;`handled` 非 None 時直接回傳它(未登入/未開通)。
+    """
+    handled = await _require_web_user(request, identity, f"/projects/{slug}")
+    if handled is not None:
+        return handled, None
+    project = await get_project(session, slug)
+    if not (project.owner_id == identity.user.id or identity.user.is_admin):
+        # 🔴 403 而非 404:專案本身是看得到的(能讀才能到這一頁),
+        # 這裡藏的不是「存在與否」而是「能不能決定」。
+        raise problems.forbidden("只有專案作者能處理下載申請。")
+    return None, project
+
+
+@router.get("/projects/{slug}/access", summary="程式碼下載申請(作者)")
+async def access_list_page(
+    slug: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """作者處理下載申請的頁面。副作用:無(唯讀)。"""
+    handled, project = await _require_project_author(request, session, slug, identity)
+    if handled is not None:
+        return handled
+
+    rows = (
+        (
+            await session.execute(
+                select(SourceAccessRequest)
+                .where(SourceAccessRequest.project_id == project.id)
+                .order_by(SourceAccessRequest.requested_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    labels = await _labels_by_id(session, {r.user_id for r in rows})
+
+    return HTMLResponse(
+        render(
+            request,
+            "project_access.html",
+            identity=identity,
+            project=project,
+            requests=rows,
+            label=lambda r: labels.get(r.user_id, ""),
+        )
+    )
+
+
+@router.post("/projects/{slug}/access/request", summary="申請下載程式碼")
+async def access_request_form(
+    slug: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    reason: Annotated[str, Form()] = "",
+) -> Response:
+    """送出(或更新)一筆下載申請。
+
+    參數:reason 用途說明。回傳:303 回專案頁。
+    副作用:新增或更新 `source_access_requests` 一列 + 稽核。
+
+    🔴 **重複申請是更新那一筆,不是長出第二筆**(唯一約束與這裡的邏輯兩邊都擋):
+    沒有它,被拒絕的人可以連按十次,而作者的待辦就變成垃圾場。
+    """
+    handled = await _require_web_user(request, identity, f"/projects/{slug}")
+    if handled is not None:
+        return handled
+
+    project = await get_project(session, slug)
+    await require_project_read(session, project, identity)
+
+    row = await source_access.my_request(session, project, identity.user)
+    if row is None:
+        row = SourceAccessRequest(project_id=project.id, user_id=identity.user.id)
+        session.add(row)
+    row.reason = (reason or "").strip()[:500]
+    row.status = SourceAccessStatus.pending
+    # 🔴 重新申請時把上一次的決定清掉:留著舊理由會讓作者以為自己已經處理過了。
+    row.decided_reason = None
+    row.decided_at = None
+    row.decided_by_id = None
+    row.requested_at = datetime.now(UTC)
+    record(
+        session,
+        action=AuditAction.project_source_request,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=project.slug,
+    )
+    await session.commit()
+    log.info("申請下載程式碼", extra={"project": project.slug, "by": str(identity.user.id)})
+    return _redirect(request, f"/projects/{slug}")
+
+
+@router.post("/projects/{slug}/access/{request_id}/approve", summary="核准下載申請")
+async def access_approve_form(
+    slug: str, request_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """核准一筆申請 → 該人此後可下載這個專案的程式碼(可撤銷)。"""
+    handled, project = await _require_project_author(request, session, slug, identity)
+    if handled is not None:
+        return handled
+
+    row = await _load_access_request(session, project, request_id)
+    row.status = SourceAccessStatus.approved
+    row.decided_reason = None
+    row.decided_at = datetime.now(UTC)
+    row.decided_by_id = identity.user.id
+    record(
+        session,
+        action=AuditAction.project_source_approve,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=f"{project.slug}:{row.user_id}",
+    )
+    await session.commit()
+    return _redirect(request, f"/projects/{slug}/access")
+
+
+@router.post("/projects/{slug}/access/{request_id}/reject", summary="拒絕下載申請")
+async def access_reject_form(
+    slug: str,
+    request_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    decided_reason: Annotated[str, Form()] = "",
+) -> Response:
+    """拒絕一筆申請。
+
+    🔴 **理由是必填**(比照 T123 的退回):沒有理由,申請人只能猜,
+    然後重送一模一樣的東西 —— 那對雙方都是白工。
+    """
+    handled, project = await _require_project_author(request, session, slug, identity)
+    if handled is not None:
+        return handled
+
+    text = (decided_reason or "").strip()
+    if not text:
+        raise problems.unprocessable(
+            "reason-required", "需要理由", "拒絕必須寫理由,否則申請人只能猜。"
+        )
+
+    row = await _load_access_request(session, project, request_id)
+    row.status = SourceAccessStatus.rejected
+    row.decided_reason = text[:500]
+    row.decided_at = datetime.now(UTC)
+    row.decided_by_id = identity.user.id
+    record(
+        session,
+        action=AuditAction.project_source_reject,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=f"{project.slug}:{row.user_id}",
+    )
+    await session.commit()
+    return _redirect(request, f"/projects/{slug}/access")
+
+
+@router.post("/projects/{slug}/access/{request_id}/revoke", summary="撤銷已核准的下載權")
+async def access_revoke_form(
+    slug: str, request_id: str, request: Request, session: DbSession, identity: OptionalUser
+) -> Response:
+    """撤銷一筆已核准的授權。
+
+    🔴 `revoked` 與 `rejected` 刻意是**兩個狀態**:前者是「曾經給過又收回」,
+    後者是「從來沒給」。稽核上那是兩件不同的事,合成一個就再也分不出來。
+    """
+    handled, project = await _require_project_author(request, session, slug, identity)
+    if handled is not None:
+        return handled
+
+    row = await _load_access_request(session, project, request_id)
+    row.status = SourceAccessStatus.revoked
+    row.decided_at = datetime.now(UTC)
+    row.decided_by_id = identity.user.id
+    record(
+        session,
+        action=AuditAction.project_source_revoke,
+        actor_id=identity.user.id,
+        target_type="project",
+        target_id=project.id,
+        target_label=f"{project.slug}:{row.user_id}",
+    )
+    await session.commit()
+    return _redirect(request, f"/projects/{slug}/access")
 
 
 @router.post("/projects/{slug}/edit", summary="改專案標題與簡介")
@@ -923,7 +1161,9 @@ async def upload_page(
             # JS 要打的端點:由伺服器算好前綴放進 data-* 屬性,
             # JS 不自己拼路徑(它不知道前綴是什麼)。
             upload_base=web_url(settings, f"/v1/releases/{release.id}/artifacts"),
-            max_artifact_bytes=settings.max_artifact_bytes,
+            # T141:🔴 這裡必須是**這個使用者的**有效上限,不是全站值 ——
+            # 拿全站值的話,前端預檢會對被調小的帳號**放行一個必定失敗的上傳**。
+            max_artifact_bytes=effective_artifact_limit(settings, identity.user),
             # T86:三格卡片。每格配上「這一類目前已經有哪個檔」——
             # 只認 ready,傳到一半的不算數(與 missing_required_kinds 同一條規則)。
             upload_cards=[
@@ -1104,6 +1344,9 @@ async def admin_users_page(
             pending_users=pending,
             other_users=others,
             me=identity.user,
+            # T141:畫面要說得出「沿用全站」是多少 —— 只寫「沿用全站」的話,
+            # 管理員得離開這一頁去查 .env 才知道那是多大。
+            global_limit_mb=request.app.state.settings.max_artifact_bytes // (1024 * 1024),
             error=request.query_params.get("error"),
         )
     )
@@ -1204,6 +1447,85 @@ async def admin_set_role(
         log.info(
             "調整平台角色",
             extra={"user_id": str(user.id), "new_role": wanted.value, "by": str(identity.user.id)},
+        )
+
+    return _redirect(request, "/admin/users")
+
+
+@router.post("/admin/users/{user_id}/upload-limit", summary="設定帳號的單檔上限")
+async def admin_set_upload_limit(
+    user_id: str,
+    request: Request,
+    session: DbSession,
+    identity: OptionalUser,
+    limit_mb: Annotated[str, Form()] = "",
+) -> Response:
+    """設定(或清除)某個帳號的單檔上限。
+
+    參數:user_id 目標使用者、limit_mb 以 **MB** 為單位的字串,**空白 = 清除**
+    (回到沿用全站上限)。
+    回傳:302 回使用者清單;值不合法時 422。
+    副作用:改寫 `users.max_artifact_bytes` 並留稽核 `user.set_upload_limit`。
+
+    🔴 **只有平台管理員能設**(比照 F17 的專案級距):本人若能自調,等於沒有上限。
+
+    🔴 **不得存下大於全站上限的值。** 那個欄位會撒謊 —— 存得下、畫面說可以,
+    而上傳會撞 **gateway 的 413**,而那一頁不說上限也不說用量。
+    2026-09-08 這件事真的發生過一次(App 已是 500 MB 而 gateway 還是 128m,
+    使用者只看到「上傳失敗(413)」),所以這不是假設而是紀錄。
+
+    ⚠ 以 MB 收而不是 bytes:`524288000` 這種數字是給程式看的,要求人現場換算
+    只會換算錯,而換算錯不會有任何錯誤訊息。
+    """
+    handled = await _require_web_admin(request, identity, "/admin/users")
+    if handled is not None:
+        return handled
+
+    settings = request.app.state.settings
+    user = (
+        await session.execute(select(User).where(User.id == parse_uuid(user_id, "使用者")))
+    ).scalar_one_or_none()
+    if user is None:
+        raise problems.not_found("找不到該使用者")
+
+    raw = (limit_mb or "").strip()
+    if raw == "":
+        wanted: int | None = None
+    else:
+        if not raw.isdigit() or int(raw) <= 0:
+            raise problems.unprocessable(
+                "bad-upload-limit", "上限不正確", "請填一個正整數(單位 MB),或留空表示沿用全站上限。"
+            )
+        wanted = int(raw) * 1024 * 1024
+        if wanted > settings.max_artifact_bytes:
+            raise problems.unprocessable(
+                "bad-upload-limit",
+                "上限超過全站上限",
+                f"帳號上限不得大於全站上限 {settings.max_artifact_bytes} bytes"
+                f"({settings.max_artifact_bytes // (1024 * 1024)} MB)。"
+                "要放大全站上限請改 .env 的 MAX_ARTIFACT_BYTES,"
+                "並先確認 gateway 的 client_max_body_size 夠大。",
+            )
+
+    if user.max_artifact_bytes != wanted:
+        user.max_artifact_bytes = wanted
+        record(
+            session,
+            action=AuditAction.user_set_upload_limit,
+            actor_id=identity.user.id,
+            target_type="user",
+            target_id=user.id,
+            # 稽核記「改成什麼」;清除時記 default,讓紀錄看得出動作而不是空白。
+            target_label=str(wanted) if wanted is not None else "default",
+        )
+        await session.commit()
+        log.info(
+            "調整帳號單檔上限",
+            extra={
+                "user_id": str(user.id),
+                "max_artifact_bytes": wanted,
+                "by": str(identity.user.id),
+            },
         )
 
     return _redirect(request, "/admin/users")

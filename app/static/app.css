@@ -1060,3 +1060,17 @@ button.btn[disabled] { opacity: .45; cursor: not-allowed; }
 /* 提示的兩個變體:錯誤(紅)與警告(琥珀)。原本只有中性的 .notice。 */
 .notice-err { border-left: 3px solid var(--red); background: var(--red-bg); }
 .notice-warn { border-left: 3px solid var(--amber); background: var(--amber-bg); }
+
+/* T141:使用者列的「單檔上限」表單。與該列的其他按鈕分行,
+   理由:它是一個要打字的欄位,和一排按鈕擺在同一行會讓人以為它也是按鈕。 */
+.limit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.limit-form input[type="number"] {
+  width: 7rem;
+}

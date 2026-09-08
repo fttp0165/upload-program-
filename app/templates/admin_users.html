@@ -119,6 +119,27 @@
             {% endif %}
           {% endif %}
         </div>
+        {# T141:這個帳號的單檔上限。
+           🔴 以 **MB** 收而不是 bytes:`524288000` 這種數字是給程式看的,
+           要求人現場換算只會換算錯,而**換算錯不會有任何錯誤訊息**。
+           🔴 空白 = 沿用全站,而不是 0 —— 0 的意思是「一個位元組都不准傳」,
+           那是完全不同的規定,而兩者在空欄位上長得一樣。 #}
+        <form class="limit-form" method="post"
+              action="{{ url('/admin/users/' ~ user.id ~ '/upload-limit') }}">
+          <label for="limit-{{ user.id }}">單檔上限</label>
+          <input id="limit-{{ user.id }}" name="limit_mb" type="number" min="1"
+                 step="1" inputmode="numeric" placeholder="沿用全站"
+                 value="{{ (user.max_artifact_bytes // 1048576) if user.max_artifact_bytes else '' }}">
+          <span class="muted">MB</span>
+          <button class="btn btn-quiet" type="submit">儲存</button>
+          <span class="muted">
+            {% if user.max_artifact_bytes %}
+              目前:{{ user.max_artifact_bytes }} bytes(個別設定)
+            {% else %}
+              目前:沿用全站 {{ global_limit_mb }} MB
+            {% endif %}
+          </span>
+        </form>
       </li>
     {% endfor %}
   </ul>

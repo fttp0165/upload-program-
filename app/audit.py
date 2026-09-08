@@ -51,6 +51,20 @@ class AuditAction(enum.StrEnum):
     user_activate = "user.activate"
     user_disable = "user.disable"
     user_set_role = "user.set_role"
+    # T141:調整某個帳號的單檔上限。`action` 是 String(64) 且刻意不下 CHECK,
+    # 所以新增動作不需要 migration(T38 的設計決定在這裡收租)。
+    user_set_upload_limit = "user.set_upload_limit"
+    # T142:程式碼下載的申請與決定。四個動作分開記 ——
+    # ⚠ prefix 用 `project.` 而不是 `source_access.`:`test_action字彙集中且格式一致`
+    # 要求 prefix 是**單一個詞**(既有字彙一律如此),而 `source_access` 帶底線。
+    # 🔴 **那條守門咬了我一次,我改的是名字不是守門** —— 放寬它等於讓下一個人
+    # 可以隨便取名,而字彙一亂就再也看不出「這是對什麼東西做的事」。
+    # 🔴 `revoke`(給過又收回)與 `reject`(從來沒給)在稽核上是兩件事,
+    # 合成一個就再也分不出來。同樣不需要 migration(`action` 是 String(64))。
+    project_source_request = "project.source_request"
+    project_source_approve = "project.source_approve"
+    project_source_reject = "project.source_reject"
+    project_source_revoke = "project.source_revoke"
 
     # 專案(F54:「建了/刪了什麼」)
     project_create = "project.create"

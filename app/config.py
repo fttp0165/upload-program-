@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     # 🔴 調降這兩個值會讓已超標的既有專案立刻無法上傳新檔(既有檔案不受影響)——
     # 上限調高比調低容易,所以先收緊、個案再放寬。
     # 命名注意:結尾必須是 `_BYTES`,防漂移測試靠 `MAX_\w+_BYTES` 這個樣式自動納入防護。
-    # T138(Benny 2026-09-08 選定 200 MB;原 100 MB)。
+    # T140(Benny 2026-09-08 改為 500 MB;同日 T138 才從 100 MB 調到 200 MB)。
     # 🔴 調這個值必須連動兩處,否則壞在別的地方且訊息看不出原因:
     #   ① gateway `/upload/` 的 `client_max_body_size`(權威在 cats-portal)——
     #      不夠大的話使用者在 **nginx 那一層**被擋,那個 413 不是我們發的;
@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     #      得到「上傳逾時」,而那句話會讓人以為檔案太大或伺服器壞了。
     #   ② 已由 `test_上傳逾時必須夠傳完單檔上限` 綁住;① 在別的 repo,綁不住,
     #      故寫在這裡讓改的人當場讀到。
-    max_artifact_bytes: int = 200 * 1024 * 1024
+    max_artifact_bytes: int = 500 * 1024 * 1024
     max_project_bytes: int = 2 * 1024 * 1024 * 1024
     max_project_extended_bytes: int = 10 * 1024 * 1024 * 1024
     magic_sniff_bytes: int = 4096

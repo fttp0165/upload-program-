@@ -8,6 +8,7 @@
 
 import json
 import logging
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -67,9 +68,40 @@ MB = 1024 * 1024
 GB = 1024 * MB
 
 
-def test_預設單檔上限為100MB():
-    """Q7 裁示「50~100M」,取上限。"""
-    assert _settings().max_artifact_bytes == 100 * MB
+def test_預設單檔上限為200MB():
+    """T138(Benny 2026-09-08 選定 200 MB)。
+
+    ⚠ **本斷言換了值,不是放水**(CI 紅線要求說明):原本釘的是 Q7 裁示的
+    「50~100M 取上限」,而 2026-09-08 Benny 在四個選項中選定 **200 MB**。
+    釘住的意圖沒變 —— **預設值必須是被裁示過的那個數字**,而不是誰改程式時
+    順手寫的數字。
+    """
+    assert _settings().max_artifact_bytes == 200 * MB
+
+
+def test_上傳逾時必須夠傳完單檔上限():
+    """🔴 把 `upload.js` 的逾時與 `max_artifact_bytes` 綁在一起。
+
+    為什麼需要這一條:`TIMEOUT_MS` 是**寫在 JS 裡的常數**,與設定值之間
+    沒有任何程式上的連結。上限從 100 MB 調到 200 MB 時,逾時若留在 10 分鐘,
+    大檔在慢速線路上會得到「上傳逾時」—— 而那句話會讓人以為檔案太大或
+    伺服器壞了,**不會有人想到是前端的一個常數**。
+
+    地板取**內網最低 2 Mbit/s(≈256 KB/s)**:不是效能目標,是「最慢也該傳得完」。
+    """
+    import re
+
+    js = Path("app/static/upload.js").read_text(encoding="utf-8")
+    match = re.search(r"TIMEOUT_MS = (\d+) \* 60 \* 1000", js)
+    assert match, "upload.js 的 TIMEOUT_MS 寫法變了,這條守門要跟著改"
+    timeout_minutes = int(match.group(1))
+
+    floor_bytes_per_second = 256 * 1024
+    need_minutes = _settings().max_artifact_bytes / floor_bytes_per_second / 60
+    assert timeout_minutes >= need_minutes, (
+        f"單檔上限 {_settings().max_artifact_bytes} bytes 在 256 KB/s 下需要 "
+        f"{need_minutes:.1f} 分鐘,而 upload.js 的逾時只有 {timeout_minutes} 分鐘"
+    )
 
 
 def test_預設專案容量為2GB():

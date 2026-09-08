@@ -69,6 +69,14 @@ _ALLOWED: dict[ArtifactKind, set[str]] = {
     ArtifactKind.doc: {
         "application/pdf",
         "application/zip",  # docx / odt
+        # T137(Benny 2026-09-08):說明也收 .7z。
+        # 🔴 理由不是「有人要求」,是**擋它站不住腳**:上面那個 zip 已經讓這一格
+        # 可以收一個外面看不出內容的壓縮容器(docx 就是),既然 zip 進得來,
+        # 擋 7z 擋掉的不是風險只是一種格式 —— 使用者下一步就是把 7z 轉成 zip,
+        # 風險完全一樣,只是多繞一圈。**講不出理由的規則只會被繞過。**
+        # ⚠ 放寬的只有這一行:`_ALWAYS_REJECT_PREFIXES`(HTML / SVG)一個字未動,
+        # 判型仍只看 magic bytes,下載仍一律 attachment + nosniff。
+        "application/x-7z-compressed",
         "application/x-ole-storage",  # 舊版 .doc
         "text/plain",  # 含 .md
         "image/png",

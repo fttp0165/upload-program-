@@ -109,3 +109,37 @@ def test_中文HTML仍然一律拒收():
     for kind in ArtifactKind:
         ok, mime, _ = check(raw[:4096], kind)
         assert not ok and mime == "text/html"
+
+
+# --- T137「說明」類別接受 .7z(Benny 2026-09-08)----------------------------
+#
+# ⚠ 「說明」原本允許 zip 不是為了讓人塞壓縮包,是因為 .docx / .odt 本質就是 zip。
+# 🔴 而那正是擋 7z 站不住腳的原因:zip 既然進得來,擋 7z 擋掉的不是風險只是一種
+# 格式 —— 使用者下一步就是把 7z 轉成 zip,風險一樣,只是多繞一圈。
+
+
+def test_說明可以上傳7z():
+    ok, mime, reason = check(b"7z\xbc\xaf\x27\x1c\x00\x04", ArtifactKind.doc)
+    assert ok, reason
+    assert mime == "application/x-7z-compressed"
+
+
+def test_放寬7z之後HTML在說明仍然被無條件擋():
+    """🔴 守門:放寬的是一種格式,不是那道線。
+
+    ⚠ **這條測試的第一版是假綠**:只斷言「被擋」而已 —— 拿掉
+    `_ALWAYS_REJECT_PREFIXES` 之後它照樣綠,因為白名單本來也沒有 `text/html`,
+    HTML 會被**另一條規則**擋掉。也就是說它證明的不是它自稱要證明的那件事。
+    🔴 **改成斷言錯誤訊息裡有「瀏覽器」** —— 那句話只從無條件拒絕那條路徑出來,
+    所以這一條現在真的釘住了那道線(拿掉它會紅,已實測)。
+    """
+    ok, mime, reason = check(b"<!DOCTYPE html><html>", ArtifactKind.doc)
+    assert not ok
+    assert mime == "text/html"
+    assert "瀏覽器" in reason
+
+
+def test_放寬7z之後執行檔在說明仍然被擋():
+    """🔴 守門:白名單仍然是白名單,不是「doc 全開」。"""
+    ok, _, _ = check(b"\x7fELF\x02\x01", ArtifactKind.doc)
+    assert not ok

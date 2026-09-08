@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 狀態總覽</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-26 08:20
-<strong>最後更新:</strong> 2026-09-08 18:55
-<strong>版本:</strong> v2.4</p>
+<strong>最後更新:</strong> 2026-09-08 21:40
+<strong>版本:</strong> v2.5</p>
 <blockquote>
 <p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
 <p>為什麼需要它:狀態散在任務表(200+ 列)、36 篇開發日誌、跨專案文件索引
@@ -357,9 +357,15 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </tbody>
 </table>
-<p>✅ <strong>#10(§4.2a L1 用途擴大)已於 2026-08-31 裁決「准」</strong>,契約升 v3.4,
+<p>✅ <strong>#10(§4.2a L1 用途擴大)已於 2026-08-31 裁決「准」</strong>,
 T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真名。
 ⚠ 從送出到裁決躺了 <strong>19 天</strong>,期間使用者看到的是 UUID。</p>
+<p>🔴 <strong>裁決之後還躺了八天才進權威文件。</strong> 那條放寬壓在 cats-portal PR #123
+上沒併,<strong>而 T132 在 2026-09-01(我方 v0.3.0)就已經依它上線</strong> ——
+實作有、權威文件沒有,而那一側<strong>沒有任何症狀</strong>:契約讀起來完整、自洽、守門全過。
+2026-09-08 收掉該 PR 後條文才落地(cats-portal main <code>dfdffd2</code>),
+且因撞號由 v3.4 改編為 <strong>v3.7</strong>。⚠ <strong>對照契約時認 v3.7 不認 v3.4</strong>
+—— v3.4 是 08-26 的 survey 上線,翻過去會得出錯誤結論。</p>
 <h3>5.3 未排入(MVP 外或待前置)</h3>
 <p>T46 病毒掃描(<code>infected</code> 處置政策待定案)。</p>
 <hr />
@@ -411,6 +417,12 @@ T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.5</td>
+<td>2026-09-08 21:40</td>
+<td>Claude(Benny 指示收掉 cats-portal PR #123)</td>
+<td><strong>§5.2 #10 補上一件裁決之後才發生的事:那條放寬躺了八天才進權威文件。</strong> 2026-09-08 的 INC-10 只把該分支的 gateway 上限改動 cherry-pick 進 cats-portal main,<strong>§4.2a L1 第 3 條放寬留在 PR #123 上沒併</strong>,而我方 T132 在 v0.3.0(09-01)就已經依它上線。🔴 <strong>實作有、權威文件沒有,比兩邊打架更難發現</strong> —— 契約那一側讀起來完整、自洽、守門全過,只是少了一條,<strong>沒有任何症狀</strong>。今日收掉該 PR 後條文才落地(cats-portal main <code>dfdffd2</code>),並因撞號由 v3.4 改編為 <strong>v3.7</strong>;⚠ 對照契約時<strong>認 v3.7 不認 v3.4</strong>(v3.4 是 08-26 的 survey 上線)。本檔與 <code>CLAUDE.md</code>(→ v2.9)同批更正,既有日誌與索引裡的「v3.4」是當時的事實不回頭改</td>
+</tr>
 <tr>
 <td>v2.4</td>
 <td>2026-09-08 18:55</td>

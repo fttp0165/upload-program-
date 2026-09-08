@@ -28,9 +28,13 @@
 
   var base = root.dataset.uploadBase;
   var maxBytes = parseInt(root.dataset.maxBytes, 10);
-  // 逾時放寬到 10 分鐘:單檔上限 100 MB,慢一點的內網也要傳得完。
+  // 逾時 20 分鐘:單檔上限 200 MB(T138),慢一點的內網也要傳得完。
   // 這個值不是效能調校,是「卡住的連線最晚多久會放人走」。
-  var TIMEOUT_MS = 10 * 60 * 1000;
+  // 🔴 它與 max_artifact_bytes 沒有任何程式上的連結,所以由
+  // `test_上傳逾時必須夠傳完單檔上限` 綁住(地板取內網最低 256 KB/s):
+  // 只改設定不改這裡,CI 會紅。不改的後果是大檔在慢速線路上得到
+  // 「上傳逾時」,而那句話會讓人以為檔案太大或伺服器壞了。
+  var TIMEOUT_MS = 20 * 60 * 1000;
 
   function humanBytes(n) {
     if (n < 1024) return n + " bytes";

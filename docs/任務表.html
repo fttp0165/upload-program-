@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-08 09:00
-<strong>版本:</strong> v1.99</p>
+<strong>最後更新:</strong> 2026-09-08 10:00
+<strong>版本:</strong> v2.00</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -932,6 +932,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「說明改.7z 也可以」。🔴 <strong>照做的理由不是「使用者要求」而是「擋它站不住腳」</strong>:「說明」原本允許 zip 不是為了讓人塞壓縮包,是因為 <code>.docx</code> / <code>.odt</code> <strong>本質就是 zip</strong> —— 既然一個外面看不出內容的壓縮容器已經進得來,擋 7z 擋掉的不是風險只是<strong>一種格式</strong>,使用者下一步就是把 7z 轉成 zip,風險完全一樣只是多繞一圈;<strong>講不出理由的規則只會被繞過</strong>;⚠ 放寬的只有 <code>_ALLOWED[doc]</code> 一行 —— <code>_ALWAYS_REJECT_PREFIXES</code>(HTML/SVG 在任何 kind 都擋)、magic bytes 判型、下載一律 attachment + nosniff <strong>三道紅線一字未動</strong>;🔴 <strong>同時改卡片提示與 <code>/help</code> 對照表</strong>:不改的話畫面寫著「PDF / Markdown / 文字檔」而它其實收 7z,<strong>功能做了但沒有人會知道</strong>(使用者不會去試一個看起來不被接受的格式),而那是<strong>兩個</strong>會說謊的地方漏掉任一個都不行;🔴 <strong>抓到自己寫的假綠第六種形狀:斷言問的是「結果對不對」,該問的是「對的原因對不對」</strong> —— HTML 那條反向守門只斷言「被擋」,拿掉 <code>_ALWAYS_REJECT_PREFIXES</code> 之後<strong>照樣綠</strong>(白名單本來也沒有 <code>text/html</code>,HTML 被<strong>另一條規則</strong>擋掉),在<strong>兩條規則都會導致同一結果</strong>的地方只驗結果就是假綠;改斷言錯誤訊息含「瀏覽器」(只從無條件拒絕那條路徑出來)才真的釘住;🔴 <strong>另抓到:反向驗證本身也會壞掉,而症狀跟假綠一模一樣</strong> —— 插旗標時用 <code>x-7z-compressed</code> 當錨點,而它在 binary/source/doc <strong>三段都有</strong>,<code>,1</code> 打到 binary(本來就收 ELF)→ 印出 <code>22 passed</code>;「改壞了但測試還是綠」與「根本沒改壞」在畫面上長得一樣,線索是<strong>要改壞的東西真的壞了通常不只一條會紅</strong>;改用只出現一次的錨點後兩條同時紅才算驗過;⚠ <strong>遺留的不對稱</strong>:<code>.tar.gz</code> / <code>.xz</code> / <code>.bz2</code> 在「說明」仍被擋(照指示只加 7z),而那個不對稱<strong>講不出理由</strong>,與本任務放寬 7z 是同一個道理,待裁示;<strong>4 條新增(1 紅起步 + 3 條反向逐條改壞重驗),全套 670</strong></td>
 </tr>
 <tr>
+<td>T138</td>
+<td>單檔上限 100 MB → 200 MB</td>
+<td>🔵</td>
+<td>🟢</td>
+<td>Benny 在四個選項中選定 <strong>200 MB</strong>(110 MB 不動 gateway / <strong>200 MB</strong> / 500 MB / 1 GB);🔴 <strong>盤點的結論不是「改一個常數」,是一個數字散在四個地方,而漏掉任一個的症狀都不指向根因</strong>:①<code>app/config.py</code>(業務層)②<code>.env.example</code>(<strong>有守門,唯一不會流出去的</strong>)③<strong>gateway <code>/upload/</code> 的 <code>client_max_body_size</code></strong>(權威在 cats-portal,128m → 256m)—— 漏掉它使用者看到的是 <strong>nginx 自己的 413 錯誤頁</strong>,不說上限、不說用量,<strong>而 App 端帶完整 RFC 7807 的檢查根本沒機會執行</strong>,他會以為網站壞了;④<code>app/static/upload.js</code> 的 <code>TIMEOUT_MS</code>(10 → 20 分鐘)—— 漏掉它大檔在慢速線路上得到「上傳逾時」,他會以為檔案太大或伺服器慢;🔴 <strong>所以本任務最有價值的產出是一條耦合守門測試</strong>:以內網最低 256 KB/s 為地板,<code>upload.js</code> 的逾時必須夠傳完 <code>max_artifact_bytes</code>(200 MB ÷ 256 KB/s ≈ 13.3 分鐘 → 10 分鐘不夠、20 分鐘夠),下一次有人只改設定不改 JS,CI 就會紅(<strong>已故意改回 10 分鐘實測紅、還原綠</strong>);第①③兩處綁不住 —— ③在別的 repo,故把「調這個值要連動哪兩處」<strong>寫進 <code>app/config.py</code> 的註解</strong>,讓下一個改的人在同一個畫面上讀到;⚠ 既有斷言 <code>test_預設單檔上限為100MB</code> 改值改名 —— <strong>不是放水</strong>:它釘的意圖是「預設值必須是<strong>被裁示過的那個數字</strong>」,裁示換了數字才跟著換;⚠ <code>docs/功能需求大綱.md</code> → v3.16(F34 與 §4),而 <strong>§6 的 Q7 決策紀錄一字未改</strong>(那是當時的裁示不是現況,改它等於竄改歷史);🔴 <strong>生效順序:先 gateway 再 App</strong> —— 反過來會有一段「App 說可以、nginx 半路砍斷」的期間,而那比維持 100 MB 更糟;<strong>狀態 🔵:gateway 尚未在 VM 套用(🟡 需低峰 + <code>ops/gateway-apply.sh</code>),套用後才轉 ✅</strong>;<strong>2 條(1 改值 + 1 新增耦合守門,實測會咬人),全套 671</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1259,6 +1266,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.00</td>
+<td>2026-09-08 10:00</td>
+<td>Claude(Benny 選定 200 MB)</td>
+<td><strong>T138 單檔上限 100 MB → 200 MB</strong>(🔵 待 gateway 套用)。🔴 一個數字散在<strong>四個地方</strong>,而漏掉任一個的症狀都不指向根因(nginx 自己的 413 錯誤頁 / 「上傳逾時」)。🔴 最有價值的產出是<strong>耦合守門測試</strong>:<code>upload.js</code> 的逾時必須夠傳完 <code>max_artifact_bytes</code>(地板 256 KB/s)—— 只改設定不改 JS 就會紅,已實測。gateway 那一半是 cats-portal 的 <code>GW-UPLOAD-256M</code>(128m → 256m,其 §6.10 已回寫)。🔴 生效順序:先 gateway 再 App。<strong>671 passed</strong></td>
+</tr>
 <tr>
 <td>v1.99</td>
 <td>2026-09-08 09:00</td>

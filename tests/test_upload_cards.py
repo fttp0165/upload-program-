@@ -162,3 +162,23 @@ async def test_upload_js仍不碰瀏覽器儲存空間(client):
     body = (await client.get("/static/upload.js")).text
     assert "localStorage" not in body
     assert "sessionStorage" not in body
+
+
+# --- T137「說明」卡片的說明文字要提到壓縮檔 --------------------------------
+
+
+async def test_說明卡片的提示要提到7z(client, active_user):
+    """🔴 收什麼與畫面上寫什麼必須一致。
+
+    T137 讓「說明」也收 `.7z`,而卡片的提示原本寫「PDF / Markdown / 文字檔」——
+    **不改那一行的話,功能做了但沒有人會知道**:使用者不會去試一個看起來
+    不被接受的格式。這一條釘的不是文案品味,是「介面沒說的能力等於不存在」。
+    """
+    _, token = active_user
+    release_id = await _release(client, token, slug="hint-tool")
+    body = await _page(client, token, release_id)
+
+    # 只看「說明」那張卡片,不要整頁搜尋 —— 整頁搜尋會被「程式碼」卡片的
+    # zip / 7z 撿到而永遠綠(T90 假綠第一種形狀的教訓)。
+    card = body.split('data-kind="doc"', 1)[1].split("</form>", 1)[0]
+    assert "7z" in card

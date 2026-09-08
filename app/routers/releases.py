@@ -193,7 +193,7 @@ class RequiredKind:
 
 
 REQUIRED_KINDS: tuple[RequiredKind, ...] = (
-    RequiredKind(ArtifactKind.doc, "更新文件(doc)", "說明", "使用說明、更新內容(PDF / Markdown / 文字檔)"),
+    RequiredKind(ArtifactKind.doc, "更新文件(doc)", "說明", "使用說明、更新內容(PDF / Markdown / 文字檔 / zip · 7z)"),
     RequiredKind(ArtifactKind.source, "原始碼包(source)", "程式碼", "原始碼壓縮檔(zip / tar.gz)"),
     RequiredKind(ArtifactKind.binary, "執行檔(binary)", "執行檔", "可以直接跑的檔案或安裝包"),
 )

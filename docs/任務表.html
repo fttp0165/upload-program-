@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-07 23:00
-<strong>版本:</strong> v1.98</p>
+<strong>最後更新:</strong> 2026-09-08 09:00
+<strong>版本:</strong> v1.99</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -925,6 +925,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「發0.3.1」。<code>APP_VERSION</code> 依第八條 4 在<strong>打 tag 之前</strong>改成 <code>0.3.1</code>(v0.2.4 事故:tag 指到常數還是舊值的 commit,而 CI 照樣綠、錯的 image 照樣推上 GHCR);🔴 <strong>動手前盤點抓到一件更該修的事</strong>:<code>docs/狀態總覽.md</code> 停在 08-26,而它現在<strong>幾乎每一格都是錯的</strong> —— 線上版本寫 v0.2.3(實際 v0.3.0)、寫「v0.3.0 被 CI 紅燈擋住<strong>發不出去</strong>」(<strong>08-31 已發出</strong>)、寫「<strong>唯一阻塞發版的</strong>是 #11」(T102 08-27 起 Trivy 綠,已不阻塞)、寫「三處顯示識別碼不是名字」(#10 已獲准、T132 已改真名)、§6 那份「v0.3.0 的下一步」步驟<strong>全部走完了</strong>;🔴 <strong>一頁格式整齊、有版本號、每一格都在說謊的文件,比沒有這一頁更危險</strong> —— 拿它判斷「現在能不能發版」的人會得到相反的答案;⚠ <strong>而這正是 T128 建立本頁時自己預告過的失敗</strong>:守門測試查得出檔案在不在、抬頭齊不齊,<strong>查不出內容是否過期</strong>,而它當時寫下的建議「每次發版與卡關項變動時更新」<strong>沒有觸發器</strong>,所以只在有人想起來時才發生 —— 與第六條 4 補的是同一種缺口;故狀態總覽升 <strong>v2.0</strong>(結構性改寫)並立規矩「<strong>發版任務一律連同本頁回寫</strong>」,§5 按誰的球重編並補上四項我方欠項(還原演練、SMTP 從沒驗過、GHCR 憑證過期、T105/T130);跨專案索引升 v1.4 把 #11 <strong>降級但不撤</strong>;🔴 <strong>刻意保留一格不確定</strong>:T102 的 apt 能成功代表 CI 實際上連得到,而 T127 當天量到 timeout —— 中間是平台開通了還是暫時性故障,<strong>我方沒有證據,不臆測</strong>;結案會讓下一個人以為那條路被保證了,而我方唯一知道的是「上次建置沒失敗」;依第三條 4 <strong>不寫新測試</strong>(只改一個字串常數),全套 <strong>666</strong> 維持全綠;✅ <strong>2026-09-07 22:51 換版完成</strong>:tag <code>v0.3.1</code> → <code>2182bf0</code>(<strong>先驗常數再打 tag</strong>,v0.2.4 錯的正是這一格)、CI 三關全綠、GHCR 推送成功、VM 容器實測 <strong><code>running 0.3.1</code></strong>,GHCR 憑證那項欠項一併結案;🔴 <strong>換版過程一天內第三次踩到「編輯檔案 vs 貼指令」</strong> —— 第一次貼的指令沒改 compose 的 <code>image:</code> tag(那是編輯動作),於是 pull 拉到仍是 <code>v0.3.0</code>、容器顯示 Running、gateway reload 成功,<strong>看起來一切正常</strong>;修法同 runbook §C.2 ③:<strong>不要求人編輯,改成含 <code>sed</code> 的一行可貼指令</strong>;🐛 <strong>但我給的等待迴圈本身有缺陷並誠實記下</strong>:十次都失敗時 <code>for</code> 的離開碼仍是 0,<code>&amp;&amp;</code> 會照樣 <code>up -d</code> 而<strong>用舊 image 重建且無任何錯誤訊息</strong> —— 這次成立是<strong>運氣</strong>(image 剛好在第 10 次之後推上),修法是迴圈後加 <code>docker image inspect</code> 確認 tag 存在;狀態總覽 §5.1 已列此欠項與「共用 VM 需重開機」</td>
 </tr>
 <tr>
+<td>T137</td>
+<td>「說明」類別接受 .7z</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny:「說明改.7z 也可以」。🔴 <strong>照做的理由不是「使用者要求」而是「擋它站不住腳」</strong>:「說明」原本允許 zip 不是為了讓人塞壓縮包,是因為 <code>.docx</code> / <code>.odt</code> <strong>本質就是 zip</strong> —— 既然一個外面看不出內容的壓縮容器已經進得來,擋 7z 擋掉的不是風險只是<strong>一種格式</strong>,使用者下一步就是把 7z 轉成 zip,風險完全一樣只是多繞一圈;<strong>講不出理由的規則只會被繞過</strong>;⚠ 放寬的只有 <code>_ALLOWED[doc]</code> 一行 —— <code>_ALWAYS_REJECT_PREFIXES</code>(HTML/SVG 在任何 kind 都擋)、magic bytes 判型、下載一律 attachment + nosniff <strong>三道紅線一字未動</strong>;🔴 <strong>同時改卡片提示與 <code>/help</code> 對照表</strong>:不改的話畫面寫著「PDF / Markdown / 文字檔」而它其實收 7z,<strong>功能做了但沒有人會知道</strong>(使用者不會去試一個看起來不被接受的格式),而那是<strong>兩個</strong>會說謊的地方漏掉任一個都不行;🔴 <strong>抓到自己寫的假綠第六種形狀:斷言問的是「結果對不對」,該問的是「對的原因對不對」</strong> —— HTML 那條反向守門只斷言「被擋」,拿掉 <code>_ALWAYS_REJECT_PREFIXES</code> 之後<strong>照樣綠</strong>(白名單本來也沒有 <code>text/html</code>,HTML 被<strong>另一條規則</strong>擋掉),在<strong>兩條規則都會導致同一結果</strong>的地方只驗結果就是假綠;改斷言錯誤訊息含「瀏覽器」(只從無條件拒絕那條路徑出來)才真的釘住;🔴 <strong>另抓到:反向驗證本身也會壞掉,而症狀跟假綠一模一樣</strong> —— 插旗標時用 <code>x-7z-compressed</code> 當錨點,而它在 binary/source/doc <strong>三段都有</strong>,<code>,1</code> 打到 binary(本來就收 ELF)→ 印出 <code>22 passed</code>;「改壞了但測試還是綠」與「根本沒改壞」在畫面上長得一樣,線索是<strong>要改壞的東西真的壞了通常不只一條會紅</strong>;改用只出現一次的錨點後兩條同時紅才算驗過;⚠ <strong>遺留的不對稱</strong>:<code>.tar.gz</code> / <code>.xz</code> / <code>.bz2</code> 在「說明」仍被擋(照指示只加 7z),而那個不對稱<strong>講不出理由</strong>,與本任務放寬 7z 是同一個道理,待裁示;<strong>4 條新增(1 紅起步 + 3 條反向逐條改壞重驗),全套 670</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1252,6 +1259,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.99</td>
+<td>2026-09-08 09:00</td>
+<td>Claude(Benny:「說明改.7z 也可以」)</td>
+<td><strong>T137「說明」接受 .7z</strong>。🔴 理由不是使用者要求,是<strong>擋它站不住腳</strong>(zip 已因 docx 進得來,擋 7z 擋掉的只是一種格式);三道紅線一字未動;卡片提示與 <code>/help</code> 對照表同步(不改就是功能做了沒人知道)。🔴 抓到<strong>假綠第六種形狀:只驗結果不驗原因</strong>,以及<strong>反向驗證本身也會壞掉且症狀與假綠相同</strong>(錨點打到錯的區段)。⚠ 遺留:<code>.tar.gz</code> / <code>.xz</code> / <code>.bz2</code> 在「說明」仍被擋,那個不對稱講不出理由,待裁示。<strong>670 passed</strong></td>
+</tr>
 <tr>
 <td>v1.98</td>
 <td>2026-09-07 23:00</td>

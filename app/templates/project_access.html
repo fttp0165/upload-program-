@@ -1,0 +1,76 @@
+{#
+  T142:程式碼下載申請(作者視角)。
+
+  🔴 這一頁的存在理由:平台**沒有 email 也沒有推播**。申請不會通知任何人,
+  所以專案頁上有一個「下載申請(N)」的入口指到這裡 —— 少了那個數字,
+  申請會安靜地躺在資料庫裡,而申請人會以為系統壞了(與 T79 / T123 同一個理由)。
+
+  🔴 拒絕的理由是**必填**(伺服器端 422 擋)。沒有理由,申請人只能猜,
+  然後重送一模一樣的東西。
+#}
+{% extends "base.html" %}
+
+{% block title %}下載申請 — {{ project.name }}{% endblock %}
+
+{% block content %}
+
+<h1>下載申請 — {{ project.name }}</h1>
+
+<p class="muted">
+  <a href="{{ url('/projects/' ~ project.slug) }}">← 回專案</a>
+</p>
+
+<p class="muted">
+  這一頁只管**程式碼(source)**的下載。說明與執行檔任何已開通的人都能下載。
+  <br>
+  ⚠ 你也可以直接把對方
+  <a href="{{ url('/projects/' ~ project.slug) }}#members">加為專案成員</a> ——
+  成員自動可以下載程式碼,不需要每次核准。
+</p>
+
+{% if requests %}
+  <ul class="project-list">
+    {% for r in requests %}
+      <li class="project">
+        <div class="project-head">
+          <strong>{{ label(r) }}</strong>
+          <span class="badge">{{ r.status.value }}</span>
+          <span class="muted">{{ r.requested_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        {% if r.reason %}
+          <p>用途:{{ r.reason }}</p>
+        {% else %}
+          <p class="muted">(沒有寫用途)</p>
+        {% endif %}
+        {% if r.decided_reason %}
+          <p class="muted">你的回覆:{{ r.decided_reason }}</p>
+        {% endif %}
+
+        <div class="action-row">
+          {% if r.status.value == 'approved' %}
+            <form method="post"
+                  action="{{ url('/projects/' ~ project.slug ~ '/access/' ~ r.id ~ '/revoke') }}">
+              <button class="btn btn-danger" type="submit">撤銷下載權</button>
+            </form>
+          {% else %}
+            <form method="post"
+                  action="{{ url('/projects/' ~ project.slug ~ '/access/' ~ r.id ~ '/approve') }}">
+              <button class="btn" type="submit">核准</button>
+            </form>
+            <form method="post" class="limit-form"
+                  action="{{ url('/projects/' ~ project.slug ~ '/access/' ~ r.id ~ '/reject') }}">
+              <label for="why-{{ r.id }}">拒絕理由(必填)</label>
+              <input id="why-{{ r.id }}" name="decided_reason" type="text"
+                     maxlength="500" placeholder="讓對方知道為什麼">
+              <button class="btn btn-quiet" type="submit">拒絕</button>
+            </form>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">目前沒有下載申請。</p>
+{% endif %}
+
+{% endblock %}

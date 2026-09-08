@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-08 13:10
-<strong>版本:</strong> v2.03</p>
+<strong>最後更新:</strong> 2026-09-08 18:30
+<strong>版本:</strong> v2.04</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -960,6 +960,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「新增後台可設定每個帳號單個檔案上限」;獨立計畫書 <a href="plans/設計_每個帳號的單檔上限.md">設計_每個帳號的單檔上限</a> v1.0(第二條 3);<code>users.max_artifact_bytes</code>(<strong>nullable</strong>,<code>NULL</code> = 沿用全站 —— 🔴 <strong>不在建帳號時填入全站值</strong>,否則全站上限被調整時既有帳號全部卡在舊值,且分不出「刻意設定」與「當時的預設快照」);有效上限 = <code>min(帳號值, 全站值)</code> —— 🔴 <strong>少了這個 <code>min</code>,日後把全站上限調小這個動作會靜默地對已被設定過的帳號無效</strong>,而那正是最需要它生效的時候;🔴 <strong>這個欄位會撒謊,除非夾住</strong>:上限有三道牆(gateway → 全站 → 帳號),存得下大於 gateway 的值就會讓畫面說可以而上傳撞 <strong>nginx 的 413</strong>(那一頁不說上限也不說用量)—— <strong>2026-09-08 這件事當天真的發生過一次</strong>(App 已 500 MB 而 gateway 還 128m),所以那條守門是紀錄不是防禦性寫作;🔴 <strong>三個生效點都要改</strong>:Content-Length 預檢、串流上限、<strong>上傳頁的 <code>data-max-bytes</code></strong> —— 漏掉第三個,前端會用全站值預檢而<strong>對被調小的帳號放行一個必定失敗的上傳</strong>;介面放在 <code>/admin/users</code> 每一列(不另開頁:它與開通/停用/設管理員同屬「對這個人的設定」),<strong>以 MB 輸入</strong>(<code>524288000</code> 是給程式看的,要人現場換算只會算錯而算錯沒有錯誤訊息),空白=沿用全站;只有平台管理員可設(比照 F17),稽核 <code>user.set_upload_limit</code>(<code>action</code> 是 <code>String(64)</code> 且刻意不下 CHECK → <strong>新動作不需要 migration</strong>,T38 的設計在這裡收租);⚠ 施工中修正自己的測試:第一版填 <code>limit_mb=50</code> 而 <code>conftest</code> 的全站上限刻意是 <strong>1 MB</strong> → 被自己寫的規則擋掉,<strong>測試環境的設定值本身也是待測系統的一部分</strong>;⚠ <strong>版本號改 0.4.0 不併進 0.3.2</strong>:0.3.2 的 tag 從未推出,而本任務有 migration 而 0.3.2 的 Release 內容寫「🟢 無 migration」—— 沿用會讓 tag 指到一個含 migration 的 commit 而 Release 頁說沒有,<strong>那是 v0.2.4 事故的同一形狀</strong>;🔴 真 <strong>PostgreSQL 15 up→down→up 演練通過</strong>(本機起 PG 實跑,非宣稱),單一 head;⚠ 遺留:待開通那段刻意不給此欄位、無批次設定、<strong>全站上限刻意不搬進後台</strong>(App 看不到 gateway,搬進去就是製造一個能設成無效值的欄位);<strong>10 條新增(紅起步,4 條反向守門),全套 681</strong></td>
 </tr>
 <tr>
+<td>T142</td>
+<td>程式碼下載需作者核准</td>
+<td>✅</td>
+<td>🟡</td>
+<td>Benny:「程式碼要鎖住不能下載,除了管理員需要專案作者同意才可以下載或加入成員」;三題裁示(<strong>只鎖 source</strong> / 核准一次=該專案的程式碼都可下載 / <strong>成員自動可下載</strong>);計畫書 <a href="plans/設計_程式碼下載需作者核准.md">設計_程式碼下載需作者核准</a> v1.0;判準四種人(管理員 / 成員 / 已核准的申請人 / 沒有第四種)寫成<strong>一份共用函式塞進 <code>_download_response</code></strong>,沿用該函式檔頭既有的道理(安全標頭絕不能因為換了一條路徑就鬆掉);🔴 <strong>本任務最重要的證據是一次反向驗證</strong>:把 F26「最新版捷徑」故意改成沒鎖(模擬忘記),<strong>只有一條測試會紅、其他 10 條全綠</strong> —— 而那條網址是設計成「能寫進文件而不會失效」的、<strong>最容易被傳出去</strong>,少了那條測試這個功能會看起來完全正常地漏著;🔴 <strong>擋的同時要給路</strong>:不能下載時把按鈕換成「申請下載」而不是拿掉 —— 只說「不行」不說「怎麼才可以」的畫面,使用者的下一步是去問人,而那正是這個功能想省下來的事;🔴 <code>(project_id, user_id)</code> 唯一 + upsert:沒有它被拒絕的人可連按十次而作者的待辦變垃圾場;🔴 <strong>拒絕必須寫理由</strong>(比照 T123 退回);<code>revoked</code> 與 <code>rejected</code> 刻意兩個狀態(給過又收回 vs 從來沒給,稽核上是兩件事);⚠ <strong>被既有守門咬了一次而我改的是自己</strong>:<code>test_action字彙集中且格式一致</code> 要求 prefix 是單一個詞,我第一版取 <code>source_access.request</code> → 紅,<strong>改名 <code>project.source_*</code> 而不是放寬正則</strong>(放寬等於讓下一個人隨便取名,字彙一亂就看不出「這是對什麼東西做的事」)—— 那條守門是 T38 的產物,今天第一次真的擋到人;⚠ 另抓到自己兩個錯:測試 helper 重複 <code>make_user</code> 撞 <code>users.sub</code>(<strong>症狀誤導</strong>,錯誤指向 users 而非本功能)、成員 API 是 <code>PUT</code> 不是 <code>POST</code>;🔴 真 <strong>PostgreSQL up→down→up 演練通過</strong>,且 downgrade <strong>必須自己 drop enum 型別</strong>(PG 的 enum 不隨表消失,第二次 upgrade 會撞 type already exists,而<strong>只做 up 的人永遠看不到那個錯</strong>);🔴 <strong>行為會變</strong>:今天能下載 source 的非成員升級後要先申請 —— 需求本身,但<strong>上線前要先講</strong>;⚠ 遺留:<code>releases.html</code> 的下載鈕尚未換成申請入口(伺服器端已擋,<strong>不是漏洞是體驗</strong>);<strong>11 條新增(9 紅起步,兩條重點守門各自故意改壞重驗),全套 692</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1287,6 +1294,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.04</td>
+<td>2026-09-08 18:30</td>
+<td>Claude(Benny 需求 + 三題裁示)</td>
+<td><strong>T142 程式碼下載需作者核准</strong>(🟡 migration 0013,真 PG up→down→up 通過)。🔴 反向驗證證明 <strong>F26 捷徑是唯一會漏的後門</strong>(故意不鎖它 → 只有一條測試紅,其他 10 條全綠)。🔴 擋的同時要給路(按鈕換成「申請下載」)。⚠ 被 T38 留下的 action 命名守門咬了一次,<strong>改名字不改守門</strong>。🔴 行為會變:非成員升級後要先申請,上線前要講。<strong>692 passed</strong></td>
+</tr>
 <tr>
 <td>v2.03</td>
 <td>2026-09-08 13:10</td>

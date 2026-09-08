@@ -21,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from .. import filetypes, limits, problems, quota
+from .. import filetypes, limits, problems, quota, source_access
 from ..audit import AuditAction, record
 from ..models import Artifact, ArtifactKind, ProjectRole, ReleaseStatus, UploadStatus
 from ..schemas import ArtifactOut
@@ -267,11 +267,13 @@ async def download_artifact(
         raise problems.not_found("找不到該檔案")
 
     artifact = _find_artifact(release, artifact_id)
-    return await _download_response(request, session, artifact, identity)
+    return await _download_response(
+        request, session, artifact, identity, project=release.project, role=role
+    )
 
 
 async def _download_response(
-    request: Request, session, artifact: Artifact, identity
+    request: Request, session, artifact: Artifact, identity, *, project, role
 ) -> StreamingResponse:
     """建構下載回應,並累計下載次數(F43)。
 
@@ -288,6 +290,22 @@ async def _download_response(
     """
     if artifact.upload_status is not UploadStatus.ready:
         raise problems.not_found("該檔案尚未上傳完成")
+
+    # T142:程式碼(source)的門禁。🔴 **放在這裡而不是在兩個端點各寫一次** ——
+    # 本函式的檔頭早就寫著同一個道理(安全標頭絕不能因為換了一條路徑就鬆掉),
+    # 而 F26 的「最新版捷徑」正是那條最容易被忘記、又最容易被傳出去的路徑
+    # (它被設計成「能寫進文件而不會失效」)。
+    if not await source_access.may_download(
+        session, project, identity.user, artifact.kind, role
+    ):
+        # 🔴 403 而不是 404:這裡**刻意承認檔案存在** —— 因為要給路。
+        # 一個只說「不行」而不說「怎麼才可以」的回應,使用者的下一步是來問人,
+        # 而那正是這個功能想省下來的事。
+        # (可見性本身仍由上游的 require_project_read 把關,private 專案照樣 404。)
+        raise problems.forbidden(
+            "這個專案的程式碼需要專案作者同意才能下載。"
+            "請到專案頁「申請下載」,或請作者把你加為成員。"
+        )
 
     # 🔴 用 SQL 的原地加法,不是 `artifact.download_count += 1`。
     # 後者是讀-改-寫,兩個併發下載會掉一次;而且這種錯不會有任何錯誤訊息,
@@ -400,11 +418,14 @@ async def download_latest_artifact(
     UUID 每發一次新版就換一組,寫進 wiki 隔天就壞。
     """
     project = await get_project(session, slug)
-    await require_project_read(session, project, identity)
+    # T142:這條捷徑的角色也要留著 —— 門禁在 `_download_response` 裡,它需要它。
+    role = await require_project_read(session, project, identity)
     release = await latest_published_release(session, project)
 
     name = filename.strip()
     for artifact in release.artifacts:
         if artifact.filename == name:
-            return await _download_response(request, session, artifact, identity)
+            return await _download_response(
+                request, session, artifact, identity, project=project, role=role
+            )
     raise problems.not_found(f"最新版本 {release.version} 中沒有檔案 {name}")

@@ -56,12 +56,62 @@
       </p>
       {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
+      {# T142:作者的待辦入口。🔴 放在專案頁而不是管理總覽 ——
+         這是**作者**的待辦不是管理員的,混進去會讓管理員以為該他處理。
+         而平台沒有 email 也沒有推播,所以它必須出現在作者一定會看到的地方。 #}
+      {% if access_pending %}
+        <p class="notice notice-warn">
+          有 <strong>{{ access_pending }}</strong> 筆程式碼下載申請等你處理 ——
+          <a href="{{ url('/projects/' ~ project.slug ~ '/access') }}">前往處理 →</a>
+        </p>
+      {% elif can_manage %}
+        <p class="muted">
+          <a href="{{ url('/projects/' ~ project.slug ~ '/access') }}">程式碼下載申請</a>
+        </p>
+      {% endif %}
+
+      {# 申請人視角:不能下載程式碼時,這裡是唯一的路。 #}
+      {% if not may_download_source %}
+        {% if my_access and my_access.status.value == 'pending' %}
+          <p class="notice">你的程式碼下載申請已送出,等待作者處理。</p>
+        {% elif my_access and my_access.status.value in ('rejected', 'revoked') %}
+          <p class="notice notice-err">
+            程式碼下載申請未通過{% if my_access.decided_reason %}:{{ my_access.decided_reason }}{% endif %}
+          </p>
+          <form class="limit-form" method="post"
+                action="{{ url('/projects/' ~ project.slug ~ '/access/request') }}">
+            <label for="reason-again">重新申請(說明用途)</label>
+            <input id="reason-again" name="reason" type="text" maxlength="500"
+                   placeholder="例:要接手維護這支工具">
+            <button class="btn btn-quiet" type="submit">重新申請</button>
+          </form>
+        {% else %}
+          <form class="limit-form" method="post"
+                action="{{ url('/projects/' ~ project.slug ~ '/access/request') }}">
+            <label for="reason">申請下載程式碼(說明用途)</label>
+            <input id="reason" name="reason" type="text" maxlength="500"
+                   placeholder="例:要接手維護這支工具">
+            <button class="btn" type="submit">申請下載</button>
+          </form>
+        {% endif %}
+      {% endif %}
+
       {% if artifacts %}
         <ul class="artifact-list">
           {% for artifact in artifacts %}
             <li class="artifact">
               <div class="artifact-head">
-                <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
+                {# T142:程式碼(source)需作者同意。
+                   🔴 **擋的同時要給路**:不能下載時不是把按鈕拿掉,而是換成
+                   「申請下載」—— 一個只說「不行」而不說「怎麼才可以」的畫面,
+                   使用者的下一步是去問人,而那正是這個功能想省下來的事。
+                   ⚠ 這裡只是體驗;伺服器端仍會擋(`_download_response`)。 #}
+                {% if locked_kind(artifact.kind) and not may_download_source %}
+                  <span class="badge badge-warn">需作者同意</span>
+                  <span class="muted">{{ artifact.filename }}</span>
+                {% else %}
+                  <a class="btn" href="{{ download_url(artifact) }}">下載 {{ artifact.filename }}</a>
+                {% endif %}
                 <span class="muted">{{ artifact.kind.value }} · {{ artifact.size_bytes }} bytes · {{ artifact.download_count }} 次下載</span>
               </div>
               <dl class="artifact-meta">

@@ -66,6 +66,19 @@ class ProjectRole(enum.StrEnum):
     viewer = "viewer"
 
 
+class SourceAccessStatus(enum.StrEnum):
+    """程式碼下載申請的狀態(T142)。
+
+    `revoked` 與 `rejected` 刻意分開:前者是「曾經給過又收回」,
+    後者是「從來沒給」。稽核上那是兩件不同的事,而合成一個狀態就再也分不出來。
+    """
+
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    revoked = "revoked"
+
+
 class ReleaseStatus(enum.StrEnum):
     # T123 審核制度。狀態機:
     #   draft ──(作者送審)──> pending_review ──(管理員核准)──> published
@@ -223,6 +236,52 @@ class ProjectMember(Base):
 
     project: Mapped[Project] = relationship(back_populates="members")
     user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class SourceAccessRequest(Base):
+    """非成員申請下載某專案的程式碼(T142;計畫書《設計_程式碼下載需作者核准》)。
+
+    🔴 **授權綁專案,不綁版本或檔案**(2026-09-08 裁示):
+    核准一次 = 這個專案的程式碼都可下載,可撤銷。
+    綁版本的話,每發一次新版所有人都要再申請一輪,而那種功能實務上很快就沒人用。
+
+    🔴 **`(project_id, user_id)` 唯一**:一個人對一個專案只有一筆,
+    重複申請是更新那一筆。沒有這個約束,被拒絕的人可以連按十次,
+    而作者的待辦就變成垃圾場。
+    """
+
+    __tablename__ = "source_access_requests"
+    __table_args__ = (
+        UniqueConstraint("project_id", "user_id", name="uq_source_access_project_user"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # CASCADE:專案刪了,對它的申請也沒有意義(同 project_comments)。
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # 🔴 RESTRICT:有申請紀錄的使用者刪不掉,與稽核同一個立場
+    # (帳號一律停用不刪除,`target_id` 要能對回是誰)。
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    status: Mapped[SourceAccessStatus] = mapped_column(
+        _enum(SourceAccessStatus, "source_access_status"),
+        default=SourceAccessStatus.pending,
+        nullable=False,
+    )
+    # 申請人寫「我要做什麼用」——作者要據此判斷,空白的申請沒辦法判斷。
+    reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    # 🔴 拒絕**必須**寫理由(比照 T123 退回):沒有理由,申請人只能猜,
+    # 然後重送一模一樣的東西。核准則不強制。
+    decided_reason: Mapped[str | None] = mapped_column(String(500), default=None)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    decided_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), default=None
+    )
+
+    project: Mapped[Project] = relationship()
 
 
 class ProjectComment(Base):

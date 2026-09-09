@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 狀態總覽</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-26 08:20
-<strong>最後更新:</strong> 2026-09-08 21:40
-<strong>版本:</strong> v2.5</p>
+<strong>最後更新:</strong> 2026-09-09 14:30
+<strong>版本:</strong> v2.6</p>
 <blockquote>
 <p>這一頁回答四個問題:<strong>線上是哪一版、下一版準備到哪、卡在什麼、誰的球。</strong></p>
 <p>為什麼需要它:狀態散在任務表(200+ 列)、36 篇開發日誌、跨專案文件索引
@@ -64,9 +64,10 @@ summary { cursor:pointer; color:#12228f; }
 </blockquote>
 <hr />
 <h2>1. 一句話</h2>
-<p><strong>線上 v0.3.1;v0.3.2(T137 說明收 .7z、T138 單檔 200 MB)已測完待發。
-🔴 gateway 的 256m 已先套用(09-08 10:36,零停機)—— </strong>換版之後 200 MB 才會生效<strong>。
-沒有任何事情阻塞發版。</strong></p>
+<p><strong><code>v0.4.1</code> 已發布(2026-09-08 10:26);<code>v0.4.2</code>(T144 前端可讀性七項)已測完待發。
+🔴 gateway 的 <code>640m</code> 已於 09-09 13:48 套用完成(8 條路由全通)。
+⚠ </strong>VM 現在實際跑哪一版,我方沒有 09-08 之後的實測紀錄<strong> —— 換版前必須先量,
+因為它決定要不要跑 <code>alembic upgrade head</code>(見 §2)。</strong></p>
 <hr />
 <h2>2. 線上狀態</h2>
 <table>
@@ -83,15 +84,15 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>最後發布的 tag</td>
-<td><strong>v0.3.2</strong>(2026-09-08 03:02)</td>
+<td><strong>v0.4.1</strong>(2026-09-08 10:26;⚠ <code>v0.4.0</code> 已被燒掉 —— 見 §3 與 T143)</td>
 </tr>
 <tr>
 <td>VM 實測</td>
-<td><strong>0.3.1</strong>(2026-09-07 22:51,<code>docker exec upload-program python -c "…APP_VERSION"</code>)</td>
+<td>⚠ <strong>未知</strong> —— 最後一次實測是 <strong>0.3.1</strong>(2026-09-07 22:51),而其後 <code>v0.3.2</code> / <code>v0.4.0</code> / <code>v0.4.1</code> 三個 tag 陸續發布,<strong>我方沒有 09-08 之後的 VM 實測紀錄</strong>。🔴 換版前必先量,見下方</td>
 </tr>
 <tr>
 <td>準備發的下一版</td>
-<td><strong>v0.4.1</strong>(T140/T141/T142;⚠ <code>v0.4.0</code> 已被燒掉 —— 見 §3 與 T143)</td>
+<td><strong>v0.4.2</strong>(T144 前端可讀性七項 + 契約版號引用更正;🟢 本版無 migration)</td>
 </tr>
 <tr>
 <td>服務狀態</td>
@@ -103,7 +104,7 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 <tr>
 <td>gateway <code>/upload/</code> 上限</td>
-<td><strong>640m</strong>(2026-09-08 11:54 套用,reload 零停機,五條路由全通;10:36 曾套 256m)</td>
+<td><strong>640m</strong>(2026-09-09 13:48 套用完成,8 條路由全通;09-08 10:36 曾套 256m)</td>
 </tr>
 <tr>
 <td>維運排程</td>
@@ -111,12 +112,69 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </tbody>
 </table>
+<p>🔴 <strong>換版前必須先量 VM 現在跑哪一版 —— 它決定要不要跑 alembic</strong></p>
+<blockquote>
+<p>🖥️ <strong>在哪執行:</strong> Cats VM(ssh)· 工作目錄 <code>/opt/upload-program</code></p>
+</blockquote>
+<pre><code class="language-bash">docker exec upload-program python -c &quot;from app.version import APP_VERSION; print(APP_VERSION)&quot;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>量到的值</th>
+<th>升到 <code>v0.4.2</code> 需要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0.4.1</strong></td>
+<td>🟢 只要 pull + up + reload,<strong>不必跑 alembic</strong></td>
+</tr>
+<tr>
+<td><strong>0.3.x 或更早</strong></td>
+<td>🔴 <strong>必須 <code>alembic upgrade head</code></strong> —— 中間隔著 <code>0011_project_comments</code> / <code>0012_user_upload_limit</code> / <code>0013_source_access</code> 三個 migration</td>
+</tr>
+</tbody>
+</table>
+<p>📌 <strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong>:前者講這一版新增了什麼,
+後者取決於<strong>要跨過多少版</strong>。混為一談就會在 VM 落後好幾版時漏跑 alembic,
+而症狀是<strong>服務起得來、頁面看起來正常,直到有人碰到那張新表</strong>。</p>
 <blockquote>
 <p>⚠️ VM 上實際跑的版本以首頁頁尾顯示的版本號為準
 (<code>tools/smoke.sh --vm --expect vX.Y.Z</code> 可一鍵驗證)。</p>
 </blockquote>
 <hr />
-<h2>3. v0.4.1:這一版有什麼(<strong>待發</strong>)</h2>
+<h2>3. v0.4.2:這一版有什麼(<strong>待發</strong>)</h2>
+<table>
+<thead>
+<tr>
+<th>任務</th>
+<th>內容</th>
+<th>資料影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T144</strong></td>
+<td><strong>前端可讀性七項</strong>:容量與檔案大小改人類可讀(<code>186.2 MB / 2.0 GB</code>,原始值移到 hover)、<code>source/binary/doc</code> → <strong>程式碼 / 執行檔 / 說明</strong>、<code>not_scanned</code> 只留中文、固定連結改<strong>可點的絕對網址</strong>+點一下全選、SHA-256 完整保留+點一下全選、移除過時文案「顯示名稱待平台核准」</td>
+<td>🟢</td>
+</tr>
+<tr>
+<td><strong>文件更正</strong></td>
+<td>L1 放寬引用的契約版號 <code>v3.4</code> → <strong><code>v3.7</code></strong>(cats-portal 併回時因撞號改編;不改這裡會指到別的條款)</td>
+<td>🟢</td>
+</tr>
+</tbody>
+</table>
+<p>🔴 <strong>本版是純呈現層</strong>:API 回應一個位元組都沒改(bytes 在 API 裡維持整數,那是給程式看的)、
+資料庫沒動、權限判定沒動、三道紅線(magic bytes / attachment + nosniff / SHA-256)一字未動。
+故升 patch 而非次版號 —— 對照 <strong>v0.3.0</strong> 升次版號是因為 <code>publish</code> 從「發布」變成「送審」,
+<strong>那才是會讓看 Release 頁的人誤判的改動</strong>。</p>
+<p>📌 <strong>合併不是交付。</strong> T144 於 2026-09-08 11:14 併進 main,而 <code>v0.4.1</code> 是 10:26 發的 ——
+<strong>早於它</strong>,所以線上到現在看到的仍然是 <code>195245216 bytes</code> 和 <code>source</code>。
+七項全部是使用者看得到的東西,而它們在 repo 裡躺了一天。</p>
+<hr />
+<h2>3a. v0.4.1:上一版有什麼(<strong>已發布 2026-09-08 10:26</strong>)</h2>
 <table>
 <thead>
 <tr>
@@ -417,6 +475,12 @@ T132 已把專案 / 版本 / 留言三處的 <code>sub</code> 前 8 碼換成真
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.6</td>
+<td>2026-09-09 14:30</td>
+<td>Claude(T145 發版 v0.4.2)</td>
+<td>🔴 <strong>§1 / §2 / §3 全面更新 —— 它們三格都過期了</strong>:寫著「線上 v0.3.1、v0.4.1 待發」,而 <code>v0.4.1</code> 的 tag 早在 09-08 10:26 就發了。<strong>這一頁的用途就是回答「線上是哪一版」,留著過期內容比沒有這一頁更糟</strong>(v2.0 的開版理由,同一個病又犯一次)。§3 改為 v0.4.2(T144 前端可讀性七項 + 契約版號引用更正),原 §3 降為 <strong>§3a 並標明已發布</strong>。🔴 <strong>「VM 實測」改為誠實標「未知」</strong> —— 最後一次實測是 09-07 的 0.3.1,其後三個 tag 陸續發布而<strong>我方沒有 09-08 之後的實測紀錄</strong>;憑印象填一個版本號正是 v2.4 剛更正過的錯。同時新增「換版前先量」的指令與判斷表:🔴 <strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong> —— 前者講這一版新增什麼,後者取決於要跨過多少版;VM 若還在 0.3.x,中間隔著 0011/0012/0013 三個 migration,漏跑的症狀是<strong>服務起得來、頁面正常,直到有人碰到那張新表</strong></td>
+</tr>
 <tr>
 <td>v2.5</td>
 <td>2026-09-08 21:40</td>

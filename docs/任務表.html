@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-08 20:15
-<strong>版本:</strong> v2.06</p>
+<strong>最後更新:</strong> 2026-09-09 14:30
+<strong>版本:</strong> v2.07</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -981,6 +981,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>Benny:「依據 UI/UX 美化優化前端頁面」;計畫書 <a href="plans/設計_前端可讀性優化.md">設計_前端可讀性優化</a> v1.0;🔴 <strong>原則:不換皮,修「看得懂」</strong> —— T56 已有設計語言而<strong>版面沒有測試守著</strong>,大改版面是「改了才知道哪裡壞」的變更;七項全部來自 2026-09-08 專案頁的<strong>實際截圖</strong>:①②裸位元組 <code>195245216 / 2147483648 bytes</code> → <code>186.2 MB / 2.0 GB</code>(原始值進 <code>title</code>)—— ⚠ <strong>管理總覽從 T70 起就有 <code>human_bytes</code>,而在那之前只有那一頁在用它</strong>,故註冊成 Jinja filter 讓「用它」比「印原始值」更省事;③檔案類別 <code>source</code> → <code>程式碼</code>,🔴 <strong>單一真相是上傳頁卡片的 <code>REQUIRED_KINDS</code></strong>(兩份對照表遲早分岔,而使用者不知道那是同一件事);④掃毒徽章去掉英文 enum;⑤⑥<code>user-select: all</code> —— 固定連結改<strong>可點的絕對網址</strong>(它的用途就是貼進文件,而只有路徑的字串貼出去不能點也看不出是哪台機器)、SHA-256 <strong>不截短</strong>(校驗值截了就沒用)但點一下全選;⑦移除<strong>過時文案</strong>「顯示名稱待平台核准」(契約 v3.4 已核准,那句話從核准那天起就是錯的,而過時的說明比沒有說明更糟);外加容量條 ≥80% 轉 amber(門檻用<strong>管理總覽的同一個數字</strong>,否則會出現「總覽說要注意了而專案頁還是綠的」);⚠ <strong>撞到 T53 的既有紅線</strong>(專案頁不得有絕對網址),沿用 <strong>T51 的前例:具名例外而非放寬斷言</strong>,例外只認 <code>class="permalink"</code>、自己有測試釘住必須以 <code>public_base_url</code> 開頭,並加 <code>assert permalinks</code> 讓<strong>例外的對象消失時也要紅</strong>;✅ 實測那條斷言仍咬得動(把下載鈕改成絕對網址 → 紅);⚠ <strong>我寫的反向斷言第一版咬到自己</strong>:整頁掃 <code>\d{7,} bytes</code> 連刻意留的 <code>title</code> 提示都咬 —— 🔴 <strong>修法是讓斷言符合它自己宣稱的意圖</strong>(剝標籤只掃文字節點)<strong>而不是放寬正則</strong>(放寬會連 inline 違規一起放過,整條就廢了),剝標籤後仍咬得動 inline 違規;<strong>8 條新增(全紅起步,兩條主斷言各自改壞重驗),全套 700</strong>;🟢 純顯示層、<strong>API 回應一個位元組都沒改</strong></td>
 </tr>
 <tr>
+<td>T145</td>
+<td>🚀 發版 <code>v0.4.2</code>(T144 前端可讀性 + 契約版號引用更正)</td>
+<td>✅</td>
+<td>🟢</td>
+<td>📌 <strong>合併不是交付</strong> —— T144 於 09-08 11:14 併進 main,而 <code>v0.4.1</code> 是 <strong>10:26</strong> 發的、<strong>早於它</strong>,所以線上到現在看到的仍是 <code>195245216 bytes</code> 和 <code>source</code>,七項全是使用者看得到的東西卻在 repo 裡躺了一天。<code>APP_VERSION</code> → <code>0.4.2</code>(🔴 第八條 4:打 tag 之前);升 patch 而非次版號,因為七項<strong>全是呈現層</strong>、API/schema/權限/三道紅線一字未動(對照 v0.3.0 升次版號是 <code>publish</code> 從「發布」變成「送審」——<strong>那才是會讓看 Release 頁的人誤判的改動</strong>)。同批把 <code>CLAUDE.md</code>(v2.9)與狀態總覽(v2.6)引用的契約版號 v3.4 → <strong>v3.7</strong> 帶進發版。🔴 <strong>狀態總覽 §1/§2/§3 原本是過期的</strong>(寫「線上 v0.3.1、v0.4.1 待發」而 v0.4.1 早已發布),一併改正,並把「VM 實測」誠實標為<strong>未知</strong>——最後實測是 09-07 的 0.3.1,其後三個 tag 陸續發布而我方沒有紀錄。⚠ <strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong>:VM 若還在 0.3.x,中間隔著 0011/0012/0013 三個 migration,故部署指令改為「先量再決定」。測試 <strong>700 passed</strong>、ruff 乾淨、<code>render_docs --check</code> 綠</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1308,6 +1315,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.07</td>
+<td>2026-09-09 14:30</td>
+<td>Claude(Benny:發 T144 那七項)</td>
+<td><strong>新增 T145 發版 <code>v0.4.2</code></strong>:<code>APP_VERSION</code> → <code>0.4.2</code>(🔴 第八條 4:打 tag 之前),內容為 T144 前端可讀性七項 + 契約版號引用更正(v3.4 → <strong>v3.7</strong>)。📌 <strong>合併不是交付</strong> —— T144 於 09-08 11:14 併進 main,而 <code>v0.4.1</code> 是 <strong>10:26</strong> 發的、早於它,所以線上到現在仍是 <code>195245216 bytes</code> 和 <code>source</code>。升 patch 而非次版號(七項全是呈現層,API/schema/權限/三道紅線一字未動)。🔴 同批改正狀態總覽 §1/§2/§3 的過期內容(→ v2.6),並把「VM 實測」誠實標為<strong>未知</strong>;⚠ 部署指令改為「先量 VM 版本再決定要不要跑 alembic」——<strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong></td>
+</tr>
 <tr>
 <td>v2.06</td>
 <td>2026-09-08 20:15</td>

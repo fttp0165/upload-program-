@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>跨專案文件索引</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-08-12 17:20
-<strong>最後更新:</strong> 2026-09-07 15:40
-<strong>版本:</strong> v1.4</p>
+<strong>最後更新:</strong> 2026-10-07 15:23
+<strong>版本:</strong> v1.6</p>
 <blockquote>
 <p>依憲法<strong>第九條 5</strong>:每份跨專案文件都要登記在這裡。
 這一頁回答四個問題——<strong>發過什麼、給誰、什麼時候、對方回了沒</strong>。</p>
@@ -143,6 +143,13 @@ summary { cursor:pointer; color:#12228f; }
 <td><a href="upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md">開通 CI 容器網路對 Debian 套件庫的連線</a></td>
 <td>⏳ <strong>待送出</strong>;⚠ <strong>2026-09-07 更正:不再阻塞發版</strong> —— T102(08-27)改為 apt 全量升級 + 「升級後不得還有可升級套件」的驗證,CI run #249 起 Trivy 綠,v0.3.0 已於 08-31 發出。🔴 <strong>但申請不撤</strong>:T102 能成功代表 CI 的 apt 實際上連得到,而 T127 當天量到 timeout —— 中間是平台側開通了還是暫時性故障,<strong>我方沒有證據,不臆測</strong>;那條路現在通,不等於它被保證</td>
 </tr>
+<tr>
+<td>12</td>
+<td>2026-10-07 14:49</td>
+<td>回覆</td>
+<td><a href="upload-program_致_cats-portal_回覆_開通即建帳推送端點_20261007-1449.md">開通即建帳(SVC-PUSH)試點:同意,portal 開關即本服務開關(v1.1)</a></td>
+<td>⏳ <strong>待送出</strong>;⚠ 來函 09-09 發出,<strong>晚了 4 週才回</strong></td>
+</tr>
 </tbody>
 </table>
 <h2>2. 對方發來(cats-portal → upload-program)</h2>
@@ -170,6 +177,12 @@ summary { cursor:pointer; color:#12228f; }
 <td>cats-portal</td>
 <td>《裁決:擴大顯示名稱快取的用途》v1.0(<strong>✅ 准</strong>,契約升 v3.4)</td>
 <td>✅ <a href="inbox/cats-portal_致_upload-program_裁決_擴大名稱快取用途_20260831-1600.md">inbox/cats-portal_致_upload-program_裁決_擴大名稱快取用途_20260831-1600.md</a> —— <strong>第九條 4 上路後第一份原樣落地的他方文件</strong></td>
+</tr>
+<tr>
+<td>2026-09-09 18:00</td>
+<td>cats-portal</td>
+<td>《徵詢:開通即建帳(SVC-PUSH)試點,請書面回覆》v1.0</td>
+<td>✅ <a href="inbox/cats-portal_致_upload-program_徵詢_開通即建帳推送端點_20260909-1800.md">inbox/cats-portal_致_upload-program_徵詢_開通即建帳推送端點_20260909-1800.md</a>;已回覆(我方第 12 份)</td>
 </tr>
 </tbody>
 </table>
@@ -211,6 +224,11 @@ summary { cursor:pointer; color:#12228f; }
 <td>#11</td>
 <td>⚠ <strong>2026-09-07 降級:不再阻塞發版</strong>(T102 改全量升級後 Trivy 綠,v0.3.0 已上線)。申請不撤 —— 那條路現在通不等於被保證,而<strong>我方對「當初的 timeout 為何消失」沒有證據</strong></td>
 </tr>
+<tr>
+<td>SVC-PUSH 施作順序第 3~5 步(建 scope、設 URL、前端 re-auth、開旗標)</td>
+<td>#12</td>
+<td>我方端點已完成(T146/T147:join→開通、leave→停用),⏳ 隨下一版發布才在 VM 生效;🔴 <strong>leave 推送失敗 = 未收權</strong>、旗標打開前需一次性對帳,已在回函 v1.1 寫明</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -225,6 +243,18 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.6</td>
+<td>2026-10-07 15:23</td>
+<td>Claude(T147)</td>
+<td>第 12 份升 v1.1(語意改 B 案,仍待送出);§3 同列改寫</td>
+</tr>
+<tr>
+<td>v1.5</td>
+<td>2026-10-07 14:49</td>
+<td>Claude(T146)</td>
+<td>登記第 12 份(回覆 SVC-PUSH 徵詢:同意、端點 <code>POST /v1/provision</code>);§2 收文落地 cats-portal 09-09 徵詢函;§3 加一列卡在對方的施作順序</td>
+</tr>
 <tr>
 <td>v1.4</td>
 <td>2026-09-07 15:40</td>

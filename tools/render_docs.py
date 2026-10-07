@@ -58,6 +58,7 @@ TARGETS = [
     "plans/upload-program_致_cats-portal_回覆_session時序_20260812-1140.md",
     "plans/upload-program_致_cats-portal_申請_擴大名稱快取用途_20260812-1930.md",
     "plans/upload-program_致_cats-portal_申請_CI容器網路開通Debian套件庫_20260826-0750.md",
+    "plans/upload-program_致_cats-portal_回覆_開通即建帳推送端點_20261007-1449.md",
     "狀態總覽.md",
 ]
 

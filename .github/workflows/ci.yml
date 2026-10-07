@@ -159,7 +159,17 @@ jobs:
       - name: 冒煙測試 /health(不接任何相依)
         run: |
           set -e
-          docker run -d --name smoke -p 18080:8080 \
+          # 🐛 2026-10-07 PR #46:兩次 run 都在這一步撞
+          #    `Conflict. The container name "/smoke" is already in use`(容器 27c9be…)。
+          #    根因:自架 runner 與 VM 上其他服務**共用同一個 dockerd**,而本步驟原本用
+          #    **固定名稱 `smoke` + 固定 host port 18080**,且清理寫在最後兩行 ——
+          #    任何一次在中途失敗(`set -e`)或被取消,容器就留下來,之後每一次 run 都撞名。
+          #    修法:①名稱帶 run id + attempt(並行 / 重跑都不撞);②host port 由 docker 隨機配
+          #    (舊的殘留容器若還占著 18080 也不受影響);③`trap` 保證**任何結果**都清掉自己的容器。
+          #    🔴 刻意**不** `docker rm -f smoke`:dockerd 是共用的,不能確定那個名字是誰的。
+          NAME="upload-smoke-${{ github.run_id }}-${{ github.run_attempt }}"
+          trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$NAME" -p 127.0.0.1::8080 \
             -e PUBLIC_BASE_URL=https://catsapp.example.test \
             -e API_PREFIX=/upload \
             -e DATABASE_URL=postgresql+asyncpg://u:p@db:5432/upload_db \
@@ -169,22 +179,23 @@ jobs:
             -e S3_ENDPOINT_URL=http://minio:9000 -e S3_BUCKET=b \
             -e S3_ACCESS_KEY=a -e S3_SECRET_KEY=b \
             upload-program:ci
+          PORT=$(docker port "$NAME" 8080/tcp | head -1 | awk -F: '{print $NF}')
+          echo "冒煙容器 ${NAME} → 127.0.0.1:${PORT}"
           # 規約:啟動到 /health 回 200 不得超過 60 秒
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:18080/health >/dev/null 2>&1; then
+            if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
               echo "✅ /health 在第 ${i} 秒回 200(未接 DB/MinIO)"
               break
             fi
-            [ "$i" = "60" ] && { echo "::error::/health 60 秒內未就緒"; docker logs smoke; exit 1; }
+            [ "$i" = "60" ] && { echo "::error::/health 60 秒內未就緒"; docker logs "$NAME"; exit 1; }
             sleep 1
           done
           # /ready 相反:相依不通就該回 503
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/ready)
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/ready")
           echo "/ready = ${CODE}(無相依時應為 503)"
           [ "$CODE" = "503" ] || { echo "::error::/ready 在相依不通時未回 503"; exit 1; }
-          # SIGTERM 要能優雅關閉
-          docker stop -t 35 smoke
-          docker rm smoke
+          # SIGTERM 要能優雅關閉(trap 之後仍會 rm,對已刪除的容器是 no-op)
+          docker stop -t 35 "$NAME"
 
       # 🔴 有 high / critical 即失敗
       # 2026-07-30 run #86:trivy-action 的 install.sh 從 GitHub Releases 資產域

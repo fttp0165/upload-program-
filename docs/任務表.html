@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-09 14:30
-<strong>版本:</strong> v2.07</p>
+<strong>最後更新:</strong> 2026-10-07 14:49
+<strong>版本:</strong> v2.08</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -988,6 +988,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>📌 <strong>合併不是交付</strong> —— T144 於 09-08 11:14 併進 main,而 <code>v0.4.1</code> 是 <strong>10:26</strong> 發的、<strong>早於它</strong>,所以線上到現在看到的仍是 <code>195245216 bytes</code> 和 <code>source</code>,七項全是使用者看得到的東西卻在 repo 裡躺了一天。<code>APP_VERSION</code> → <code>0.4.2</code>(🔴 第八條 4:打 tag 之前);升 patch 而非次版號,因為七項<strong>全是呈現層</strong>、API/schema/權限/三道紅線一字未動(對照 v0.3.0 升次版號是 <code>publish</code> 從「發布」變成「送審」——<strong>那才是會讓看 Release 頁的人誤判的改動</strong>)。同批把 <code>CLAUDE.md</code>(v2.9)與狀態總覽(v2.6)引用的契約版號 v3.4 → <strong>v3.7</strong> 帶進發版。🔴 <strong>狀態總覽 §1/§2/§3 原本是過期的</strong>(寫「線上 v0.3.1、v0.4.1 待發」而 v0.4.1 早已發布),一併改正,並把「VM 實測」誠實標為<strong>未知</strong>——最後實測是 09-07 的 0.3.1,其後三個 tag 陸續發布而我方沒有紀錄。⚠ <strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong>:VM 若還在 0.3.x,中間隔著 0011/0012/0013 三個 migration,故部署指令改為「先量再決定」。測試 <strong>700 passed</strong>、ruff 乾淨、<code>render_docs --check</code> 綠</td>
 </tr>
 <tr>
+<td>T146</td>
+<td>開通即建帳(SVC-PUSH)接收端點 <code>POST /v1/provision</code></td>
+<td>✅(未發版)</td>
+<td>🟢</td>
+<td>cats-portal 徵詢函 v1.0(09-09)→ Benny 10-07「幫 upload 寫接收端點」;dev-log <a href="dev-logs/2026-10-07_T146_開通即建帳接收端點.md">T146</a>。四層驗證(簽章 → <strong>aud 明確含本服務、不吃 azp 退路</strong> → scope <code>account:provision:&lt;client_id&gt;</code> → <strong>呼叫者本人是 portal 平台管理員或 <code>/mgr/</code> 主管</strong>);<code>join</code> 建 <strong>pending</strong> 列(🔴 不是 active:開通仍是本服務管理員的職權)、既有列<strong>一個欄位都不動</strong>(🔴 不重用 <code>upsert_user</code>,它會把名字覆寫成 NULL);<code>leave</code> 忽略(🔴 在本服務 = <strong>取消開通不收權</strong>,已寫進回函);payload <code>extra=forbid</code>,多送 <code>email</code> 即 422;<strong>21 條新增、六發反向注入皆轉紅</strong>;🟢 無 migration。回函 <a href="plans/upload-program_致_cats-portal_回覆_開通即建帳推送端點_20261007-1449.md">第 12 份</a> ⏳ 待送出;⚠ <strong>合併不是交付</strong>:隨下一版發布後才在 VM 生效</td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1315,6 +1322,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.08</td>
+<td>2026-10-07 14:49</td>
+<td>Claude(Benny:幫 upload 寫接收端點)</td>
+<td><strong>新增 T146 開通即建帳接收端點</strong>:<code>POST /v1/provision</code> 四層驗證、<code>join</code> 建 pending、<code>leave</code> 忽略、只收三欄;回函第 12 份待送出;未發版</td>
+</tr>
 <tr>
 <td>v2.07</td>
 <td>2026-09-09 14:30</td>

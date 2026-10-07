@@ -48,6 +48,9 @@ class AuditAction(enum.StrEnum):
     # 我方的 deny-by-default 是第二道防線 —— 那道防線擋下了誰,
     # 原本只留在**會滾掉的 stdout log** 裡。
     user_login_denied = "user.login_denied"
+    # T146:portal 開通 `/svc/upload` 時推送建帳(SVC-PUSH)。只在**真的建了一列**時記,
+    # 既有列被重送不記 —— 稽核記的是「事情發生了」,不是「有人敲過門」。
+    user_provision = "user.provision"
     user_activate = "user.activate"
     user_disable = "user.disable"
     user_set_role = "user.set_role"

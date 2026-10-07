@@ -126,6 +126,19 @@ class Settings(BaseSettings):
     # 搭配 VM 的 cron(或人工)執行。這一點在 dev-log 列為遺留問題,不假裝已自動化。
     audit_retention_days: int = Field(default=365, ge=1)
 
+    # --- 開通即建帳(T146,SVC-PUSH 接收端)---
+    # portal-admin 開通 `/svc/upload` 時呼叫 `POST /v1/provision`,請我方先開一列 pending。
+    # 🔴 呼叫者本人必須是下列兩者之一(徵詢函 §2.1 第 3 條,scope 之外的**第二道**):
+    #   ① realm 角色 = `provision_admin_role`(portal 的平台管理員角色,其 `ADMIN_REALM_ROLE`)
+    #   ② 任一群組以 `provision_manager_group_prefix` 開頭(portal 的部門主管 `/mgr/*`)
+    #   兩個值都是 **portal 的命名**,不是我方的;設定化是為了 portal 改名時不必改程式。
+    # ⚠ 所需 scope 不設定化:它由本服務 client_id 推導(見 `provision_scope`),
+    #   讓「這張票是給誰的」只有一個來源。
+    provision_admin_role: str = "portal-admin"
+    provision_manager_group_prefix: str = "/mgr/"
+    # 推送 payload 的 `service` 欄位(portal 取自群組路徑 `/svc/upload` 的最後一段)。
+    provision_service: str = "upload"
+
     # --- 錯誤格式(RFC 7807)---
     problem_type_base: str = "https://catsapp.sporton.com.tw/errors"
 
@@ -155,6 +168,14 @@ class Settings(BaseSettings):
     def cookie_path(self) -> str:
         """cookie 綁到自己的前綴,避免與同主機其他 App 的 cookie 互蓋(接入指南 §6)。"""
         return f"{self.api_prefix}/" if self.api_prefix else "/"
+
+    @property
+    def provision_scope(self) -> str:
+        """推送 token 必須帶的 scope(T146):`account:provision:<本服務 client_id>`。
+
+        與 portal `idp/bootstrap/scope-provision.sh` 的命名一致(`account:provision:<資源方>`)。
+        """
+        return f"account:provision:{self.oidc_client_id}"
 
     @property
     def bootstrap_admins(self) -> set[str]:

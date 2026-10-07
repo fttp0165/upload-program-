@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>回覆:開通即建帳(SVC-PUSH)試點 —— 同意,端點已實作</title>
+<title>回覆:開通即建帳(SVC-PUSH)試點 —— 同意,且 portal 開關即本服務開關</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
@@ -40,17 +40,17 @@ summary { cursor:pointer; color:#12228f; }
 <body>
 <div class="banner">本頁由 <code>tools/render_docs.py</code> 自 <code>docs/upload-program_致_cats-portal_回覆_開通即建帳推送端點_20261007-1449.md</code> 產生。
 權威版本為 Markdown,請勿直接編輯本 HTML。</div>
-<h1>回覆:開通即建帳(SVC-PUSH)試點 —— 同意,端點已實作</h1>
+<h1>回覆:開通即建帳(SVC-PUSH)試點 —— 同意,且 portal 開關即本服務開關</h1>
 <p><strong>專案:</strong> upload-program
 <strong>發文專案:</strong> upload-program
 <strong>受文專案:</strong> cats-portal
 <strong>發文時間:</strong> 2026-10-07 14:49
 <strong>建立日期:</strong> 2026-10-07 14:49
-<strong>最後更新:</strong> 2026-10-07 14:49
-<strong>版本:</strong> v1.0
+<strong>最後更新:</strong> 2026-10-07 15:23
+<strong>版本:</strong> v1.1
 <strong>時區:</strong> 本文件所有時間一律 <strong>UTC+8</strong>
 <strong>回覆對象:</strong> 《cats-portal 致 upload-program —— 徵詢:開通即建帳(SVC-PUSH)試點,請書面回覆》v1.0(2026-09-09 18:00 UTC+8)
-<strong>對應任務:</strong> T146(dev-log <code>docs/dev-logs/2026-10-07_T146_開通即建帳接收端點.md</code>)</p>
+<strong>對應任務:</strong> T146 端點、T147 語意(dev-log <code>docs/dev-logs/2026-10-07_T146_開通即建帳接收端點.md</code>、<code>…_T147_portal開關即本服務開關.md</code>)</p>
 <blockquote>
 <p>⚠ <strong>晚了 4 週。</strong> 來函 2026-09-09 發出,本函 2026-10-07 才回。
 期間貴方旗標維持 off,沒有任何請求送到我方,故無事故;但這 4 週是我方的延誤,不是貴方的。</p>
@@ -79,7 +79,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>3</td>
 <td><code>action=leave</code></td>
-<td><strong>忽略</strong>(採來函 §2.3 平台預設),回 200。🔴 但<strong>理由與貴方設想的不完全相同</strong>,見 §3</td>
+<td>🔴 <strong>不採來函 §2.3 的「忽略」,改為停用。</strong> 我方決定(Benny 2026-10-07 裁示):<strong>portal 的開關就是本服務的開關</strong> —— <code>join</code> 直接開通、<code>leave</code> 直接停用。理由與後果見 §3</td>
 </tr>
 </tbody>
 </table>
@@ -133,55 +133,86 @@ summary { cursor:pointer; color:#12228f; }
 <p>⚠ 關於 ②:本服務既有的 token 驗證對 Keycloak 登入 token 有一條「aud 不含本服務時看 <code>azp</code>」的退路。
 <strong>推送端點刻意不吃這條退路</strong> —— 推送 token 的 azp 是 <code>portal-admin</code>,它能進來的唯一理由
 必須是 aud 裡明寫了 <code>upload-program</code>。</p>
-<h2>2. 行為</h2>
+<h2>2. 行為(T147:portal 開關 = 本服務開關)</h2>
 <table>
 <thead>
 <tr>
 <th>action</th>
-<th>我方庫裡已有那個人</th>
-<th>沒有</th>
+<th>我方庫裡狀態</th>
+<th>結果</th>
+<th>HTTP</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>join</code></td>
-<td><strong>一個欄位都不動</strong>,200</td>
-<td>建一列 <strong>待開通(pending)</strong>,201,寫稽核 <code>user.provision</code></td>
+<td>沒有</td>
+<td>建一列並<strong>直接開通</strong></td>
+<td><strong>201</strong></td>
+</tr>
+<tr>
+<td><code>join</code></td>
+<td>待開通 / 已停用</td>
+<td><strong>開通</strong></td>
+<td>200</td>
+</tr>
+<tr>
+<td><code>join</code></td>
+<td>已開通</td>
+<td>不動</td>
+<td>200</td>
 </tr>
 <tr>
 <td><code>leave</code></td>
-<td>忽略,200</td>
-<td>忽略,200</td>
+<td>已開通 / 待開通</td>
+<td><strong>停用</strong></td>
+<td>200</td>
+</tr>
+<tr>
+<td><code>leave</code></td>
+<td>已停用 / 沒有</td>
+<td>不動(沒有就不建列)</td>
+<td>200</td>
+</tr>
+<tr>
+<td><code>leave</code></td>
+<td>對象是本服務<strong>唯一一位</strong>平台管理員</td>
+<td>🔴 <strong>不動</strong></td>
+<td><strong>409</strong></td>
 </tr>
 </tbody>
 </table>
 <ul>
-<li><strong>冪等</strong>:以 <code>sub</code> 唯一鍵,重送結果相同;並發撞鍵也回 200(來函 §2.2)。</li>
-<li>🔴 <strong>建的是「待開通」,不是「已開通」。</strong> 本服務的「誰能用」看本地狀態,由本服務管理員決定
-  (契約 §4.4)。推送解的是「人不在庫裡就設不了」 —— 現在管理員可以在那個人登入之前,
-  就在本服務後台把他開通、設角色、設單檔上限。<strong>推送本身不授予任何權限。</strong></li>
-<li>已被本服務停用的人,推送<strong>不會</strong>解除停用。</li>
+<li><strong>只動「能不能用」</strong>:名字、信箱、本服務的平台管理員身分一律不碰。</li>
+<li><strong>冪等</strong>:以 <code>sub</code> 唯一鍵,重送結果相同,第二次不再寫稽核(來函 §2.2)。</li>
+<li><strong>稽核</strong>:開通/停用與本服務後台按鈕用同一組 action(<code>user.activate</code> / <code>user.disable</code>),
+  新建另記 <code>user.provision</code>;操作者若在本服務有帳號就記他,沒有就記「系統」,
+  完整的「誰按的」以 <code>X-Trace-Id</code> 對回貴方稽核。</li>
 <li><strong>只收三個欄位</strong>:payload 多一個欄位(例如 <code>email</code>)→ <strong>422</strong>。這是我方這一側對
   「業務庫只存 sub」的結構保證,與貴方的 AST 檢查各守一道。</li>
 <li><code>subject</code> 必須是<strong>小寫標準形 UUID</strong>;<code>service</code> 必須是 <code>upload</code>;不符 → 422。
   🔴 <strong>422 代表貴方的設定或程式錯了</strong>(不是暫時性失敗),重試不會好。</li>
+<li>🔴 <strong>409 的意思</strong>:不讓 portal 一個點擊就讓本服務沒有任何管理員進得了後台。
+  請在貴方畫面上把它顯示成「推送失敗」—— 管理員需要先在本服務指派另一位管理員。</li>
 </ul>
-<h2>3. <code>leave=忽略</code> 在本服務的實際效果(請寫進登記表)</h2>
+<h2>3. 為什麼不採「leave = 忽略」,以及貴方因此要知道的三件事</h2>
 <p>來函 §2.3 的第 1 點理由是「本地使用者列不是授權來源,授權看當次 token 的 groups」。
-🔴 <strong>這一點在本服務不成立</strong>:本服務的授權看<strong>本地狀態</strong>,不看 groups
-(T63:<code>/svc/upload</code> 只讀不判,等貴方另行通知才接)。</p>
-<p>所以在本服務,<code>leave</code> 被忽略的意思是:
-<strong>貴方取消開通 <code>/svc/upload</code>,那個人在本服務仍然是已開通的</strong>,直到本服務管理員手動停用。
-這與推送上線前完全相同(沒有變差),但<strong>不要讓任何人以為取消開通會連帶收權</strong>。</p>
-<p>我方仍然選「忽略」而不是「收到 leave 就停用」,理由:
-停用是本服務管理員的刻意決定,而貴方的群組變動可能來自別的原因(調部門、整理群組);
-讓群組變動自動停用一個正在用的人,會在使用者那一側表現成「突然進不去」,而原因在別的系統。
-若貴方認為 <code>leave</code> 應連帶停用,請來函,我方另立任務評估。</p>
-<h2>4. 一個貴方要知道的限制:本服務管理員看到的是 UUID</h2>
-<p>推送只帶 <code>sub</code>,所以被推送建出來的那一列<strong>沒有名字</strong>,本服務後台會顯示 <code>sub</code> 前 8 碼,
-直到本人第一次登入(依 §4.2a L1 填入名字)。
-本服務管理員要開通「還沒登入過的人」時,需要另一個管道對上「這個 UUID 是誰」 ——
-例如貴方後台顯示該人的 <code>sub</code>。這不是本次要解的,只是先講,免得試點時被當成錯誤。</p>
+🔴 <strong>這在本服務不成立</strong>:本服務的授權看<strong>本地狀態</strong>,不看 groups。
+所以若 <code>join</code> 直接開通而 <code>leave</code> 忽略,結果是<strong>開得了、關不掉</strong> —— 兩條必須一起改。</p>
+<p>貴方因此要知道:</p>
+<ol>
+<li>🔴 <strong><code>leave</code> 推送失敗 = 那個人在本服務仍然可用。</strong> 在 T147 之前,推送失敗只是「少了加速」;
+   現在取消開通的推送失敗,<strong>收權就沒有發生</strong>。貴方的「失敗語意第三種」(畫面顯示 + <code>provision_failed</code>
+   稽核)在這裡從「提醒」變成「唯一的線索」,請確保管理員看得到。</li>
+<li>⚠ <strong>旗標打開之前就已開通 / 已取消的人不會被補送。</strong> 第一次打開旗標時,
+   貴方 <code>/svc/upload</code> 成員與我方已開通名單可能不一致;需要一次性對帳(我方可提供已開通者的 <code>sub</code> 清單)。</li>
+<li>⚠ <strong>本服務管理員手動停用的人,貴方再按開通就會恢復</strong> —— 我方沒有欄位區分「誰停用的」,
+   以貴方為準。部門主管因此等同能開通本服務:<strong>管轄範圍請由貴方 <code>_guard_target</code> 守住</strong>(見 §1 第 2 點)。</li>
+</ol>
+<p>本服務後台的開通 / 停用按鈕<strong>保留</strong>,作為推送失敗時的補救。</p>
+<h2>4. 推送建出的列沒有名字</h2>
+<p>推送只帶 <code>sub</code>,所以被推送建出來的那一列<strong>沒有名字</strong>,本服務後台顯示 <code>sub</code> 前 8 碼,
+直到本人第一次登入(依 §4.2a L1 填入名字)。這不影響使用(開通已經生效),只影響本服務後台的辨識。</p>
 <h2>5. 施作順序(貴方來函 §5,我方狀態)</h2>
 <table>
 <thead>
@@ -200,7 +231,7 @@ summary { cursor:pointer; color:#12228f; }
 <tr>
 <td>2</td>
 <td>我方端點 + 內網位址</td>
-<td>✅ 程式完成(T146);⏳ <strong>隨下一版發布後才在 VM 上生效</strong>,發布後另行通知</td>
+<td>✅ 程式完成(T146 端點、T147 語意);⏳ <strong>隨下一版發布後才在 VM 上生效</strong>,發布後另行通知</td>
 </tr>
 <tr>
 <td>3</td>
@@ -220,7 +251,8 @@ summary { cursor:pointer; color:#12228f; }
 </tbody>
 </table>
 <p>🔴 第 3 步請在第 2 步「已發布」之後再做無妨,順序顛倒也不會壞:scope 未建立時,
-即使有請求打進來,我方也會在 ③ 回 403,不建任何資料。</p>
+即使有請求打進來,我方也會在 ③ 回 403,不動任何資料。
+🔴 <strong>第 5 步打開旗標前,請先做 §3 第 2 點的一次性對帳。</strong></p>
 <hr />
 <h2>版本歷史</h2>
 <table>
@@ -233,6 +265,12 @@ summary { cursor:pointer; color:#12228f; }
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v1.1</td>
+<td>2026-10-07 15:23</td>
+<td>upload-program 維運(Claude,Benny 裁示 B 案)</td>
+<td>🔴 <strong>語意改變(尚未送出,故於同一份升版)</strong>:<code>join</code> 由「建待開通」改為<strong>直接開通</strong>、<code>leave</code> 由「忽略」改為<strong>停用</strong>(T147);新增 409(不得停用唯一一位本服務管理員);§3 改寫為「為什麼不採忽略」並揭露三件事:<strong>leave 推送失敗 = 未收權</strong>、旗標打開前的既有名單需一次性對帳、portal 再開通會覆蓋本服務的手動停用</td>
+</tr>
 <tr>
 <td>v1.0</td>
 <td>2026-10-07 14:49</td>

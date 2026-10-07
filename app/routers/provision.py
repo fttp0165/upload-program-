@@ -1,19 +1,21 @@
-"""開通即建帳(SVC-PUSH)接收端點 —— T146。
+"""開通即建帳(SVC-PUSH)接收端點 —— T146 建立、T147 改為 B 案語意。
 
 ## 這支在做什麼
 
 portal-admin 的管理員在後台按「+ upload」把某人加進 `/svc/upload` 之後,
-portal 會**主動**呼叫這裡:「這個 `sub` 被開通了,請先開一列」。
-讓本服務的管理員**不必等那個人第一次登入**,就能在後台開通他、設角色、設上限。
+portal 會**主動**呼叫這裡:「這個 `sub` 被開通了」—— 本服務**直接開通**他;
+portal 取消時送 `leave`,本服務**直接停用**他。本服務管理員不必再按第二次。
+(T146 原為「先建一列 pending,等本服務管理員開通」,T147 依 Benny 裁示改掉。)
 
 依據:cats-portal 徵詢函 v1.0(2026-09-09 18:00 UTC+8),
 原樣存於 `docs/plans/inbox/cats-portal_致_upload-program_徵詢_開通即建帳推送端點_20260909-1800.md`。
 
 ## 🔴 三件刻意的事,各自擋什麼
 
-1. **建的是 pending,不是 active。** 本服務的授權看本地 `status`,開通是本服務
-   管理員的職權(契約 §4.4;T63「`/svc/upload` 只讀不判」)。推送若直接開通,
-   portal 端任何能開群組的人就繞過了本服務的開通流程 —— 而那正是 T63 擋住的事。
+1. **portal 的開關就是本服務的開關**(T147,Benny 2026-10-07 裁示 B 案)。
+   `join` → active、`leave` → disabled,兩者必須一起成立 —— 只做前者會「開得了、關不掉」。
+   ⚠ 取捨:本服務管理員手動停用的人,portal 再按開通就會恢復(沒有欄位區分誰停用的)。
+   ⚠ T63「`/svc/upload` 只讀不判」不受影響:那條管**登入 token 的 groups**,這裡是推送。
 2. **不重用 `security.upsert_user()`。** 它的語意是「每次登入以 token claims 覆寫
    名字與信箱,含覆寫成 NULL」;推送沒有 claims,重用的話**每推一次就把那個人的
    名字抹掉一次**,而畫面只會悄悄退回顯示 UUID。
@@ -32,11 +34,12 @@ portal 會**主動**呼叫這裡:「這個 `sub` 被開通了,請先開一列」
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel, ConfigDict, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .. import problems
@@ -83,10 +86,18 @@ class ProvisionIn(BaseModel):
 
 
 class ProvisionOut(BaseModel):
-    """回應。portal 只看狀態碼不解讀主體(徵詢函 §2.4),主體是給人除錯用的。"""
+    """回應。portal 只看狀態碼不解讀主體(徵詢函 §2.4),主體是給人除錯用的。
+
+    result:
+      created   —— 新建一列並開通(201)
+      activated —— 既有列 pending/disabled → active
+      disabled  —— 既有列 active/pending → disabled
+      unchanged —— 已經是目標狀態(重送)
+      ignored   —— leave 一個本服務從沒見過的人
+    """
 
     subject: str
-    result: Literal["created", "exists", "ignored"]
+    result: Literal["created", "activated", "disabled", "unchanged", "ignored"]
 
 
 def _has_audience(claims: dict, client_id: str) -> bool:
@@ -157,10 +168,32 @@ def verify_provision_caller(request: Request) -> dict:
     return claims
 
 
+async def _is_last_active_admin(session, user: User) -> bool:
+    """`user` 是不是本服務**唯一一位** active 平台管理員。
+
+    🔴 與 `admin.patch_user`「不能停用自己」同一個理由:平台可能一個管理員都不剩,
+    而那時連「把人開通回來」的後台都進不去,只剩手打 SQL。
+    """
+    if not (user.is_active and user.platform_role is PlatformRole.admin):
+        return False
+    others = (
+        await session.execute(
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.id != user.id,
+                User.status == UserStatus.active,
+                User.platform_role == PlatformRole.admin,
+            )
+        )
+    ).scalar_one()
+    return others == 0
+
+
 @router.post(
     "/provision",
     response_model=ProvisionOut,
-    summary="開通即建帳(portal SVC-PUSH 接收端)",
+    summary="portal 開通/取消 = 本服務開通/停用(SVC-PUSH 接收端)",
     status_code=status.HTTP_200_OK,
 )
 async def provision(
@@ -170,43 +203,26 @@ async def provision(
     session: DbSession,
     caller: Annotated[dict, Depends(verify_provision_caller)],
 ) -> ProvisionOut:
-    """依 `action` 處理一筆推送。
+    """依 `action` 把本地 `users.status` 對齊 portal 的開關(T147,B 案)。
 
-    - `join`:沒有 → 建 pending 列(201 `created`,寫稽核);已有 → 一個欄位都不動(200 `exists`)。
-    - `leave`:**忽略**(200 `ignored`),採徵詢函 §2.3 的平台預設。
-      ⚠ 在本服務的實際效果:portal 取消開通**不會**讓那個人在這裡被停用 ——
-      本服務的授權看本地 `status`,收權仍要本服務管理員動手(與推送上線前相同)。
+    - `join`:沒有 → 建一列 **active**(201 `created`);pending/disabled → active;active → 不動。
+    - `leave`:active/pending → **disabled**;disabled → 不動;沒有 → 不建列(`ignored`)。
+      🔴 唯一一位 active 平台管理員 → **409**,不動(見 `_is_last_active_admin`)。
 
-    冪等:以 `users.sub` 唯一鍵 upsert;重送同一筆結果相同(徵詢函 §2.2)。
-    副作用:可能新增一列 `users` 與一列 `audit_events`(同一次 commit)。
+    🔴 **只動 `status`(與 `activated_at`)**:名字、信箱、`platform_role` 一個都不碰 ——
+       推送管的是「能不能用」,不是「是誰」也不是「是不是本服務管理員」。
+
+    冪等:以 `users.sub` 唯一鍵;已是目標狀態時回 `unchanged`、不寫稽核。
+    副作用:可能 INSERT / UPDATE 一列 `users`,並寫 `audit_events`(同一次 commit)。
     """
     settings: Settings = request.app.state.settings
     if payload.service != settings.provision_service:
-        # 拿 survey 的推送打到這裡 = portal 的 URL 設錯了。配置錯誤要大聲,不要建列。
+        # 拿 survey 的推送打到這裡 = portal 的 URL 設錯了。配置錯誤要大聲,不要動資料。
         raise problems.unprocessable(
             "provision-wrong-service",
             "服務代號不符",
             f"本端點只接受 service={settings.provision_service}",
         )
-
-    if payload.action == "leave":
-        log.info("建帳推送:leave 依約忽略", extra={"caller_sub": caller.get("sub")})
-        return ProvisionOut(subject=payload.subject, result="ignored")
-
-    existing = (
-        await session.execute(select(User.id).where(User.sub == payload.subject))
-    ).scalar_one_or_none()
-    if existing is not None:
-        return ProvisionOut(subject=payload.subject, result="exists")
-
-    user = User(
-        sub=payload.subject,
-        status=UserStatus.pending,
-        platform_role=PlatformRole.member,
-        # 名字與信箱刻意留空:推送不帶個資,本人登入時由 upsert_user 依 §4.2a 填入。
-    )
-    session.add(user)
-    await session.flush()  # 取得 user.id 給稽核用
 
     # actor:呼叫者若剛好也是本服務使用者就記他的本地 id;不是就記 None(系統來源)。
     # 🔴 **不為此建呼叫者的帳號** —— 見檔頭第 3 點。完整的「誰按的」在 portal 的稽核裡,
@@ -214,19 +230,61 @@ async def provision(
     actor_id = (
         await session.execute(select(User.id).where(User.sub == caller.get("sub")))
     ).scalar_one_or_none()
-    record(
-        session,
-        action=AuditAction.user_provision,
-        actor_id=actor_id,
-        target_type="user",
-        target_id=user.id,
+    user = (
+        await session.execute(select(User).where(User.sub == payload.subject))
+    ).scalar_one_or_none()
+
+    if payload.action == "leave":
+        if user is None:
+            return ProvisionOut(subject=payload.subject, result="ignored")
+        if user.status is UserStatus.disabled:
+            return ProvisionOut(subject=payload.subject, result="unchanged")
+        if await _is_last_active_admin(session, user):
+            raise problems.conflict(
+                "對象是本服務唯一一位平台管理員,不能由 portal 取消開通來停用;"
+                "請先在本服務後台指派另一位管理員。"
+            )
+        user.status = UserStatus.disabled
+        # action 由**新狀態**決定,與後台按鈕同一個字彙(test_audit.py 的既有原則)。
+        record(session, action=AuditAction.user_disable, actor_id=actor_id,
+               target_type="user", target_id=user.id)
+        await session.commit()
+        return ProvisionOut(subject=payload.subject, result="disabled")
+
+    # ── join ──
+    if user is not None:
+        if user.is_active:
+            return ProvisionOut(subject=payload.subject, result="unchanged")
+        user.status = UserStatus.active
+        if user.activated_at is None:
+            user.activated_at = datetime.now(UTC)
+        record(session, action=AuditAction.user_activate, actor_id=actor_id,
+               target_type="user", target_id=user.id)
+        await session.commit()
+        return ProvisionOut(subject=payload.subject, result="activated")
+
+    user = User(
+        sub=payload.subject,
+        status=UserStatus.active,
+        platform_role=PlatformRole.member,
+        activated_at=datetime.now(UTC),
+        # 名字與信箱刻意留空:推送不帶個資,本人登入時由 upsert_user 依 §4.2a 填入。
     )
+    session.add(user)
+    await session.flush()  # 取得 user.id 給稽核用
+    # 兩筆:「建了這一列」與「開通了這個人」是兩件事;後者與後台按鈕同一個字彙,
+    # 查「誰被開通了」時不必知道是哪條路開的。
+    record(session, action=AuditAction.user_provision, actor_id=actor_id,
+           target_type="user", target_id=user.id)
+    record(session, action=AuditAction.user_activate, actor_id=actor_id,
+           target_type="user", target_id=user.id)
     try:
         await session.commit()
     except IntegrityError:
-        # 並發:同一個人剛好在這一刻首登、或 portal 重試撞上第一次。結果等同「已存在」。
+        # 並發:同一個人剛好在這一刻首登(建成 pending)、或 portal 重試撞上第一次。
+        # 不猜對方建成什麼狀態 —— 回 409 讓 portal 顯示失敗,管理員重按一次即收斂。
         await session.rollback()
-        return ProvisionOut(subject=payload.subject, result="exists")
+        raise problems.conflict("同一個帳號正在被同時建立,請重試一次。") from None
 
     response.status_code = status.HTTP_201_CREATED
     return ProvisionOut(subject=payload.subject, result="created")

@@ -1,4 +1,6 @@
-"""T146:開通即建帳(SVC-PUSH)接收端點 `POST /v1/provision`。
+"""T146 / T147:開通即建帳(SVC-PUSH)接收端點 `POST /v1/provision`。
+
+T147(Benny 2026-10-07 裁示 B 案):portal 開通 = 本服務開通、portal 取消 = 本服務停用。
 
 依 cats-portal 徵詢函 v1.0(2026-09-09 18:00 UTC+8,存於 `docs/plans/inbox/`)。
 
@@ -7,7 +9,7 @@
 1. **四層驗證,deny-by-default**(徵詢函 §2.1)—— 每一層都有一條反向測試。
    🔴 第 4 層(呼叫者本人的角色)最要緊:少了它,任何拿得到該 scope 的登入者
    都能在我方庫裡建列。
-2. **冪等與「不碰既有列」** —— 重送同一筆結果相同;既有列的名字與信箱
+2. **冪等與「只動 status」** —— 重送同一筆結果相同;既有列的名字、信箱、平台角色
    **不得被抹掉**(`security.upsert_user()` 會覆寫成 NULL,本端點不得重用它)。
 3. **只收三個欄位** —— 多一個 `email` 就 422。這是我方這一側對
    「業務庫只存 sub」的結構保證。
@@ -54,86 +56,126 @@ async def _audits(app, action: str) -> list[AuditEvent]:
         return list(rows.scalars())
 
 
-# --- 1. 正向:join 新人 -------------------------------------------------------
+# --- 1. join:portal 開通 = 本服務開通(T147 B 案)---------------------------
 
 
-async def test_join新人_建一列pending且無名字(client, app, oidc):
+async def test_join新人_直接建active且無名字(client, app, oidc):
     resp = await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
     assert resp.status_code == 201, resp.text
     assert resp.json()["result"] == "created"
 
     user = await _user(app, SUBJECT)
     assert user is not None
-    # 🔴 pending 而不是 active:開通仍是本服務管理員的職權(契約 §4.4、T63)。
-    assert user.status is UserStatus.pending
+    # T147:portal 開通就是本服務開通(Benny 2026-10-07 裁示 B 案)。
+    assert user.status is UserStatus.active
+    assert user.activated_at is not None
+    # 🔴 推送只管「能不能用」,不管「是不是本服務管理員」。
     assert user.platform_role is PlatformRole.member
     # 推送不帶任何個資,所以這兩欄必然是空的 —— 名字要等本人登入才會有。
     assert user.display_name_cache is None
     assert user.notify_email is None
 
 
-async def test_join新人_寫一筆稽核(client, app, oidc):
+async def test_join新人_稽核記建帳與開通兩筆(client, app, oidc):
     await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
-    events = await _audits(app, "user.provision")
-    assert len(events) == 1
     user = await _user(app, SUBJECT)
-    assert events[0].target_id == user.id
+    provision = await _audits(app, "user.provision")
+    activate = await _audits(app, "user.activate")
+    assert [e.target_id for e in provision] == [user.id]
+    # 🔴 開通走與後台按鈕**同一個** action 字彙 —— 查「誰被開通了」不必知道是哪條路開的。
+    assert [e.target_id for e in activate] == [user.id]
 
 
 async def test_呼叫者不會因推送而在本服務被建帳(client, app, oidc):
     """🔴 驗的是 portal 管理員的 token,但**不得**走 `get_identity` 首登自建 ——
-    否則每個按過按鈕的 portal 管理員都會憑空變成本服務的 pending 使用者。"""
+    否則每個按過按鈕的 portal 管理員都會憑空變成本服務的使用者。"""
     await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
     assert await _user(app, "sub-portal-admin") is None
 
 
-# --- 2. 冪等與不碰既有列 -----------------------------------------------------
+async def test_join待開通者_改為active(client, app, oidc):
+    await make_user(app, SUBJECT, status=UserStatus.pending)
+    resp = await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
+    assert resp.status_code == 200
+    assert resp.json()["result"] == "activated"
+    assert (await _user(app, SUBJECT)).status is UserStatus.active
+    assert len(await _audits(app, "user.activate")) == 1
 
 
-async def test_重送同一筆_結果相同不重複建列(client, app, oidc):
+async def test_join已停用者_重新開通(client, app, oidc):
+    """portal 為準(B 案取捨 1):本服務手動停用的人,portal 再開通就會恢復。"""
+    await make_user(app, SUBJECT, status=UserStatus.disabled)
+    resp = await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
+    assert resp.status_code == 200
+    assert resp.json()["result"] == "activated"
+    assert (await _user(app, SUBJECT)).status is UserStatus.active
+
+
+# --- 2. 冪等與不碰其他欄位 -----------------------------------------------------
+
+
+async def test_重送同一筆join_結果相同不重複建列(client, app, oidc):
     token = _admin_token(oidc)
     r1 = await client.post("/v1/provision", json=_body(), headers=auth(token))
     r2 = await client.post("/v1/provision", json=_body(), headers=auth(token))
     assert r1.status_code == 201
     assert r2.status_code == 200
-    assert r2.json()["result"] == "exists"
+    assert r2.json()["result"] == "unchanged"
     async with app.state.sessionmaker() as session:
         rows = (await session.execute(select(User).where(User.sub == SUBJECT))).scalars().all()
     assert len(rows) == 1
     # 第二次什麼都沒發生,所以不留第二筆稽核(稽核記的是「事情真的發生了」)。
     assert len(await _audits(app, "user.provision")) == 1
+    assert len(await _audits(app, "user.activate")) == 1
 
 
-async def test_join既有人_名字信箱狀態一個都不動(client, app, oidc):
+async def test_join與leave都不碰名字信箱與平台角色(client, app, oidc):
     """🔴 `upsert_user()` 的語意是「每次登入覆寫,含覆寫成 NULL」;
-    推送沒有 claims 可給,重用它就會每推一次抹掉一次那個人的名字。"""
-    existing = await make_user(app, SUBJECT, status=UserStatus.active)
+    推送沒有 claims 可給,重用它就會每推一次抹掉一次那個人的名字。
+    `platform_role` 同理:推送只管能不能用。"""
+    existing = await make_user(app, SUBJECT, status=UserStatus.pending, admin=True)
+    await make_user(app, "sub-other-admin", admin=True)  # 讓 leave 不撞最後一位管理員
     async with app.state.sessionmaker() as session:
         row = await session.get(User, existing.id)
         row.display_name_cache = "測試甲"
         row.notify_email = "fake@example.test"
         await session.commit()
 
-    resp = await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
+    token = _admin_token(oidc)
+    for action in ("join", "leave"):
+        resp = await client.post("/v1/provision", json=_body(action=action), headers=auth(token))
+        assert resp.status_code == 200, (action, resp.text)
+        user = await _user(app, SUBJECT)
+        assert user.display_name_cache == "測試甲"
+        assert user.notify_email == "fake@example.test"
+        assert user.platform_role is PlatformRole.admin
+
+
+# --- 3. leave:portal 取消 = 本服務停用(T147 B 案)-----------------------------
+
+
+async def test_leave_active者被停用(client, app, oidc):
+    await make_user(app, SUBJECT, status=UserStatus.active)
+    resp = await client.post(
+        "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
+    )
     assert resp.status_code == 200
-    user = await _user(app, SUBJECT)
-    assert user.display_name_cache == "測試甲"
-    assert user.notify_email == "fake@example.test"
-    assert user.status is UserStatus.active
+    assert resp.json()["result"] == "disabled"
+    assert (await _user(app, SUBJECT)).status is UserStatus.disabled
+    assert len(await _audits(app, "user.disable")) == 1
 
 
-async def test_join已停用者_不得被推送解除停用(client, app, oidc):
-    """停權是本服務管理員的刻意決定;推送不是繞過停權的後門。"""
-    await make_user(app, SUBJECT, status=UserStatus.disabled)
-    resp = await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
+async def test_leave_待開通者也被停用(client, app, oidc):
+    await make_user(app, SUBJECT, status=UserStatus.pending)
+    resp = await client.post(
+        "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
+    )
     assert resp.status_code == 200
     assert (await _user(app, SUBJECT)).status is UserStatus.disabled
 
 
-# --- 3. leave = 忽略 ---------------------------------------------------------
-
-
-async def test_leave_忽略_不建列(client, app, oidc):
+async def test_leave_不存在者_不建列(client, app, oidc):
+    """取消一個從沒進來過的人:沒有東西可停用,也不為了「記下他被取消」而建一列。"""
     resp = await client.post(
         "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
     )
@@ -142,13 +184,51 @@ async def test_leave_忽略_不建列(client, app, oidc):
     assert await _user(app, SUBJECT) is None
 
 
-async def test_leave_忽略_不改既有狀態(client, app, oidc):
+async def test_leave_已停用者_重送不再寫稽核(client, app, oidc):
     await make_user(app, SUBJECT, status=UserStatus.active)
+    token = _admin_token(oidc)
+    await client.post("/v1/provision", json=_body(action="leave"), headers=auth(token))
+    r2 = await client.post("/v1/provision", json=_body(action="leave"), headers=auth(token))
+    assert r2.status_code == 200
+    assert r2.json()["result"] == "unchanged"
+    assert len(await _audits(app, "user.disable")) == 1
+
+
+async def test_leave_不得停用最後一位本服務管理員_409(client, app, oidc):
+    """🔴 否則 portal 一個點擊就能讓本服務沒有任何人進得了後台。"""
+    await make_user(app, SUBJECT, status=UserStatus.active, admin=True)
+    resp = await client.post(
+        "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
+    )
+    assert resp.status_code == 409
+    assert (await _user(app, SUBJECT)).status is UserStatus.active
+    assert await _audits(app, "user.disable") == []
+
+
+async def test_leave_還有其他管理員時_管理員也可被停用(client, app, oidc):
+    await make_user(app, SUBJECT, status=UserStatus.active, admin=True)
+    await make_user(app, "sub-other-admin", admin=True)
     resp = await client.post(
         "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
     )
     assert resp.status_code == 200
-    assert (await _user(app, SUBJECT)).status is UserStatus.active
+    assert (await _user(app, SUBJECT)).status is UserStatus.disabled
+
+
+async def test_停用後本人登入被擋(client, app, oidc):
+    """語意層驗收:不是驗欄位,是驗**那個人真的進不來了**。"""
+    await make_user(app, SUBJECT, status=UserStatus.active)
+    await client.post(
+        "/v1/provision", json=_body(action="leave"), headers=auth(_admin_token(oidc))
+    )
+    resp = await client.get("/v1/projects", headers=auth(oidc.issue(SUBJECT)))
+    assert resp.status_code == 403
+
+
+async def test_開通後本人登入可用(client, app, oidc):
+    await client.post("/v1/provision", json=_body(), headers=auth(_admin_token(oidc)))
+    resp = await client.get("/v1/projects", headers=auth(oidc.issue(SUBJECT)))
+    assert resp.status_code == 200
 
 
 # --- 4. 四層驗證(反向)-----------------------------------------------------

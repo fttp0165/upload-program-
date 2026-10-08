@@ -35,7 +35,9 @@
         <div class="project-head">
           <strong>{{ label(r) }}</strong>
           <span class="badge">{{ r.status.value }}</span>
-          <span class="muted">{{ r.requested_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+          <span class="muted" title="{{ r.requested_at.isoformat(timespec='seconds') }}">
+            {{ r.requested_at | taipei_time }}</span>
         </div>
         {% if r.reason %}
           <p>用途:{{ r.reason }}</p>

@@ -26,7 +26,8 @@
 
 <p class="muted">
   <span class="badge badge-{{ issue.status.value }}">{{ status_labels[issue.status] }}</span>
-  · 回報於 {{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}
+  {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+  · 回報於 <span title="{{ issue.created_at.isoformat(timespec='seconds') }}">{{ issue.created_at | taipei_time }}</span>
   · 服務版本 <code>v{{ issue.app_version or '—' }}</code>
   {% if issue.page_url %} · 發生頁面 <code>{{ issue.page_url }}</code>{% endif %}
 </p>
@@ -73,7 +74,8 @@
     <div class="issue-comment card{% if comment.is_staff_reply %} staff{% endif %}">
       <p class="muted">
         {% if comment.is_staff_reply %}<strong>平台回覆</strong>{% else %}回報者補充{% endif %}
-        · {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+        {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+        · <span title="{{ comment.created_at.isoformat(timespec='seconds') }}">{{ comment.created_at | taipei_time }}</span>
       </p>
       {{ render(comment.body_markdown) }}
     </div>

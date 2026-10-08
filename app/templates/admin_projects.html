@@ -41,7 +41,8 @@
     </div>
     <dl class="admin-proj-meta">
       <dt>擁有者</dt><dd>{{ row.owner_label }}</dd>
-      <dt>建立</dt><dd>{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+      {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+      <dt>建立</dt><dd title="{{ p.created_at.isoformat(timespec='seconds') }}">{{ p.created_at | taipei_time }}</dd>
       <dt>版本</dt><dd>{{ row.releases }}（已發布 {{ row.published }}）</dd>
       <dt>檔案</dt><dd>{{ row.artifacts }}</dd>
       <dt>容量</dt><dd>{{ row.size_text }}</dd>

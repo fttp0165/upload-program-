@@ -13,6 +13,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .branding import SITE_NAME
+from .clock import taipei as _to_taipei
 from .markdown_lite import render_markdown
 from .version import APP_VERSION
 from .web_urls import web_url
@@ -43,6 +44,25 @@ def _kind_label(kind) -> str:
     return getattr(kind, "value", str(kind))
 
 
+def _taipei_time(value, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """人看的台北時間(T146)。
+
+    🔴 `models.py` 的 `_now()` 一律存 **UTC**(與平台 gateway / Keycloak log
+    對齊,這是對的),但模板原本直接對 UTC 值呼叫 `strftime()`——印出的數字
+    不帶任何時區標示,會被全是台灣使用者的本平台讀成台北時間,而實際差
+    8 小時(2026-10-08 Benny 截圖回報「時間不對」命中的正是這個)。
+
+    只換算**顯示**,不動資料庫裡的值。
+
+    ⚠ 與 `_human_bytes` / `_kind_label` 不同,這裡**不需要**延遲 import——
+    `app.clock` 只用到標準庫(`datetime` / `zoneinfo`),不會繞回本模組,
+    沒有那兩個函式要躲的循環 import,故直接在檔案頂部 import。
+    """
+    if value is None:
+        return ""
+    return _to_taipei(value).strftime(fmt)
+
+
 def _human_bytes(value) -> str:
     """人看得懂的單位(T144)。
 
@@ -61,6 +81,7 @@ def _human_bytes(value) -> str:
 
 _env.filters["human_bytes"] = _human_bytes
 _env.filters["kind_label"] = _kind_label
+_env.filters["taipei_time"] = _taipei_time
 
 
 def render(request, template: str, **context) -> str:

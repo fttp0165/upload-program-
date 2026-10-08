@@ -43,8 +43,8 @@ summary { cursor:pointer; color:#12228f; }
 <h1>upload-program 任務表</h1>
 <p><strong>專案:</strong> upload-program
 <strong>建立日期:</strong> 2026-07-25 15:53
-<strong>最後更新:</strong> 2026-09-09 14:30
-<strong>版本:</strong> v2.07</p>
+<strong>最後更新:</strong> 2026-10-08 07:05
+<strong>版本:</strong> v2.08</p>
 <blockquote>
 <p>狀態:⬜ 未開始 / 🔵 進行中 / ✅ 完成 / ⚠️ 完成但有欠項
 資料影響:🟢 不動資料 / 🟡 加欄位或加表 / 🔴 UPDATE 或刪除
@@ -988,6 +988,13 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 <td>📌 <strong>合併不是交付</strong> —— T144 於 09-08 11:14 併進 main,而 <code>v0.4.1</code> 是 <strong>10:26</strong> 發的、<strong>早於它</strong>,所以線上到現在看到的仍是 <code>195245216 bytes</code> 和 <code>source</code>,七項全是使用者看得到的東西卻在 repo 裡躺了一天。<code>APP_VERSION</code> → <code>0.4.2</code>(🔴 第八條 4:打 tag 之前);升 patch 而非次版號,因為七項<strong>全是呈現層</strong>、API/schema/權限/三道紅線一字未動(對照 v0.3.0 升次版號是 <code>publish</code> 從「發布」變成「送審」——<strong>那才是會讓看 Release 頁的人誤判的改動</strong>)。同批把 <code>CLAUDE.md</code>(v2.9)與狀態總覽(v2.6)引用的契約版號 v3.4 → <strong>v3.7</strong> 帶進發版。🔴 <strong>狀態總覽 §1/§2/§3 原本是過期的</strong>(寫「線上 v0.3.1、v0.4.1 待發」而 v0.4.1 早已發布),一併改正,並把「VM 實測」誠實標為<strong>未知</strong>——最後實測是 09-07 的 0.3.1,其後三個 tag 陸續發布而我方沒有紀錄。⚠ <strong>「本版沒有 migration」不等於「換版不用跑 migration」</strong>:VM 若還在 0.3.x,中間隔著 0011/0012/0013 三個 migration,故部署指令改為「先量再決定」。測試 <strong>700 passed</strong>、ruff 乾淨、<code>render_docs --check</code> 綠</td>
 </tr>
 <tr>
+<td>T146</td>
+<td>🐛 時間戳顯示改成台北時間</td>
+<td>✅</td>
+<td>🟢</td>
+<td>Benny 截圖回報「時間不對,確認是為台北時間嗎」(專案頁「最後更新 05:54」);🔴 <strong><code>models.py</code> 的 <code>_now()</code> 存 UTC 這件事是對的</strong>(與平台 gateway / Keycloak log 同一時區),<strong>錯的是顯示層</strong>——七支模板 13 處直接對 UTC 值呼叫 <code>strftime()</code>,畫面上印出不帶任何標示的 UTC 數字,被全是台灣使用者的本平台讀成台北時間(實際差 8 小時);新增 <code>app/clock.py</code> 集中換算,<code>templating.py</code> 註冊 <code>taipei_time</code> filter,原始 UTC 值依 T144 的規矩留在 <code>title</code>(人看的換算過,要對照原始值的人 hover 就有);🔴 <strong>單一真相</strong>:<code>dashboard.py</code> 原本自己有一份幾乎一樣的 <code>_aware()</code> 補時區邏輯,搬進 <code>clock.py</code> 共用,不留第二份;🔴 <strong>容器裡可能沒有時區資料庫這件事一併解決</strong>:<code>python:3.12-slim</code> 不含系統 <code>tzdata</code>,而 apt 這條路在這個環境兩次證明不可靠(T93、T106),改加 PyPI <code>tzdata</code>(純資料無編譯,CPython 官方對這情境的建議解法),不是新增時區函式庫,<code>zoneinfo</code> 仍是標準庫;⚠ <strong>撞到既有測試並依 CI 紅線改寫</strong>:<code>test_後台使用者頁顯示最後登入時間</code> 原本斷言 UTC 日期出現在頁面裡——那個斷言的前提正是這次要修的 bug,換算後會變成看執行時刻(UTC 16:00–23:59:59 時台北已跨日)決定過不過的 flaky 測試,改成比對換算後的日期,兩邊用同一份 <code>taipei()</code> 就不會分岔;🔴 <strong>兩條反向守門各自故意改壞重驗</strong>:filter 繞過換算 → 兩條紅;<code>taipei()</code> 改成「只加 8 小時不處理跨日」(<strong>這正是這類 bug 最常見的犯法</strong>)→ <strong>只有跨午夜那條紅</strong>,證明「只測同一天加減法」測不出這種錯;<strong>5 條新增(2 紅起步 + 2 條反向守門改壞重驗)+ 既有 1 條改算法,全套 705</strong></td>
+</tr>
+<tr>
 <td>T76</td>
 <td>README 更新(v2.0)</td>
 <td>✅</td>
@@ -1315,6 +1322,12 @@ A2(缺動工前計畫段)是<strong>已發生的違規,不會消失</strong>,僅
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>v2.08</td>
+<td>2026-10-08 07:05</td>
+<td>Claude(Benny 截圖回報)</td>
+<td><strong>T146 🐛 時間戳顯示改成台北時間</strong>:<code>_now()</code> 存 UTC 沒錯,錯的是<strong>顯示層</strong>直接 <code>strftime()</code> 不帶標示——七支模板 13 處清空。新增 <code>app/clock.py</code>(與 <code>dashboard.py</code> 既有的 <code>_aware()</code> 合併成單一真相);原始 UTC 值依 T144 規矩留在 <code>title</code>。🔴 容器裡可能沒有系統 <code>tzdata</code>(apt 這條路兩次證明不可靠)→ 加 PyPI <code>tzdata</code>。⚠ 既有一條測試的斷言前提就是這個 bug,依 CI 紅線改寫。🔴 反向守門抓到「只加 8 小時不處理跨日」這個最貼近真實的犯法——只有跨午夜測試紅。<strong>705 passed</strong></td>
+</tr>
 <tr>
 <td>v2.07</td>
 <td>2026-09-09 14:30</td>

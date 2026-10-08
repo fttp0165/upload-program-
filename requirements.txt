@@ -23,3 +23,11 @@ jinja2>=3.1,<4.0
 # 🔴 這**不是**回頭用 multipart 傳檔——檔案上傳仍是 raw body PUT 串流,
 # 那個決定(不落暫存檔)沒有改變。這個套件只負責表單欄位。
 python-multipart>=0.0.9,<0.1
+# T146:標準庫 `zoneinfo`(UTC → 台北時間,顯示層用)需要一份時區資料庫,
+# 而 runtime base image `python:3.12-slim` 不含系統 `tzdata` 套件。
+# 🔴 **不走 apt 補**:這份 Dockerfile 已經兩次記下 `deb.debian.org` 從
+# CI runner 的容器網路不可達(T93、T106),apt 這條路在這個環境不可靠。
+# `tzdata` 這個 PyPI 套件是 CPython 官方文件對這個情境的建議解法——
+# 純資料、無編譯、走 wheel,`zoneinfo` 本身設計成找不到系統資料庫時
+# 會自動退而找它。不是新增一個時區函式庫,`zoneinfo` 仍是標準庫。
+tzdata>=2025.2

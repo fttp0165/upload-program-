@@ -29,8 +29,9 @@
           <a class="project-name" href="{{ url('/issues/' ~ issue.id) }}">{{ issue.title }}</a>
           <span class="badge badge-{{ issue.status.value }}">{{ status_labels[issue.status] }}</span>
         </div>
-        <p class="muted">
-          回報於 {{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}
+        {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+        <p class="muted" title="{{ issue.created_at.isoformat(timespec='seconds') }}">
+          回報於 {{ issue.created_at | taipei_time }}
           · 版本 v{{ issue.app_version or '—' }}
           · 回覆 {{ issue.comments | length }}
         </p>

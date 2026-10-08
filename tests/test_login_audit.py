@@ -16,6 +16,7 @@ import pytest
 from fastapi.responses import Response
 from sqlalchemy import select
 
+from app.clock import taipei
 from app.models import AuditEvent, UserStatus
 from app.oidc import Discovery, OidcClient
 from app.session import LoginState
@@ -136,7 +137,15 @@ async def test_後台使用者頁顯示最後登入時間(client, app, oidc, adm
         refreshed = await session.get(type(user), user.id)
         stamp = refreshed.last_login_at
     assert stamp is not None
-    assert stamp.strftime("%Y-%m-%d") in page.text, "後台看不到最後登入時間"
+    # ⚠ T146 改動(依 CI 紅線說明,不是放水):原本斷言 `stamp.strftime("%Y-%m-%d")`
+    # (= UTC 的日期)要出現在頁面裡——那個斷言的前提正是 T146 要修的 bug
+    # (「畫面顯示 = 裸 UTC」)。T146 之後畫面顯示台北時間,在 UTC
+    # 16:00–23:59:59 執行這條測試時台北已經是隔天,斷言會變成看執行時刻
+    # 決定過不過的 flaky 測試,且修正顯示之後它測的東西本身就錯了。
+    # 改成比對**換算後**的日期——它要守的「後台看得到最後登入時間」沒有變,
+    # 變的只是「畫面上那個日期字串現在怎麼算」,兩邊用同一份 `taipei()`
+    # 就不會因為執行時刻而分岔。
+    assert taipei(stamp).strftime("%Y-%m-%d") in page.text, "後台看不到最後登入時間"
 
 
 async def test_從未登入的帳號顯示從未登入(client, app, oidc, admin_user):

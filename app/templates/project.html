@@ -52,7 +52,10 @@
     {% if release %}
       <p class="release-head">
         <span class="release-version">{{ release.version }}</span>
-        <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        {# T146:人看的是台北時間,原始 UTC 值留在 title(沿用 T144 的規矩:
+           人看的換算過,要對照原始值的人 hover 就有)。 #}
+        <span class="muted" title="{{ release.published_at.isoformat(timespec='seconds') }}">
+          發布於 {{ release.published_at | taipei_time }}</span>
       </p>
       {% if release.notes %}<p class="release-notes">{{ release.notes }}</p>{% endif %}
 
@@ -292,8 +295,11 @@
         <progress class="{{ 'quota-warn' if quota_bytes and project.total_bytes >= quota_bytes * 0.8 else '' }}"
                   value="{{ project.total_bytes }}" max="{{ quota_bytes }}"></progress>
       </dd>
-      <dt>建立時間</dt><dd>{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-      <dt>最後更新</dt><dd>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+      {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+      <dt>建立時間</dt>
+      <dd title="{{ project.created_at.isoformat(timespec='seconds') }}">{{ project.created_at | taipei_time }}</dd>
+      <dt>最後更新</dt>
+      <dd title="{{ project.updated_at.isoformat(timespec='seconds') }}">{{ project.updated_at | taipei_time }}</dd>
     </dl>
   </section>
   </div>
@@ -315,7 +321,8 @@
             <p class="comment-head">
               {# 顯示識別碼不是名字——契約 §4.2a L1(與專案資訊的擁有者同一個處境)。 #}
               <strong>{{ comment_label(comment) }}</strong>
-              <span class="muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              <span class="muted" title="{{ comment.created_at.isoformat(timespec='seconds') }}">
+                {{ comment.created_at | taipei_time }}</span>
               {# 🔴 只有留言者本人與平台管理員看得到刪除鈕。**專案擁有者沒有**——
                  擁有者若能刪掉別人的評語,這裡就只會剩下好話,而一個只留得住
                  讚美的回饋區比沒有回饋區更糟。伺服器端同樣擋(表單可以偽造)。 #}

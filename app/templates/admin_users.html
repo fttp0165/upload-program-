@@ -50,7 +50,9 @@
           <span class="badge badge-warn">待開通</span>
           {# 名字空白時,管理員唯一還能對上的線索是「剛剛誰跟我說他申請了」。
              時間不是個資,不動任何紅線。 #}
-          <span class="muted">申請於 {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+          <span class="muted" title="{{ user.created_at.isoformat(timespec='seconds') }}">
+            申請於 {{ user.created_at | taipei_time }}</span>
           <form method="post" action="{{ url('/admin/users/' ~ user.id ~ '/activate') }}">
             <button class="btn" type="submit">開通</button>
           </form>
@@ -82,7 +84,9 @@
              🔴 沒有值時明寫「從未登入」而不是留白——空白與「沒顯示」在畫面上
              長得一樣,而「這個帳號從來沒人用過」是開通後最該被看見的事實。 #}
           {% if user.last_login_at %}
-            <span class="muted">最後登入 {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+            <span class="muted" title="{{ user.last_login_at.isoformat(timespec='seconds') }}">
+              最後登入 {{ user.last_login_at | taipei_time }}</span>
           {% else %}
             <span class="muted">從未登入</span>
           {% endif %}

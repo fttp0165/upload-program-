@@ -63,7 +63,9 @@
                 <span class="badge badge-warn">待審核</span>
                 <span class="muted">已送出,等管理員核准後其他人才下載得到</span>
               {% else %}
-                <span class="muted">發布於 {{ release.published_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                {# T146:畫面顯示台北時間,原始 UTC 值留在 title。 #}
+                <span class="muted" title="{{ release.published_at.isoformat(timespec='seconds') }}">
+                  發布於 {{ release.published_at | taipei_time }}</span>
               {% endif %}
               {# T106:只算上傳成功的 —— 寫「4 個檔案」卻只列 3 個,讀的人會以為頁面壞了。 #}
               <span class="muted">{{ ready_artifacts(release) | length }} 個檔案</span>

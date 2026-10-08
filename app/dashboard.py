@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .clock import aware as _aware
 from .config import Settings
 from .models import (
     Artifact,
@@ -308,13 +309,10 @@ async def collect_todos(session: AsyncSession, settings: Settings) -> Todos:
     )
 
 
-def _aware(value: datetime) -> datetime:
-    """把可能沒有時區的 datetime 補成 UTC。
-
-    SQLite(測試)不保存時區,PostgreSQL(正式)保存;相減時混用會 TypeError,
-    而那會讓整個管理頁 500——這種環境差異要在讀取端一次收掉。
-    """
-    return value if value.tzinfo else value.replace(tzinfo=UTC)
+# 🔴 T146:`_aware()` 原本定義在這裡,現在是 `app.clock.aware` 的別名
+# (見檔案頂部的 import)。單一真相:`templating.py` 的台北時區換算也要補
+# 同一種時區缺口,兩邊各自補一份遲早有一邊漏掉。這裡留下 `_aware` 這個
+# 名字不改,是為了不去動下面兩處呼叫點、把 diff 降到最小。
 
 
 def human_bytes(value: int) -> str:
